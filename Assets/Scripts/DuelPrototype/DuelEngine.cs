@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace IcarusGame.DuelPrototype
 {
-    public sealed class DuelEngine
+    public sealed partial class DuelEngine
     {
         public const int ZoneCount = DuelPlayerState.ZoneCount;
 
@@ -18,15 +18,15 @@ namespace IcarusGame.DuelPrototype
         public string WinnerText { get; private set; }
         public readonly List<string> Log = new List<string>();
 
-        public void StartNewDuel(IList<DuelCardDefinition> starterDeck = null)
+        public void StartNewDuel(IList<DuelCardDefinition> playerDeck = null, IList<DuelCardDefinition> opponentDeck = null)
         {
             IsGameOver = false;
             WinnerText = string.Empty;
             TurnNumber = 0;
             Log.Clear();
 
-            Player = BuildPlayer(DuelPlayerId.Player, "Speler", starterDeck);
-            Opponent = BuildPlayer(DuelPlayerId.Opponent, "Tegenstander", starterDeck);
+            Player = BuildPlayer(DuelPlayerId.Player, "Speler", playerDeck);
+            Opponent = BuildPlayer(DuelPlayerId.Opponent, "Tegenstander", opponentDeck ?? playerDeck);
 
             Shuffle(Player.Deck);
             Shuffle(Opponent.Deck);
@@ -88,8 +88,8 @@ namespace IcarusGame.DuelPrototype
                 case DuelPhase.Main1:
                     if (TurnNumber == 1)
                     {
-                        AddLog("Battle Phase overgeslagen: regel voor de eerste beurt.");
-                        EnterPhase(DuelPhase.Main2);
+                        AddLog("Battle Phase en Main Phase 2 overgeslagen: de eerste speler mag in de eerste beurt geen Battle Phase voeren.");
+                        EnterPhase(DuelPhase.End);
                     }
                     else
                     {
@@ -103,6 +103,7 @@ namespace IcarusGame.DuelPrototype
                     EnterPhase(DuelPhase.End);
                     break;
                 case DuelPhase.End:
+                    ResolveEndPhase(GetActivePlayer());
                     BeginTurn(OtherPlayer(ActivePlayerId));
                     break;
                 default:
@@ -165,7 +166,12 @@ namespace IcarusGame.DuelPrototype
             }
 
             DuelCard card = player.Hand[handIndex];
-            return card.Definition.Kind != DuelCardKind.Monster && FirstEmptyZone(player.SpellTrapZones) >= 0;
+            if (card.Definition.Kind == DuelCardKind.Monster)
+            {
+                return false;
+            }
+
+            return card.Definition.IsFieldSpell || FirstEmptyZone(player.SpellTrapZones) >= 0;
         }
 
         public bool SetSpellTrapFromHand(int handIndex)
@@ -177,6 +183,14 @@ namespace IcarusGame.DuelPrototype
 
             DuelPlayerState player = GetActivePlayer();
             DuelCard card = player.Hand[handIndex];
+            if (card.Definition.IsFieldSpell)
+            {
+                player.Hand.RemoveAt(handIndex);
+                PlaceInFieldZone(player, card, true);
+                AddLog(player.Name + " zet een Field Spell face-down in de Field Zone.");
+                return true;
+            }
+
             int zone = FirstEmptyZone(player.SpellTrapZones);
             player.Hand.RemoveAt(handIndex);
             card.IsFaceDown = true;
@@ -210,7 +224,7 @@ namespace IcarusGame.DuelPrototype
                 return false;
             }
 
-            return FirstEmptyZone(player.SpellTrapZones) >= 0;
+            return card.Definition.IsFieldSpell || FirstEmptyZone(player.SpellTrapZones) >= 0;
         }
 
         public bool ActivateSpellFromHand(int handIndex)
@@ -222,6 +236,16 @@ namespace IcarusGame.DuelPrototype
 
             DuelPlayerState player = GetActivePlayer();
             DuelCard card = player.Hand[handIndex];
+            if (card.Definition.IsFieldSpell)
+            {
+                player.Hand.RemoveAt(handIndex);
+                PlaceInFieldZone(player, card, false);
+                AddLog("Chain Link 1 (Spell Speed " + SpellSpeed(card) + "): " + player.Name + " activeert Field Spell " + card.Definition.Name + ".");
+                ResolveEffect(card, player, null);
+                AddLog(card.Definition.Name + " blijft face-up in de Field Zone.");
+                return true;
+            }
+
             bool staysOnField = StaysOnFieldAfterActivation(card);
             int zone = FirstEmptyZone(player.SpellTrapZones);
             player.Hand.RemoveAt(handIndex);
@@ -251,34 +275,7 @@ namespace IcarusGame.DuelPrototype
                 return false;
             }
 
-            DuelPlayerState player = GetActivePlayer();
-            if (!IsValidZoneIndex(zoneIndex))
-            {
-                return false;
-            }
-
-            DuelCard card = player.SpellTrapZones[zoneIndex];
-            if (card == null)
-            {
-                return false;
-            }
-
-            if (!card.IsFaceDown)
-            {
-                return false;
-            }
-
-            if (card.Definition.Kind == DuelCardKind.Trap && card.SetTurn >= TurnNumber)
-            {
-                return false;
-            }
-
-            if (card.Definition.IsQuickPlaySpell && card.SetTurn >= TurnNumber)
-            {
-                return false;
-            }
-
-            return card.Definition.Kind == DuelCardKind.Spell && CanActivateSpellInCurrentPhase(card);
+            return CanActivateSetSpellTrapFor(GetActivePlayer(), zoneIndex);
         }
 
         public bool ActivateSetSpellTrap(int zoneIndex)
@@ -288,26 +285,35 @@ namespace IcarusGame.DuelPrototype
                 return false;
             }
 
-            DuelPlayerState player = GetActivePlayer();
-            DuelCard card = player.SpellTrapZones[zoneIndex];
-            bool staysOnField = StaysOnFieldAfterActivation(card);
-            if (!staysOnField)
+            return ActivateSetSpellTrapFor(GetActivePlayer(), zoneIndex);
+        }
+
+        public bool CanActivateFieldZone()
+        {
+            if (!CanPlayerAct())
             {
-                player.SpellTrapZones[zoneIndex] = null;
+                return false;
             }
 
+            DuelCard card = Player.FieldZone;
+            return card != null &&
+                   card.IsFaceDown &&
+                   card.Definition.Kind == DuelCardKind.Spell &&
+                   CanActivateSpellInCurrentPhase(card);
+        }
+
+        public bool ActivateFieldZone()
+        {
+            if (!CanActivateFieldZone())
+            {
+                return false;
+            }
+
+            DuelCard card = Player.FieldZone;
             card.IsFaceDown = false;
-            AddLog("Chain Link 1 (Spell Speed " + SpellSpeed(card) + "): " + player.Name + " activeert " + card.Definition.Name + ".");
-            ResolveEffect(card, player, null);
-            if (staysOnField)
-            {
-                AddLog(card.Definition.Name + " blijft face-up in de Spell/Trap Zone.");
-            }
-            else
-            {
-                SendToGraveyard(player, card);
-            }
-
+            AddLog("Chain Link 1 (Spell Speed " + SpellSpeed(card) + "): " + Player.Name + " activeert Field Spell " + card.Definition.Name + ".");
+            ResolveEffect(card, Player, null);
+            AddLog(card.Definition.Name + " blijft face-up in de Field Zone.");
             return true;
         }
 
@@ -430,6 +436,83 @@ namespace IcarusGame.DuelPrototype
             return true;
         }
 
+        private bool CanActivateSetSpellTrapFor(DuelPlayerState player, int zoneIndex)
+        {
+            if (player == null || !IsValidZoneIndex(zoneIndex))
+            {
+                return false;
+            }
+
+            DuelCard card = player.SpellTrapZones[zoneIndex];
+            if (card == null || !card.IsFaceDown)
+            {
+                return false;
+            }
+
+            if (card.Definition.Kind == DuelCardKind.Trap && card.SetTurn >= TurnNumber)
+            {
+                return false;
+            }
+
+            if (card.Definition.IsQuickPlaySpell && card.SetTurn >= TurnNumber)
+            {
+                return false;
+            }
+
+            if (card.Definition.Kind == DuelCardKind.Spell)
+            {
+                return CanActivateSpellInCurrentPhase(card);
+            }
+
+            return card.Definition.Kind == DuelCardKind.Trap &&
+                   card.Definition.IsContinuousCard &&
+                   IsMainPhase();
+        }
+
+        private bool ActivateSetSpellTrapFor(DuelPlayerState player, int zoneIndex)
+        {
+            if (!CanActivateSetSpellTrapFor(player, zoneIndex))
+            {
+                return false;
+            }
+
+            DuelCard card = player.SpellTrapZones[zoneIndex];
+            bool staysOnField = StaysOnFieldAfterActivation(card);
+            if (!staysOnField)
+            {
+                player.SpellTrapZones[zoneIndex] = null;
+            }
+
+            card.IsFaceDown = false;
+            AddLog("Chain Link 1 (Spell Speed " + SpellSpeed(card) + "): " + player.Name + " activeert " + card.Definition.Name + ".");
+            ResolveEffect(card, player, null);
+            if (staysOnField)
+            {
+                AddLog(card.Definition.Name + " blijft face-up in de Spell/Trap Zone.");
+            }
+            else
+            {
+                SendToGraveyard(player, card);
+            }
+
+            return true;
+        }
+
+        private void PlaceInFieldZone(DuelPlayerState player, DuelCard card, bool faceDown)
+        {
+            if (player.FieldZone != null)
+            {
+                DuelCard previous = player.FieldZone;
+                player.FieldZone = null;
+                SendToGraveyard(player, previous);
+                AddLog(player.Name + " stuurt de vorige Field Spell naar de Graveyard om een nieuwe Field Spell te gebruiken.");
+            }
+
+            card.IsFaceDown = faceDown;
+            card.SetTurn = TurnNumber;
+            player.FieldZone = card;
+        }
+
         public bool CanFlipSummonPlayerMonster(int zoneIndex)
         {
             if (!CanPlayerAct() || !IsMainPhase() || !IsValidZoneIndex(zoneIndex))
@@ -470,9 +553,11 @@ namespace IcarusGame.DuelPrototype
 
             DuelPlayerState opponent = Opponent;
             ActivateBestOpponentSpell(opponent);
+            ActivateBestOpponentSetSpellTrap(opponent);
             SetFirstOpponentTrap(opponent);
             SummonBestOpponentMonster(opponent);
             ActivateBestOpponentSpell(opponent);
+            ActivateBestOpponentSetSpellTrap(opponent);
         }
 
         public void RunOpponentBattlePhase()
@@ -544,13 +629,19 @@ namespace IcarusGame.DuelPrototype
             else if (phase == DuelPhase.Standby)
             {
                 AddLog("Standby timing verwerkt.");
+                ApplyContinuousStandbyEffects(GetActivePlayer());
             }
             else if (phase == DuelPhase.End)
             {
-                ExpireTemporaryEffects(GetActivePlayer());
-                ApplyHandSizeLimit(GetActivePlayer());
-                AddLog("End Phase effecten en tijdelijke boosts verlopen.");
+                AddLog("End Phase: effecten die in deze fase afgaan kunnen nu resolven.");
             }
+        }
+
+        private void ResolveEndPhase(DuelPlayerState player)
+        {
+            ExpireTemporaryEffects(player);
+            ApplyHandSizeLimit(player);
+            AddLog("Einde van de End Phase: tijdelijke boosts verlopen en handlimiet wordt toegepast.");
         }
 
         private bool CanNormalSummon(DuelPlayerState player, int handIndex, bool setDefense)
@@ -576,7 +667,7 @@ namespace IcarusGame.DuelPrototype
                 return false;
             }
 
-            return CountMonsters(player) >= TributeCount(card.Definition.Level);
+            return CountMonsters(player) >= RequiredTributeCount(player, card);
         }
 
         private bool NormalSummon(DuelPlayerState player, int handIndex, bool setDefense)
@@ -587,7 +678,7 @@ namespace IcarusGame.DuelPrototype
             }
 
             DuelCard card = player.Hand[handIndex];
-            int tributeCount = TributeCount(card.Definition.Level);
+            int tributeCount = RequiredTributeCount(player, card);
             player.Hand.RemoveAt(handIndex);
 
             if (tributeCount > 0)
@@ -606,6 +697,11 @@ namespace IcarusGame.DuelPrototype
 
             string action = setDefense ? "zet een monster in verdedigingspositie" : "normal summont";
             AddLog(player.Name + " " + action + ": " + (setDefense ? "Face-down monster" : card.Definition.Name) + ".");
+            if (CanNormalSummonWithoutTributeByCardText(player, card))
+            {
+                AddLog(card.Definition.Name + " gebruikt zijn kaarttekst en heeft geen tribute nodig.");
+            }
+
             return true;
         }
 
@@ -633,6 +729,12 @@ namespace IcarusGame.DuelPrototype
             }
             else
             {
+                if (attacker.CurrentAttack == 0 && defender.CurrentAttack == 0)
+                {
+                    AddLog("Beide monsters hebben 0 ATK: volgens de regels wordt geen monster vernietigd.");
+                    return;
+                }
+
                 DestroyMonster(attackerPlayer, attackerZone);
                 DestroyMonster(defenderPlayer, defenderZone);
                 AddLog("Gelijke ATK: beide monsters worden vernietigd.");
@@ -684,6 +786,13 @@ namespace IcarusGame.DuelPrototype
             AddLog("Chain Link 2 (Spell Speed " + SpellSpeed(trap) + "): " + defender.Name + " activeert trap " + trap.Definition.Name + ".");
             AddLog("Chain resolve: chain links lossen achterstevoren op.");
 
+            DuelLuaExecutionResult luaResult;
+            if (TryResolveLuaEffect(trap, defender, attacker.MonsterZones[attackerZone], DuelLuaEvent.AttackTrap, out luaResult))
+            {
+                SendToGraveyard(defender, trap);
+                return luaResult.AttackStopped;
+            }
+
             if (trap.Definition.Effect == DuelEffectKind.DestroyAttacker)
             {
                 DestroyMonster(attacker, attackerZone);
@@ -729,7 +838,8 @@ namespace IcarusGame.DuelPrototype
                 }
 
                 if (trap.Definition.Effect == DuelEffectKind.NegateAttack ||
-                    trap.Definition.Effect == DuelEffectKind.DestroyAttacker)
+                    trap.Definition.Effect == DuelEffectKind.DestroyAttacker ||
+                    HasLuaEffect(trap, DuelLuaEvent.AttackTrap))
                 {
                     return zone;
                 }
@@ -742,6 +852,13 @@ namespace IcarusGame.DuelPrototype
         {
             DuelPlayerState opponent = GetOpponent(controller.Id);
             AddLog("Chain resolve: " + card.Definition.Name + ".");
+
+            DuelLuaExecutionResult luaResult;
+            if (TryResolveLuaEffect(card, controller, optionalTarget, DuelLuaEvent.Activate, out luaResult))
+            {
+                ResolveSubtypeExtraEffect(card, controller);
+                return;
+            }
 
             switch (card.Definition.Effect)
             {
@@ -772,6 +889,8 @@ namespace IcarusGame.DuelPrototype
                 default:
                     break;
             }
+
+            ResolveSubtypeExtraEffect(card, controller);
         }
 
         private void BoostMonsters(DuelPlayerState player, int amount)
@@ -785,13 +904,76 @@ namespace IcarusGame.DuelPrototype
                     continue;
                 }
 
+                if (monster.IsFaceDown)
+                {
+                    continue;
+                }
+
                 monster.TemporaryAttackBonus += amount;
                 boosted = true;
             }
 
             AddLog(boosted
-                ? player.Name + " geeft eigen monsters +" + amount + " ATK tot de End Phase."
-                : "Er waren geen monsters om te boosten.");
+                ? player.Name + " geeft eigen face-up monsters +" + amount + " ATK tot de End Phase."
+                : "Er waren geen face-up monsters om te boosten.");
+        }
+
+        private void ResolveSubtypeExtraEffect(DuelCard card, DuelPlayerState controller)
+        {
+            if (IsGameOver)
+            {
+                return;
+            }
+
+            if (card.Definition.IsQuickPlaySpell)
+            {
+                AddLog("Quick-Play extra effect: snelle kaart geeft eigen face-up monsters +500 ATK.");
+                BoostMonsters(controller, 500);
+            }
+
+            if (card.Definition.IsContinuousCard)
+            {
+                AddLog("Continuous extra effect: zolang deze kaart face-up blijft, triggert hij in je Standby Phase.");
+            }
+        }
+
+        private void ApplyContinuousStandbyEffects(DuelPlayerState player)
+        {
+            int continuousCount = 0;
+            DuelCard fieldSpell = player.FieldZone;
+            if (fieldSpell != null && !fieldSpell.IsFaceDown)
+            {
+                DuelLuaExecutionResult fieldLuaResult;
+                TryResolveLuaEffect(fieldSpell, player, null, DuelLuaEvent.Standby, out fieldLuaResult);
+            }
+
+            for (int zone = 0; zone < ZoneCount; zone++)
+            {
+                DuelCard card = player.SpellTrapZones[zone];
+                if (card == null || card.IsFaceDown || !card.Definition.IsContinuousCard)
+                {
+                    continue;
+                }
+
+                DuelLuaExecutionResult luaResult;
+                if (TryResolveLuaEffect(card, player, null, DuelLuaEvent.Standby, out luaResult))
+                {
+                    continue;
+                }
+
+                continuousCount++;
+            }
+
+            if (continuousCount == 0)
+            {
+                return;
+            }
+
+            int lifeGain = continuousCount * 300;
+            int attackBoost = continuousCount * 200;
+            player.LifePoints += lifeGain;
+            AddLog("Continuous extra effect: " + player.Name + " krijgt " + lifeGain + " LP van " + continuousCount + " face-up Continuous kaart(en).");
+            BoostMonsters(player, attackBoost);
         }
 
         private void DestroyWeakestMonster(DuelPlayerState player)
@@ -957,7 +1139,7 @@ namespace IcarusGame.DuelPrototype
         {
             if (card.Definition.IsQuickPlaySpell)
             {
-                return IsMainPhase() || CurrentPhase == DuelPhase.Battle;
+                return true;
             }
 
             return IsMainPhase();
@@ -1003,6 +1185,35 @@ namespace IcarusGame.DuelPrototype
             }
 
             return 2;
+        }
+
+        private int RequiredTributeCount(DuelPlayerState player, DuelCard card)
+        {
+            return CanNormalSummonWithoutTributeByCardText(player, card)
+                ? 0
+                : TributeCount(card.Definition.Level);
+        }
+
+        private bool CanNormalSummonWithoutTributeByCardText(DuelPlayerState player, DuelCard card)
+        {
+            if (player == null || card == null || !card.IsMonster)
+            {
+                return false;
+            }
+
+            string rulesText = card.Definition.RulesText ?? string.Empty;
+            if (rulesText.IndexOf("Normal Summon this card without Tributing", StringComparison.OrdinalIgnoreCase) < 0 &&
+                rulesText.IndexOf("Normal Summon/Set this card without Tributing", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                return false;
+            }
+
+            if (rulesText.IndexOf("opponent has 2 or more cards in their hand", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return GetOpponent(player.Id).Hand.Count >= 2;
+            }
+
+            return true;
         }
 
         private void TributeFirstMonsters(DuelPlayerState player, int count)
@@ -1119,6 +1330,9 @@ namespace IcarusGame.DuelPrototype
             AddDeckCopies(player.Deck, Monster("Steenwachter", 4, 1300, 2100, "Sterke verdediging voor DEF-gevechten."), 3);
             AddDeckCopies(player.Deck, Monster("Vonkdraak", 4, 1600, 1000, "Snel aanvallend monster."), 3);
             AddDeckCopies(player.Deck, Monster("Kristalwijze", 4, 1500, 1500, "Gebalanceerd monster."), 2);
+            AddDeckCopies(player.Deck, Monster("Maanwachter", 4, 1700, 1300, "Extra Level 4 monster voor een rulebook-legaal Main Deck."), 3);
+            AddDeckCopies(player.Deck, Monster("Stormsoldaat", 4, 1900, 900, "Aanvallend Level 4 monster."), 3);
+            AddDeckCopies(player.Deck, Monster("Rode Wachter", 4, 1400, 1800, "Verdedigend Level 4 monster."), 2);
             AddDeckCopies(player.Deck, Monster("Zonnepaladijn", 5, 2100, 1600, "Level 5: vereist 1 tribute."), 2);
             AddDeckCopies(player.Deck, Monster("Klokridder", 6, 2300, 1500, "Level 6: vereist 1 tribute."), 1);
             AddDeckCopies(player.Deck, Monster("Azuren Titan", 7, 2600, 2100, "Level 7: vereist 2 tributes."), 1);
@@ -1128,9 +1342,11 @@ namespace IcarusGame.DuelPrototype
             AddDeckCopies(player.Deck, Spell("Strijdbanier", DuelEffectKind.BoostOwnMonsters, 500, "Eigen monsters krijgen +500 ATK tot de End Phase."), 2);
             AddDeckCopies(player.Deck, Spell("Zuiverende Bliksem", DuelEffectKind.DestroyWeakestOpponentMonster, 0, "Vernietig het zwakste monster van de tegenstander."), 1);
             AddDeckCopies(player.Deck, Spell("Herstelritueel", DuelEffectKind.GainLife, 1200, "Krijg 1200 LP."), 1);
+            AddDeckCopies(player.Deck, Spell("Tactische Trek", DuelEffectKind.DrawCards, 1, "Trek 1 kaart."), 2);
 
             AddDeckCopies(player.Deck, Trap("Wachtzegel", DuelEffectKind.NegateAttack, 0, "Negate een aanval na minimaal 1 beurt gezet te zijn."), 2);
             AddDeckCopies(player.Deck, Trap("Breukval", DuelEffectKind.DestroyAttacker, 0, "Vernietig een aanvallend monster na minimaal 1 beurt gezet te zijn."), 2);
+            AddDeckCopies(player.Deck, Trap("Verdedigingsval", DuelEffectKind.NegateAttack, 0, "Negate een aanval na minimaal 1 beurt gezet te zijn."), 3);
 
             return player;
         }
@@ -1189,6 +1405,16 @@ namespace IcarusGame.DuelPrototype
                     continue;
                 }
 
+                if (card.Definition.IsFieldSpell)
+                {
+                    opponent.Hand.RemoveAt(i);
+                    PlaceInFieldZone(opponent, card, false);
+                    AddLog("Chain Link 1 (Spell Speed " + SpellSpeed(card) + "): " + opponent.Name + " activeert Field Spell " + card.Definition.Name + ".");
+                    ResolveEffect(card, opponent, null);
+                    AddLog(card.Definition.Name + " blijft face-up in de Field Zone.");
+                    return;
+                }
+
                 bool staysOnField = StaysOnFieldAfterActivation(card);
                 int zone = FirstEmptyZone(opponent.SpellTrapZones);
                 if (zone < 0)
@@ -1214,6 +1440,38 @@ namespace IcarusGame.DuelPrototype
                 }
 
                 return;
+            }
+        }
+
+        private void ActivateBestOpponentSetSpellTrap(DuelPlayerState opponent)
+        {
+            for (int zone = 0; zone < ZoneCount; zone++)
+            {
+                DuelCard card = opponent.SpellTrapZones[zone];
+                if (card == null)
+                {
+                    continue;
+                }
+
+                if (!card.Definition.IsContinuousCard && !card.Definition.IsQuickPlaySpell)
+                {
+                    continue;
+                }
+
+                if (card.Definition.Effect == DuelEffectKind.DestroyWeakestOpponentMonster && CountMonsters(Player) == 0)
+                {
+                    continue;
+                }
+
+                if (card.Definition.Effect == DuelEffectKind.BoostOwnMonsters && CountMonsters(opponent) == 0)
+                {
+                    continue;
+                }
+
+                if (ActivateSetSpellTrapFor(opponent, zone))
+                {
+                    return;
+                }
             }
         }
 

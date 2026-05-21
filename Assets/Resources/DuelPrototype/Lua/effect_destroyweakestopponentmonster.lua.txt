@@ -1,0 +1,5 @@
+-- effect: DestroyWeakestOpponentMonster
+
+function on_activate(ctx)
+    ctx:destroy_weakest("opponent")
+end

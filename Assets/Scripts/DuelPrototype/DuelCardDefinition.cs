@@ -135,12 +135,21 @@ namespace IcarusGame.DuelPrototype
             get { return Kind == DuelCardKind.Spell && ContainsCardType("Equip"); }
         }
 
+        public bool IsContinuousCard
+        {
+            get
+            {
+                return (Kind == DuelCardKind.Spell || Kind == DuelCardKind.Trap) &&
+                       ContainsCardType("Continuous");
+            }
+        }
+
         public bool IsContinuousSpellOrTrap
         {
             get
             {
                 return (Kind == DuelCardKind.Spell || Kind == DuelCardKind.Trap) &&
-                       (ContainsCardType("Continuous") || IsFieldSpell || IsEquipSpell);
+                       (IsContinuousCard || IsFieldSpell || IsEquipSpell);
             }
         }
 
@@ -235,6 +244,7 @@ namespace IcarusGame.DuelPrototype
         public readonly List<DuelCard> Hand = new List<DuelCard>();
         public readonly DuelCard[] MonsterZones = new DuelCard[ZoneCount];
         public readonly DuelCard[] SpellTrapZones = new DuelCard[ZoneCount];
+        public DuelCard FieldZone { get; set; }
         public readonly List<DuelCard> Graveyard = new List<DuelCard>();
         public readonly List<DuelCard> Banished = new List<DuelCard>();
     }

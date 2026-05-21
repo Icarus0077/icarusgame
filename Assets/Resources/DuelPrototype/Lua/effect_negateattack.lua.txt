@@ -1,0 +1,5 @@
+-- effect: NegateAttack
+
+function on_attack_trap(ctx)
+    ctx:negate_attack()
+end

@@ -1,0 +1,5 @@
+-- effect: DealDamage
+
+function on_activate(ctx)
+    ctx:deal_damage("opponent", ctx.effect_value)
+end

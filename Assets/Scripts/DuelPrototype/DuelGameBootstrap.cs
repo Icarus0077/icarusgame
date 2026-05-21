@@ -15,8 +15,8 @@ namespace IcarusGame.DuelPrototype
     {
         private const float CardPortraitAspectRatio = 421f / 614f;
 
-        private readonly Color arenaBackground = new Color(0.035f, 0.045f, 0.06f, 1f);
-        private readonly Color boardPanel = new Color(0.08f, 0.12f, 0.15f, 0.98f);
+        private readonly Color arenaBackground = new Color(0.035f, 0.045f, 0.06f, 0.72f);
+        private readonly Color boardPanel = new Color(0.08f, 0.12f, 0.15f, 0.66f);
         private readonly Color zoneEmpty = new Color(0.11f, 0.16f, 0.19f, 0.95f);
         private readonly Color monsterColor = new Color(0.42f, 0.27f, 0.13f, 1f);
         private readonly Color spellColor = new Color(0.08f, 0.36f, 0.32f, 1f);
@@ -52,20 +52,82 @@ namespace IcarusGame.DuelPrototype
         private int selectedHandIndex = -1;
         private int selectedMonsterZone = -1;
         private int selectedSpellZone = -1;
+        private bool selectedFieldZone;
         private bool opponentRoutineRunning;
         private bool playerAutoPhaseRoutineRunning;
         private readonly Dictionary<string, Texture2D> imageCache = new Dictionary<string, Texture2D>();
         private readonly HashSet<string> loadingImageUrls = new HashSet<string>();
         private readonly HashSet<string> failedImageUrls = new HashSet<string>();
+        private readonly Dictionary<Collider, ThreeDClickTarget> threeDClickTargets = new Dictionary<Collider, ThreeDClickTarget>();
+
+        private Transform arena3DRoot;
+        private Camera arenaCamera;
+        private TextMesh arenaPhaseText;
+        private ThreeDZoneSlot[] opponentMonster3DSlots;
+        private ThreeDZoneSlot[] opponentSpell3DSlots;
+        private ThreeDZoneSlot[] playerMonster3DSlots;
+        private ThreeDZoneSlot[] playerSpell3DSlots;
+        private ThreeDZoneSlot opponentField3DSlot;
+        private ThreeDZoneSlot playerField3DSlot;
+
+        private sealed class ThreeDZoneSlot
+        {
+            public DuelPlayerId OwnerId;
+            public bool IsMonsterZone;
+            public bool IsFieldZone;
+            public int ZoneIndex;
+            public Renderer ZoneRenderer;
+            public Renderer ZoneCoreRenderer;
+            public Transform CardTransform;
+            public Renderer CardRenderer;
+            public TextMesh CardLabel;
+        }
+
+        private sealed class ThreeDClickTarget
+        {
+            public DuelPlayerId OwnerId;
+            public bool IsMonsterZone;
+            public bool IsFieldZone;
+            public int ZoneIndex;
+        }
 
         private void Awake()
         {
             engine = new DuelEngine();
             EnsureEventSystem();
+            Build3DArena();
             BuildInterface();
-            engine.StartNewDuel(YugiohCardDatabase.BuildStarterDeck());
+            engine.StartNewDuel(YugiohCardDatabase.BuildPlayerDeck(), YugiohCardDatabase.BuildOpponentDeck());
             Refresh();
         }
+
+#if ENABLE_LEGACY_INPUT_MANAGER
+        private void Update()
+        {
+            if (arenaCamera == null || engine == null || EventSystem.current == null)
+            {
+                return;
+            }
+
+            if (!Input.GetMouseButtonDown(0) || EventSystem.current.IsPointerOverGameObject())
+            {
+                return;
+            }
+
+            Ray ray = arenaCamera.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+            if (!Physics.Raycast(ray, out hit, 100f))
+            {
+                return;
+            }
+
+            ThreeDClickTarget target;
+            if (threeDClickTargets.TryGetValue(hit.collider, out target))
+            {
+                Handle3DZoneClick(target);
+            }
+        }
+#endif
 
         private void Refresh()
         {
@@ -80,6 +142,11 @@ namespace IcarusGame.DuelPrototype
                 selectedSpellZone = -1;
             }
 
+            if (selectedFieldZone && engine.Player.FieldZone == null)
+            {
+                selectedFieldZone = false;
+            }
+
             RefreshHeader();
             RefreshPhaseRail();
             RefreshInspector();
@@ -87,6 +154,7 @@ namespace IcarusGame.DuelPrototype
             RefreshHand();
             RefreshActions();
             RefreshLog();
+            Refresh3DArena();
 
             if (engine.ActivePlayerId == DuelPlayerId.Opponent && !engine.IsGameOver && !opponentRoutineRunning)
             {
@@ -266,6 +334,197 @@ namespace IcarusGame.DuelPrototype
                     new Color(0.12f, 0.18f, 0.22f, 0.18f));
                 line.SetAsFirstSibling();
             }
+        }
+
+        private void Build3DArena()
+        {
+            threeDClickTargets.Clear();
+            opponentMonster3DSlots = new ThreeDZoneSlot[DuelEngine.ZoneCount];
+            opponentSpell3DSlots = new ThreeDZoneSlot[DuelEngine.ZoneCount];
+            playerMonster3DSlots = new ThreeDZoneSlot[DuelEngine.ZoneCount];
+            playerSpell3DSlots = new ThreeDZoneSlot[DuelEngine.ZoneCount];
+
+            GameObject rootObject = new GameObject("3D Duel Interface");
+            rootObject.transform.SetParent(transform, false);
+            arena3DRoot = rootObject.transform;
+
+            ConfigureArenaCamera();
+            CreateArenaLights();
+
+            Create3DBox("Duel Table", arena3DRoot, new Vector3(0f, -0.12f, 0f), new Vector3(15.2f, 0.14f, 8.6f), new Color(0.025f, 0.14f, 0.12f, 1f));
+            Create3DBox("Inner Circuit Glass", arena3DRoot, new Vector3(0f, -0.035f, 0f), new Vector3(13.9f, 0.035f, 7.2f), new Color(0.025f, 0.42f, 0.32f, 1f));
+            Create3DBox("Center Line", arena3DRoot, new Vector3(0f, 0.03f, 0f), new Vector3(13.8f, 0.055f, 0.12f), new Color(0.95f, 0.54f, 0.12f, 1f));
+            Create3DBox("Player Rail", arena3DRoot, new Vector3(0f, 0.02f, -3.9f), new Vector3(14.1f, 0.08f, 0.22f), new Color(0.64f, 0.12f, 0.95f, 1f));
+            Create3DBox("Opponent Rail", arena3DRoot, new Vector3(0f, 0.02f, 3.9f), new Vector3(14.1f, 0.08f, 0.22f), new Color(0.95f, 0.25f, 0.08f, 1f));
+            Create3DCylinder("Player Deck Well", arena3DRoot, new Vector3(6.55f, 0.08f, -2.05f), new Vector3(0.65f, 0.08f, 0.65f), new Color(0.06f, 0.08f, 0.13f, 1f));
+            Create3DCylinder("Opponent Deck Well", arena3DRoot, new Vector3(-6.55f, 0.08f, 2.05f), new Vector3(0.65f, 0.08f, 0.65f), new Color(0.06f, 0.08f, 0.13f, 1f));
+
+            TextMesh opponentLabel = Create3DText("3D Opponent Label", arena3DRoot, new Vector3(-6.45f, 0.55f, 3.15f), "TEGENSTANDER", 72, 0.055f, new Color(0.95f, 0.82f, 0.72f, 1f));
+            TextMesh playerLabel = Create3DText("3D Player Label", arena3DRoot, new Vector3(-6.45f, 0.55f, -3.15f), "SPELER", 72, 0.055f, new Color(0.72f, 0.95f, 0.9f, 1f));
+            FaceTextToCamera(opponentLabel);
+            FaceTextToCamera(playerLabel);
+
+            for (int zone = 0; zone < DuelEngine.ZoneCount; zone++)
+            {
+                opponentMonster3DSlots[zone] = Create3DZoneSlot(DuelPlayerId.Opponent, true, zone, 1.35f, "Opponent Monster 3D " + (zone + 1));
+                opponentSpell3DSlots[zone] = Create3DZoneSlot(DuelPlayerId.Opponent, false, zone, 2.72f, "Opponent Spell 3D " + (zone + 1));
+                playerSpell3DSlots[zone] = Create3DZoneSlot(DuelPlayerId.Player, false, zone, -2.72f, "Player Spell 3D " + (zone + 1));
+                playerMonster3DSlots[zone] = Create3DZoneSlot(DuelPlayerId.Player, true, zone, -1.35f, "Player Monster 3D " + (zone + 1));
+            }
+
+            opponentField3DSlot = Create3DZoneSlotAt(DuelPlayerId.Opponent, false, true, -1, -6.45f, 2.72f, "Opponent Field 3D");
+            playerField3DSlot = Create3DZoneSlotAt(DuelPlayerId.Player, false, true, -1, -6.45f, -2.72f, "Player Field 3D");
+
+            arenaPhaseText = Create3DText("3D Phase Banner", arena3DRoot, new Vector3(-2.95f, 1.05f, 0f), string.Empty, 96, 0.06f, new Color(1f, 0.86f, 0.48f, 1f));
+            FaceTextToCamera(arenaPhaseText);
+        }
+
+        private void ConfigureArenaCamera()
+        {
+            arenaCamera = Camera.main;
+            if (arenaCamera == null)
+            {
+                GameObject cameraObject = new GameObject("Duel Arena Camera", typeof(Camera));
+                cameraObject.transform.SetParent(transform, false);
+                arenaCamera = cameraObject.GetComponent<Camera>();
+            }
+
+            arenaCamera.clearFlags = CameraClearFlags.SolidColor;
+            arenaCamera.backgroundColor = new Color(0.015f, 0.02f, 0.03f, 1f);
+            arenaCamera.transform.position = new Vector3(0f, 6.25f, -7.8f);
+            arenaCamera.transform.LookAt(new Vector3(0f, 0f, 0.15f));
+            arenaCamera.fieldOfView = 48f;
+            arenaCamera.nearClipPlane = 0.1f;
+            arenaCamera.farClipPlane = 80f;
+        }
+
+        private void CreateArenaLights()
+        {
+            GameObject keyLightObject = new GameObject("Duel Arena Key Light", typeof(Light));
+            keyLightObject.transform.SetParent(arena3DRoot, false);
+            keyLightObject.transform.rotation = Quaternion.Euler(48f, -24f, 0f);
+            Light keyLight = keyLightObject.GetComponent<Light>();
+            keyLight.type = LightType.Directional;
+            keyLight.intensity = 1.35f;
+            keyLight.color = new Color(1f, 0.96f, 0.88f, 1f);
+
+            GameObject fillLightObject = new GameObject("Duel Arena Fill Light", typeof(Light));
+            fillLightObject.transform.SetParent(arena3DRoot, false);
+            fillLightObject.transform.position = new Vector3(0f, 3.4f, -2.2f);
+            Light fillLight = fillLightObject.GetComponent<Light>();
+            fillLight.type = LightType.Point;
+            fillLight.range = 13f;
+            fillLight.intensity = 1.1f;
+            fillLight.color = new Color(0.45f, 0.72f, 0.92f, 1f);
+        }
+
+        private ThreeDZoneSlot Create3DZoneSlot(DuelPlayerId ownerId, bool isMonsterZone, int zoneIndex, float zPosition, string name)
+        {
+            float xPosition = -4.8f + zoneIndex * 2.4f;
+            return Create3DZoneSlotAt(ownerId, isMonsterZone, false, zoneIndex, xPosition, zPosition, name);
+        }
+
+        private ThreeDZoneSlot Create3DZoneSlotAt(DuelPlayerId ownerId, bool isMonsterZone, bool isFieldZone, int zoneIndex, float xPosition, float zPosition, string name)
+        {
+            GameObject slotRoot = new GameObject(name);
+            slotRoot.transform.SetParent(arena3DRoot, false);
+            slotRoot.transform.localPosition = new Vector3(xPosition, 0f, zPosition);
+
+            Color rimColor = ownerId == DuelPlayerId.Player
+                ? new Color(0.18f, 0.82f, 1f, 1f)
+                : new Color(1f, 0.34f, 0.16f, 1f);
+            Color coreColor = isMonsterZone
+                ? new Color(0.06f, 0.28f, 0.24f, 1f)
+                : new Color(0.1f, 0.18f, 0.29f, 1f);
+
+            GameObject zonePlate = Create3DBox("Zone Plate", slotRoot.transform, Vector3.zero, new Vector3(1.52f, 0.035f, 1.94f), new Color(0.07f, 0.08f, 0.13f, 1f));
+            GameObject zoneBase = Create3DCylinder("Zone Neon Rim", slotRoot.transform, new Vector3(0f, 0.055f, 0f), new Vector3(isFieldZone ? 0.62f : 0.72f, 0.04f, isFieldZone ? 0.62f : 0.72f), rimColor);
+            GameObject zoneCore = Create3DCylinder("Zone Energy Core", slotRoot.transform, new Vector3(0f, 0.105f, 0f), new Vector3(isFieldZone ? 0.42f : 0.48f, 0.035f, isFieldZone ? 0.42f : 0.48f), coreColor);
+            Create3DBox("Zone Top Clamp", slotRoot.transform, new Vector3(0f, 0.13f, 0.9f), new Vector3(0.16f, 0.08f, 0.16f), new Color(0.76f, 0.82f, 0.86f, 1f));
+            Create3DBox("Zone Bottom Clamp", slotRoot.transform, new Vector3(0f, 0.13f, -0.9f), new Vector3(0.16f, 0.08f, 0.16f), new Color(0.76f, 0.82f, 0.86f, 1f));
+            GameObject cardObject = Create3DBox("Card Surface", slotRoot.transform, new Vector3(0f, 0.11f, 0f), new Vector3(1.08f, 0.08f, 1.56f), zoneEmpty);
+            TextMesh cardLabel = Create3DText("3D Card Label", slotRoot.transform, new Vector3(-0.48f, 0.44f, -0.62f), string.Empty, 52, 0.035f, Color.white);
+
+            ThreeDZoneSlot slot = new ThreeDZoneSlot
+            {
+                OwnerId = ownerId,
+                IsMonsterZone = isMonsterZone,
+                IsFieldZone = isFieldZone,
+                ZoneIndex = zoneIndex,
+                ZoneRenderer = zoneBase.GetComponent<Renderer>(),
+                ZoneCoreRenderer = zoneCore.GetComponent<Renderer>(),
+                CardTransform = cardObject.transform,
+                CardRenderer = cardObject.GetComponent<Renderer>(),
+                CardLabel = cardLabel
+            };
+
+            Register3DTarget(zonePlate.GetComponent<Collider>(), ownerId, isMonsterZone, isFieldZone, zoneIndex);
+            Register3DTarget(zoneBase.GetComponent<Collider>(), ownerId, isMonsterZone, isFieldZone, zoneIndex);
+            Register3DTarget(zoneCore.GetComponent<Collider>(), ownerId, isMonsterZone, isFieldZone, zoneIndex);
+            Register3DTarget(cardObject.GetComponent<Collider>(), ownerId, isMonsterZone, isFieldZone, zoneIndex);
+            cardObject.SetActive(false);
+            cardLabel.gameObject.SetActive(false);
+            return slot;
+        }
+
+        private GameObject Create3DBox(string name, Transform parent, Vector3 localPosition, Vector3 localScale, Color color)
+        {
+            GameObject gameObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            gameObject.name = name;
+            gameObject.transform.SetParent(parent, false);
+            gameObject.transform.localPosition = localPosition;
+            gameObject.transform.localScale = localScale;
+            Renderer renderer = gameObject.GetComponent<Renderer>();
+            renderer.material = Create3DMaterial(color);
+            return gameObject;
+        }
+
+        private GameObject Create3DCylinder(string name, Transform parent, Vector3 localPosition, Vector3 localScale, Color color)
+        {
+            GameObject gameObject = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            gameObject.name = name;
+            gameObject.transform.SetParent(parent, false);
+            gameObject.transform.localPosition = localPosition;
+            gameObject.transform.localScale = localScale;
+            Renderer renderer = gameObject.GetComponent<Renderer>();
+            renderer.material = Create3DMaterial(color);
+            return gameObject;
+        }
+
+        private TextMesh Create3DText(string name, Transform parent, Vector3 localPosition, string value, int fontSize, float characterSize, Color color)
+        {
+            GameObject textObject = new GameObject(name, typeof(TextMesh));
+            textObject.transform.SetParent(parent, false);
+            textObject.transform.localPosition = localPosition;
+            TextMesh textMesh = textObject.GetComponent<TextMesh>();
+            textMesh.text = value;
+            textMesh.fontSize = fontSize;
+            textMesh.characterSize = characterSize;
+            textMesh.anchor = TextAnchor.MiddleLeft;
+            textMesh.alignment = TextAlignment.Left;
+            textMesh.color = color;
+            return textMesh;
+        }
+
+        private void Register3DTarget(Collider collider, DuelPlayerId ownerId, bool isMonsterZone, int zoneIndex)
+        {
+            Register3DTarget(collider, ownerId, isMonsterZone, false, zoneIndex);
+        }
+
+        private void Register3DTarget(Collider collider, DuelPlayerId ownerId, bool isMonsterZone, bool isFieldZone, int zoneIndex)
+        {
+            if (collider == null)
+            {
+                return;
+            }
+
+            threeDClickTargets[collider] = new ThreeDClickTarget
+            {
+                OwnerId = ownerId,
+                IsMonsterZone = isMonsterZone,
+                IsFieldZone = isFieldZone,
+                ZoneIndex = zoneIndex
+            };
         }
 
         private void BuildInspector(RectTransform inspector)
@@ -453,6 +712,9 @@ namespace IcarusGame.DuelPrototype
             ClearChildren(playerMonstersRow);
             ClearChildren(playerSpellsRow);
 
+            BuildOpponentFieldZone();
+            BuildPlayerFieldZone();
+
             for (int zone = 0; zone < DuelEngine.ZoneCount; zone++)
             {
                 BuildOpponentMonsterZone(zone);
@@ -477,6 +739,12 @@ namespace IcarusGame.DuelPrototype
             });
         }
 
+        private void BuildOpponentFieldZone()
+        {
+            Button button = CreateCardButton(engine.Opponent.FieldZone, "FIELD", opponentSpellsRow, true, false);
+            button.interactable = false;
+        }
+
         private void BuildOpponentSpellZone(int zone)
         {
             DuelCard card = engine.Opponent.SpellTrapZones[zone];
@@ -495,6 +763,21 @@ namespace IcarusGame.DuelPrototype
                 selectedMonsterZone = selectedMonsterZone == capturedZone ? -1 : capturedZone;
                 selectedHandIndex = -1;
                 selectedSpellZone = -1;
+                selectedFieldZone = false;
+                Refresh();
+            });
+        }
+
+        private void BuildPlayerFieldZone()
+        {
+            Button button = CreateCardButton(engine.Player.FieldZone, "FIELD", playerSpellsRow, true, selectedFieldZone);
+            button.interactable = engine.Player.FieldZone != null && engine.ActivePlayerId == DuelPlayerId.Player && !engine.IsGameOver;
+            button.onClick.AddListener(() =>
+            {
+                selectedFieldZone = !selectedFieldZone;
+                selectedHandIndex = -1;
+                selectedMonsterZone = -1;
+                selectedSpellZone = -1;
                 Refresh();
             });
         }
@@ -510,6 +793,7 @@ namespace IcarusGame.DuelPrototype
                 selectedSpellZone = selectedSpellZone == capturedZone ? -1 : capturedZone;
                 selectedHandIndex = -1;
                 selectedMonsterZone = -1;
+                selectedFieldZone = false;
                 Refresh();
             });
         }
@@ -530,6 +814,7 @@ namespace IcarusGame.DuelPrototype
                     selectedHandIndex = selectedHandIndex == capturedIndex ? -1 : capturedIndex;
                     selectedMonsterZone = -1;
                     selectedSpellZone = -1;
+                    selectedFieldZone = false;
                     Refresh();
                 });
             }
@@ -576,6 +861,12 @@ namespace IcarusGame.DuelPrototype
             if (selectedSpellZone >= 0 && engine.Player.SpellTrapZones[selectedSpellZone] != null)
             {
                 BuildSpellTrapActions();
+                return;
+            }
+
+            if (selectedFieldZone && engine.Player.FieldZone != null)
+            {
+                BuildFieldZoneActions();
                 return;
             }
 
@@ -677,6 +968,179 @@ namespace IcarusGame.DuelPrototype
             CreateButton("Annuleer", actionsRow, ClearSelection, new Color(0.23f, 0.24f, 0.27f, 1f), 115f, 36f);
         }
 
+        private void BuildFieldZoneActions()
+        {
+            Button activate = CreateButton("Activeer Field", actionsRow, () =>
+            {
+                engine.ActivateFieldZone();
+                ClearSelectedIndexes();
+                Refresh();
+            }, new Color(0.46f, 0.34f, 0.14f, 1f), 145f, 36f);
+            activate.interactable = engine.CanActivateFieldZone();
+
+            CreateButton("Annuleer", actionsRow, ClearSelection, new Color(0.23f, 0.24f, 0.27f, 1f), 115f, 36f);
+        }
+
+        private void Refresh3DArena()
+        {
+            if (arena3DRoot == null || playerMonster3DSlots == null)
+            {
+                return;
+            }
+
+            for (int zone = 0; zone < DuelEngine.ZoneCount; zone++)
+            {
+                Refresh3DSlot(opponentMonster3DSlots[zone], engine.Opponent.MonsterZones[zone]);
+                Refresh3DSlot(opponentSpell3DSlots[zone], engine.Opponent.SpellTrapZones[zone]);
+                Refresh3DSlot(playerSpell3DSlots[zone], engine.Player.SpellTrapZones[zone]);
+                Refresh3DSlot(playerMonster3DSlots[zone], engine.Player.MonsterZones[zone]);
+            }
+
+            Refresh3DSlot(opponentField3DSlot, engine.Opponent.FieldZone);
+            Refresh3DSlot(playerField3DSlot, engine.Player.FieldZone);
+
+            if (arenaPhaseText != null)
+            {
+                arenaPhaseText.text = "BEURT " + engine.TurnNumber + "  |  " + engine.GetActivePlayer().Name.ToUpperInvariant() + "  |  " + PhaseShortLabel(engine.CurrentPhase);
+                arenaPhaseText.color = engine.ActivePlayerId == DuelPlayerId.Player
+                    ? new Color(1f, 0.86f, 0.48f, 1f)
+                    : new Color(0.96f, 0.62f, 0.54f, 1f);
+                FaceTextToCamera(arenaPhaseText);
+            }
+        }
+
+        private void Refresh3DSlot(ThreeDZoneSlot slot, DuelCard card)
+        {
+            if (slot == null)
+            {
+                return;
+            }
+
+            bool selected = slot.OwnerId == DuelPlayerId.Player &&
+                            ((slot.IsFieldZone && selectedFieldZone) ||
+                             (slot.IsMonsterZone && selectedMonsterZone == slot.ZoneIndex) ||
+                             (!slot.IsMonsterZone && !slot.IsFieldZone && selectedSpellZone == slot.ZoneIndex));
+            bool targetable = slot.OwnerId == DuelPlayerId.Opponent &&
+                              slot.IsMonsterZone &&
+                              selectedMonsterZone >= 0 &&
+                              engine.CanAttackWithMonster(selectedMonsterZone) &&
+                              card != null;
+
+            Color zoneColor = selected
+                ? selectedColor
+                : targetable
+                    ? new Color(0.64f, 0.18f, 0.13f, 1f)
+                    : slot.OwnerId == DuelPlayerId.Player
+                        ? new Color(0.18f, 0.72f, 0.92f, 1f)
+                        : new Color(0.95f, 0.32f, 0.12f, 1f);
+            SetRendererColor(slot.ZoneRenderer, zoneColor);
+            SetRendererColor(slot.ZoneCoreRenderer, selected || targetable
+                ? new Color(0.75f, 0.92f, 1f, 1f)
+                : slot.IsMonsterZone
+                    ? new Color(0.05f, 0.38f, 0.31f, 1f)
+                    : new Color(0.09f, 0.18f, 0.32f, 1f));
+
+            bool hasCard = card != null;
+            slot.CardTransform.gameObject.SetActive(hasCard);
+            slot.CardLabel.gameObject.SetActive(hasCard);
+            if (!hasCard)
+            {
+                return;
+            }
+
+            bool defensePosition = card.IsMonster && card.Position != MonsterBattlePosition.Attack;
+            slot.CardTransform.localRotation = Quaternion.Euler(0f, defensePosition ? 90f : 0f, 0f);
+            SetRendererTexture(slot.CardRenderer, null);
+            SetRendererColor(slot.CardRenderer, selected ? Lighter(CardColor(card), 0.18f) : CardColor(card));
+
+            if (!card.IsFaceDown && card.Definition.HasImage)
+            {
+                StartCoroutine(LoadCardImage(card.Definition.ImageUrl, slot.CardRenderer));
+            }
+
+            slot.CardLabel.text = Short3DLabel(card);
+            slot.CardLabel.color = selected ? new Color(1f, 0.88f, 0.42f, 1f) : Color.white;
+            FaceTextToCamera(slot.CardLabel);
+        }
+
+        private string Short3DLabel(DuelCard card)
+        {
+            string name = card.PublicName;
+            if (name.Length > 18)
+            {
+                return name.Substring(0, 17) + ".";
+            }
+
+            return name;
+        }
+
+        private void Handle3DZoneClick(ThreeDClickTarget target)
+        {
+            if (engine == null || engine.IsGameOver)
+            {
+                return;
+            }
+
+            if (target.OwnerId == DuelPlayerId.Opponent && target.IsMonsterZone)
+            {
+                DuelCard targetCard = engine.Opponent.MonsterZones[target.ZoneIndex];
+                if (targetCard != null && selectedMonsterZone >= 0 && engine.CanAttackWithMonster(selectedMonsterZone))
+                {
+                    engine.AttackMonster(selectedMonsterZone, target.ZoneIndex);
+                    ClearSelectedIndexes();
+                    Refresh();
+                }
+
+                return;
+            }
+
+            if (target.OwnerId != DuelPlayerId.Player || engine.ActivePlayerId != DuelPlayerId.Player)
+            {
+                return;
+            }
+
+            if (target.IsFieldZone)
+            {
+                if (engine.Player.FieldZone == null)
+                {
+                    return;
+                }
+
+                selectedFieldZone = !selectedFieldZone;
+                selectedHandIndex = -1;
+                selectedMonsterZone = -1;
+                selectedSpellZone = -1;
+                Refresh();
+                return;
+            }
+
+            if (target.IsMonsterZone)
+            {
+                if (engine.Player.MonsterZones[target.ZoneIndex] == null)
+                {
+                    return;
+                }
+
+                selectedMonsterZone = selectedMonsterZone == target.ZoneIndex ? -1 : target.ZoneIndex;
+                selectedHandIndex = -1;
+                selectedSpellZone = -1;
+                selectedFieldZone = false;
+                Refresh();
+                return;
+            }
+
+            if (engine.Player.SpellTrapZones[target.ZoneIndex] == null)
+            {
+                return;
+            }
+
+            selectedSpellZone = selectedSpellZone == target.ZoneIndex ? -1 : target.ZoneIndex;
+            selectedHandIndex = -1;
+            selectedMonsterZone = -1;
+            selectedFieldZone = false;
+            Refresh();
+        }
+
         private void RefreshLog()
         {
             int start = Mathf.Max(0, engine.Log.Count - 15);
@@ -696,6 +1160,11 @@ namespace IcarusGame.DuelPrototype
 
         private DuelCard GetSelectedCard()
         {
+            if (selectedFieldZone)
+            {
+                return engine.Player.FieldZone;
+            }
+
             if (selectedHandIndex >= 0 && selectedHandIndex < engine.Player.Hand.Count)
             {
                 return engine.Player.Hand[selectedHandIndex];
@@ -716,12 +1185,20 @@ namespace IcarusGame.DuelPrototype
 
         private Button CreateCardButton(DuelCard card, string emptyLabel, Transform parent, bool compact, bool selected)
         {
-            Color baseColor = card == null ? zoneEmpty : CardColor(card);
+            bool isFieldSlot = string.Equals(emptyLabel, "FIELD");
+            Color baseColor = card == null ? EmptyZoneColor(compact, isFieldSlot) : CardColor(card);
             Color color = selected ? selectedColor : baseColor;
-            GameObject buttonObject = new GameObject("Card Slot", typeof(RectTransform), typeof(Image), typeof(Button));
+            GameObject buttonObject = new GameObject(card == null ? "Empty Zone Slot" : "Card Slot", typeof(RectTransform), typeof(Image), typeof(Button));
             buttonObject.transform.SetParent(parent, false);
             Image image = buttonObject.GetComponent<Image>();
             image.color = color;
+            Outline outline = buttonObject.AddComponent<Outline>();
+            outline.effectColor = selected
+                ? new Color(1f, 0.78f, 0.24f, 0.95f)
+                : card == null
+                    ? new Color(0.28f, 0.88f, 1f, compact ? 0.28f : 0.34f)
+                    : new Color(1f, 0.62f, 0.18f, 0.55f);
+            outline.effectDistance = selected ? new Vector2(3f, -3f) : new Vector2(1.5f, -1.5f);
 
             Button button = buttonObject.GetComponent<Button>();
             ColorBlock colors = button.colors;
@@ -734,7 +1211,8 @@ namespace IcarusGame.DuelPrototype
 
             AddVertical(buttonObject, 6, 6, 6, 6, 3f);
             float cardHeight = compact ? 68f : 94f;
-            AddLayout(buttonObject, CardWidthForHeight(cardHeight), cardHeight, 0f, 0f);
+            float cardWidth = isFieldSlot ? 76f : CardWidthForHeight(cardHeight);
+            AddLayout(buttonObject, cardWidth, cardHeight, 0f, 0f);
 
             if (card != null && !card.IsFaceDown && card.Definition.HasImage)
             {
@@ -749,22 +1227,34 @@ namespace IcarusGame.DuelPrototype
                 StartCoroutine(LoadCardImage(card.Definition.ImageUrl, cardArt));
             }
 
-            Text nameText = CreateText("Card Name", buttonObject.transform, compact ? 13 : 14, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+            Text nameText = CreateText("Card Name", buttonObject.transform, compact ? 12 : 14, FontStyle.Bold, TextAnchor.MiddleCenter, card == null ? new Color(0.78f, 0.9f, 1f, 0.9f) : Color.white);
             AddLayout(nameText.gameObject, -1f, compact ? 24f : 36f, 0f, 0f);
 
-            Text bodyText = CreateText("Card Body", buttonObject.transform, compact ? 12 : 13, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.92f, 0.94f, 0.96f, 1f));
+            Text bodyText = CreateText("Card Body", buttonObject.transform, compact ? 12 : 13, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.92f, 0.94f, 0.96f, card == null ? 0.35f : 1f));
             AddLayout(bodyText.gameObject, -1f, compact ? 28f : 42f, 1f, 0f);
 
             if (card == null)
             {
-                nameText.text = emptyLabel;
-                bodyText.text = "EMPTY";
+                nameText.text = isFieldSlot ? "FIELD" : emptyLabel;
+                bodyText.text = string.Empty;
                 return button;
             }
 
             nameText.text = CardDisplayName(card, compact);
             bodyText.text = CardBodyText(card, compact);
             return button;
+        }
+
+        private Color EmptyZoneColor(bool compact, bool isFieldSlot)
+        {
+            if (isFieldSlot)
+            {
+                return new Color(0.05f, 0.13f, 0.18f, 0.62f);
+            }
+
+            return compact
+                ? new Color(0.035f, 0.06f, 0.09f, 0.46f)
+                : new Color(0.04f, 0.075f, 0.085f, 0.5f);
         }
 
         private Button CreateButton(string label, Transform parent, UnityEngine.Events.UnityAction onClick, Color color, float width, float height)
@@ -814,6 +1304,85 @@ namespace IcarusGame.DuelPrototype
             fitter.aspectRatio = CardPortraitAspectRatio;
         }
 
+        private Material Create3DMaterial(Color color)
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null)
+            {
+                shader = Shader.Find("Standard");
+            }
+
+            if (shader == null)
+            {
+                shader = Shader.Find("Sprites/Default");
+            }
+
+            Material material = new Material(shader);
+            SetMaterialColor(material, color);
+            return material;
+        }
+
+        private void SetRendererColor(Renderer renderer, Color color)
+        {
+            if (renderer == null)
+            {
+                return;
+            }
+
+            SetMaterialColor(renderer.material, color);
+        }
+
+        private void SetMaterialColor(Material material, Color color)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            if (material.HasProperty("_BaseColor"))
+            {
+                material.SetColor("_BaseColor", color);
+            }
+
+            if (material.HasProperty("_Color"))
+            {
+                material.SetColor("_Color", color);
+            }
+        }
+
+        private void SetRendererTexture(Renderer renderer, Texture texture)
+        {
+            if (renderer == null)
+            {
+                return;
+            }
+
+            Material material = renderer.material;
+            if (material.HasProperty("_BaseMap"))
+            {
+                material.SetTexture("_BaseMap", texture);
+            }
+
+            if (material.HasProperty("_MainTex"))
+            {
+                material.SetTexture("_MainTex", texture);
+            }
+        }
+
+        private void FaceTextToCamera(TextMesh textMesh)
+        {
+            if (textMesh == null || arenaCamera == null)
+            {
+                return;
+            }
+
+            Vector3 directionToCamera = arenaCamera.transform.position - textMesh.transform.position;
+            if (directionToCamera.sqrMagnitude > 0.001f)
+            {
+                textMesh.transform.rotation = Quaternion.LookRotation(directionToCamera);
+            }
+        }
+
         private void RefreshInspectorImage(DuelCard card)
         {
             inspectorArtImage.texture = null;
@@ -837,6 +1406,29 @@ namespace IcarusGame.DuelPrototype
 
         private IEnumerator LoadCardImage(string imageUrl, RawImage target, System.Action onLoaded = null)
         {
+            yield return LoadCardTexture(imageUrl, texture =>
+            {
+                if (target != null)
+                {
+                    target.texture = texture;
+                }
+            }, onLoaded);
+        }
+
+        private IEnumerator LoadCardImage(string imageUrl, Renderer target, System.Action onLoaded = null)
+        {
+            yield return LoadCardTexture(imageUrl, texture =>
+            {
+                if (target != null)
+                {
+                    SetRendererColor(target, Color.white);
+                    SetRendererTexture(target, texture);
+                }
+            }, onLoaded);
+        }
+
+        private IEnumerator LoadCardTexture(string imageUrl, System.Action<Texture2D> onTextureLoaded, System.Action onLoaded)
+        {
             if (string.IsNullOrEmpty(imageUrl) || failedImageUrls.Contains(imageUrl))
             {
                 yield break;
@@ -845,9 +1437,9 @@ namespace IcarusGame.DuelPrototype
             Texture2D cachedTexture;
             if (imageCache.TryGetValue(imageUrl, out cachedTexture))
             {
-                if (target != null)
+                if (onTextureLoaded != null)
                 {
-                    target.texture = cachedTexture;
+                    onTextureLoaded(cachedTexture);
                 }
 
                 if (onLoaded != null)
@@ -865,9 +1457,13 @@ namespace IcarusGame.DuelPrototype
                     yield return null;
                 }
 
-                if (imageCache.TryGetValue(imageUrl, out cachedTexture) && target != null)
+                if (imageCache.TryGetValue(imageUrl, out cachedTexture))
                 {
-                    target.texture = cachedTexture;
+                    if (onTextureLoaded != null)
+                    {
+                        onTextureLoaded(cachedTexture);
+                    }
+
                     if (onLoaded != null)
                     {
                         onLoaded();
@@ -886,9 +1482,9 @@ namespace IcarusGame.DuelPrototype
                 {
                     Texture2D texture = DownloadHandlerTexture.GetContent(request);
                     imageCache[imageUrl] = texture;
-                    if (target != null)
+                    if (onTextureLoaded != null)
                     {
-                        target.texture = texture;
+                        onTextureLoaded(texture);
                     }
 
                     if (onLoaded != null)
@@ -912,7 +1508,7 @@ namespace IcarusGame.DuelPrototype
                 return "AUTOMATISCHE FASE";
             }
 
-            if (selectedHandIndex >= 0 || selectedMonsterZone >= 0 || selectedSpellZone >= 0)
+            if (selectedHandIndex >= 0 || selectedMonsterZone >= 0 || selectedSpellZone >= 0 || selectedFieldZone)
             {
                 return "ACTIE KIEZEN";
             }
@@ -927,9 +1523,40 @@ namespace IcarusGame.DuelPrototype
 
         private bool IsAutomaticPlayerPhase()
         {
-            return engine.CurrentPhase == DuelPhase.Draw ||
-                   engine.CurrentPhase == DuelPhase.Standby ||
-                   engine.CurrentPhase == DuelPhase.End;
+            if (engine.CurrentPhase != DuelPhase.Draw &&
+                engine.CurrentPhase != DuelPhase.Standby &&
+                engine.CurrentPhase != DuelPhase.End)
+            {
+                return false;
+            }
+
+            return !PlayerHasOptionalFastAction();
+        }
+
+        private bool PlayerHasOptionalFastAction()
+        {
+            for (int handIndex = 0; handIndex < engine.Player.Hand.Count; handIndex++)
+            {
+                if (engine.CanActivateSpellFromHand(handIndex))
+                {
+                    return true;
+                }
+            }
+
+            if (engine.CanActivateFieldZone())
+            {
+                return true;
+            }
+
+            for (int zone = 0; zone < DuelEngine.ZoneCount; zone++)
+            {
+                if (engine.CanActivateSetSpellTrap(zone))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private string BuildZoneInfo(DuelPlayerState player)
@@ -937,7 +1564,8 @@ namespace IcarusGame.DuelPrototype
             return "Deck " + player.Deck.Count +
                    "   Hand " + player.Hand.Count +
                    "   GY " + player.Graveyard.Count +
-                   "   Banished " + player.Banished.Count;
+                   "   Banished " + player.Banished.Count +
+                   "   Field " + (player.FieldZone == null ? "0" : "1");
         }
 
         private string BuildDuelOverviewText()
@@ -1006,6 +1634,8 @@ namespace IcarusGame.DuelPrototype
                 builder.Append(card.CurrentAttack);
                 builder.Append(" / DEF ");
                 builder.Append(card.CurrentDefense);
+                builder.AppendLine();
+                builder.Append(BuildTributeRuleText(card.Definition));
             }
 
             if (!string.IsNullOrEmpty(card.Definition.RulesText))
@@ -1013,6 +1643,55 @@ namespace IcarusGame.DuelPrototype
                 builder.AppendLine();
                 builder.AppendLine();
                 builder.Append(NormalizeDisplayedText(card.Definition.RulesText));
+            }
+
+            string prototypeExtraText = BuildPrototypeExtraEffectText(card.Definition);
+            if (!string.IsNullOrEmpty(prototypeExtraText))
+            {
+                builder.AppendLine();
+                builder.AppendLine();
+                builder.Append(prototypeExtraText);
+            }
+
+            return builder.ToString();
+        }
+
+        private string BuildTributeRuleText(DuelCardDefinition definition)
+        {
+            if (definition == null || definition.Kind != DuelCardKind.Monster)
+            {
+                return string.Empty;
+            }
+
+            if (definition.Level <= 4)
+            {
+                return "Summonregel: Level 1-4 heeft geen tribute nodig.";
+            }
+
+            if (definition.Level <= 6)
+            {
+                return "Summonregel: Level 5-6 vereist 1 tribute, tenzij de kaarttekst dit specifiek overschrijft.";
+            }
+
+            return "Summonregel: Level 7 of hoger vereist 2 tributes, tenzij de kaarttekst dit specifiek overschrijft.";
+        }
+
+        private string BuildPrototypeExtraEffectText(DuelCardDefinition definition)
+        {
+            StringBuilder builder = new StringBuilder();
+            if (definition.IsQuickPlaySpell)
+            {
+                builder.Append("Prototype extra effect: bij activatie krijgen je eigen face-up monsters +500 ATK tot de End Phase.");
+            }
+
+            if (definition.IsContinuousCard)
+            {
+                if (builder.Length > 0)
+                {
+                    builder.AppendLine();
+                }
+
+                builder.Append("Prototype extra effect: zolang deze kaart face-up ligt, krijg je in je Standby Phase +300 LP en je eigen face-up monsters +200 ATK tot de End Phase.");
             }
 
             return builder.ToString();
@@ -1204,7 +1883,7 @@ namespace IcarusGame.DuelPrototype
             playerAutoPhaseRoutineRunning = false;
             loadingImageUrls.Clear();
             ClearSelectedIndexes();
-            engine.StartNewDuel(YugiohCardDatabase.BuildStarterDeck());
+            engine.StartNewDuel(YugiohCardDatabase.BuildPlayerDeck(), YugiohCardDatabase.BuildOpponentDeck());
             Refresh();
         }
 
@@ -1219,6 +1898,7 @@ namespace IcarusGame.DuelPrototype
             selectedHandIndex = -1;
             selectedMonsterZone = -1;
             selectedSpellZone = -1;
+            selectedFieldZone = false;
         }
 
         private void EnsureEventSystem()
@@ -1241,7 +1921,9 @@ namespace IcarusGame.DuelPrototype
         {
             GameObject panel = new GameObject(name, typeof(RectTransform), typeof(Image));
             panel.transform.SetParent(parent, false);
-            panel.GetComponent<Image>().color = color;
+            Image image = panel.GetComponent<Image>();
+            image.color = color;
+            image.raycastTarget = false;
             return panel;
         }
 
@@ -1267,6 +1949,7 @@ namespace IcarusGame.DuelPrototype
             text.color = color;
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
             text.verticalOverflow = VerticalWrapMode.Truncate;
+            text.raycastTarget = false;
             return text;
         }
 

@@ -7,15 +7,131 @@ namespace IcarusGame.DuelPrototype
     public static class YugiohCardDatabase
     {
         private const string ResourcePath = "DuelPrototype/yugioh_cards";
+        private const int DeckSize = 40;
+        private const int MaxCopiesPerCard = 3;
+        private const string PlayerTheme = "K9";
+        private const string OpponentTheme = "Six Samurai";
 
         private static readonly List<DuelCardDefinition> cachedCards = new List<DuelCardDefinition>();
         private static bool hasLoaded;
 
         public static List<DuelCardDefinition> BuildStarterDeck()
         {
+            return BuildPlayerDeck();
+        }
+
+        public static List<DuelCardDefinition> BuildPlayerDeck()
+        {
+            return BuildThemeDeck(PlayerTheme, "Nekroz");
+        }
+
+        public static List<DuelCardDefinition> BuildOpponentDeck()
+        {
+            return BuildThemeDeck(OpponentTheme, "Blackwing");
+        }
+
+        private static List<DuelCardDefinition> BuildThemeDeck(string theme, string fallbackTheme)
+        {
             EnsureLoaded();
 
-            List<DuelCardDefinition> deck = new List<DuelCardDefinition>(40);
+            List<DuelCardDefinition> deck = BuildThemeDeckCandidate(theme);
+            if (deck.Count >= DeckSize)
+            {
+                return deck;
+            }
+
+            deck = BuildThemeDeckCandidate(fallbackTheme);
+            if (deck.Count >= DeckSize)
+            {
+                return deck;
+            }
+
+            return BuildBalancedFallbackDeck();
+        }
+
+        private static List<DuelCardDefinition> BuildThemeDeckCandidate(string theme)
+        {
+            List<DuelCardDefinition> deck = new List<DuelCardDefinition>(DeckSize);
+            if (string.IsNullOrEmpty(theme))
+            {
+                return deck;
+            }
+
+            EnsureLoaded();
+            if (cachedCards.Count == 0)
+            {
+                return deck;
+            }
+
+            List<DuelCardDefinition> themeMonsters = new List<DuelCardDefinition>();
+            List<DuelCardDefinition> themeSpellsTraps = new List<DuelCardDefinition>();
+            List<DuelCardDefinition> namedSupport = new List<DuelCardDefinition>();
+
+            for (int i = 0; i < cachedCards.Count; i++)
+            {
+                DuelCardDefinition card = cachedCards[i];
+                if (!IsMainDeckCard(card))
+                {
+                    continue;
+                }
+
+                if (IsThemeCard(card, theme))
+                {
+                    if (card.Kind == DuelCardKind.Monster)
+                    {
+                        themeMonsters.Add(card);
+                    }
+                    else
+                    {
+                        themeSpellsTraps.Add(card);
+                    }
+                }
+                else if (MentionsTheme(card, theme))
+                {
+                    namedSupport.Add(card);
+                }
+            }
+
+            if (themeMonsters.Count == 0)
+            {
+                return deck;
+            }
+
+            SortForDeck(themeMonsters);
+            SortForDeck(themeSpellsTraps);
+            SortForDeck(namedSupport);
+
+            AddCopiesFromCandidates(deck, themeMonsters, Math.Min(24, themeMonsters.Count * MaxCopiesPerCard));
+            AddCopiesFromCandidates(deck, themeSpellsTraps, Math.Min(14, themeSpellsTraps.Count * MaxCopiesPerCard));
+            AddCopiesFromCandidates(deck, namedSupport, 6);
+
+            if (CountInDeck(deck, card => card.Kind == DuelCardKind.Monster) < 20)
+            {
+                AddCopiesFromCards(deck, 20 - CountInDeck(deck, card => card.Kind == DuelCardKind.Monster), card =>
+                    IsLowLevelMonster(card) && !MentionsDifferentTheme(card, theme));
+            }
+
+            if (CountInDeck(deck, card => card.Kind != DuelCardKind.Monster) < 12)
+            {
+                AddCopiesFromCards(deck, 12 - CountInDeck(deck, card => card.Kind != DuelCardKind.Monster), card =>
+                    card.Kind != DuelCardKind.Monster && IsMainDeckCard(card) && !MentionsDifferentTheme(card, theme));
+            }
+
+            if (deck.Count < DeckSize)
+            {
+                AddCopiesFromCards(deck, DeckSize - deck.Count, card =>
+                    IsMainDeckCard(card) && !MentionsDifferentTheme(card, theme));
+            }
+
+            TrimDeck(deck);
+            return deck;
+        }
+
+        private static List<DuelCardDefinition> BuildBalancedFallbackDeck()
+        {
+            EnsureLoaded();
+
+            List<DuelCardDefinition> deck = new List<DuelCardDefinition>(DeckSize);
             if (cachedCards.Count == 0)
             {
                 return deck;
@@ -26,9 +142,9 @@ namespace IcarusGame.DuelPrototype
             AddMatchingCards(deck, 10, card => card.Kind == DuelCardKind.Spell);
             AddMatchingCards(deck, 8, card => card.Kind == DuelCardKind.Trap);
 
-            if (deck.Count < 40)
+            if (deck.Count < DeckSize)
             {
-                AddMatchingCards(deck, 40 - deck.Count, card => true);
+                AddMatchingCards(deck, DeckSize - deck.Count, IsMainDeckCard);
             }
 
             return deck;
@@ -208,6 +324,158 @@ namespace IcarusGame.DuelPrototype
                    !type.Contains("xyz") &&
                    !type.Contains("link") &&
                    !type.Contains("token");
+        }
+
+        private static bool IsMainDeckCard(DuelCardDefinition card)
+        {
+            return card.Kind != DuelCardKind.Monster || IsMainDeckMonster(card);
+        }
+
+        private static bool IsThemeCard(DuelCardDefinition card, string theme)
+        {
+            return string.Equals(card.Archetype, theme, StringComparison.OrdinalIgnoreCase) ||
+                   ContainsIgnoreCase(card.Name, theme);
+        }
+
+        private static bool MentionsTheme(DuelCardDefinition card, string theme)
+        {
+            return ContainsIgnoreCase(card.RulesText, "\"" + theme + "\"") ||
+                   ContainsIgnoreCase(card.RulesText, theme);
+        }
+
+        private static bool MentionsDifferentTheme(DuelCardDefinition card, string theme)
+        {
+            return !string.IsNullOrEmpty(card.Archetype) &&
+                   !string.Equals(card.Archetype, theme, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static void AddCopiesFromCards(List<DuelCardDefinition> deck, int count, Predicate<DuelCardDefinition> predicate)
+        {
+            List<DuelCardDefinition> candidates = new List<DuelCardDefinition>();
+            for (int i = 0; i < cachedCards.Count; i++)
+            {
+                DuelCardDefinition card = cachedCards[i];
+                if (predicate(card))
+                {
+                    candidates.Add(card);
+                }
+            }
+
+            SortForDeck(candidates);
+            AddCopiesFromCandidates(deck, candidates, count);
+        }
+
+        private static void AddCopiesFromCandidates(List<DuelCardDefinition> deck, List<DuelCardDefinition> candidates, int count)
+        {
+            if (count <= 0 || deck.Count >= DeckSize)
+            {
+                return;
+            }
+
+            Dictionary<int, int> copyCounts = BuildCopyCounts(deck);
+            for (int i = 0; i < candidates.Count && count > 0 && deck.Count < DeckSize; i++)
+            {
+                DuelCardDefinition card = candidates[i];
+                int key = CardKey(card);
+                int currentCopies;
+                copyCounts.TryGetValue(key, out currentCopies);
+
+                while (currentCopies < MaxCopiesPerCard && count > 0 && deck.Count < DeckSize)
+                {
+                    deck.Add(card);
+                    currentCopies++;
+                    copyCounts[key] = currentCopies;
+                    count--;
+                }
+            }
+        }
+
+        private static Dictionary<int, int> BuildCopyCounts(List<DuelCardDefinition> deck)
+        {
+            Dictionary<int, int> copyCounts = new Dictionary<int, int>();
+            for (int i = 0; i < deck.Count; i++)
+            {
+                int key = CardKey(deck[i]);
+                int count;
+                copyCounts.TryGetValue(key, out count);
+                copyCounts[key] = count + 1;
+            }
+
+            return copyCounts;
+        }
+
+        private static int CountInDeck(List<DuelCardDefinition> deck, Predicate<DuelCardDefinition> predicate)
+        {
+            int count = 0;
+            for (int i = 0; i < deck.Count; i++)
+            {
+                if (predicate(deck[i]))
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        private static void TrimDeck(List<DuelCardDefinition> deck)
+        {
+            while (deck.Count > DeckSize)
+            {
+                deck.RemoveAt(deck.Count - 1);
+            }
+        }
+
+        private static void SortForDeck(List<DuelCardDefinition> cards)
+        {
+            cards.Sort((left, right) =>
+            {
+                int score = DeckScore(right).CompareTo(DeckScore(left));
+                return score != 0 ? score : string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase);
+            });
+        }
+
+        private static int DeckScore(DuelCardDefinition card)
+        {
+            if (card.Kind == DuelCardKind.Monster)
+            {
+                int score = card.Attack;
+                if (card.Level >= 1 && card.Level <= 4)
+                {
+                    score += 100000;
+                }
+                else if (card.Level <= 6)
+                {
+                    score += 80000;
+                }
+                else
+                {
+                    score += 45000;
+                }
+
+                return score;
+            }
+
+            int supportScore = 60000;
+            if (card.IsQuickPlaySpell || card.IsContinuousSpellOrTrap)
+            {
+                supportScore += 5000;
+            }
+
+            supportScore += Math.Min(4000, card.EffectValue);
+            return supportScore;
+        }
+
+        private static bool ContainsIgnoreCase(string text, string value)
+        {
+            return !string.IsNullOrEmpty(text) &&
+                   !string.IsNullOrEmpty(value) &&
+                   text.IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static int CardKey(DuelCardDefinition card)
+        {
+            return card.DatabaseId != 0 ? card.DatabaseId : card.Name.GetHashCode();
         }
 
         private static void AddMatchingCards(List<DuelCardDefinition> deck, int count, Predicate<DuelCardDefinition> predicate)

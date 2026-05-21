@@ -1,0 +1,5 @@
+-- effect: DestroyAttacker
+
+function on_attack_trap(ctx)
+    ctx:destroy_attacker()
+end
