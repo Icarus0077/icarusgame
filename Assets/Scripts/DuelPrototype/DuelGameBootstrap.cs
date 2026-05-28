@@ -24,6 +24,7 @@ namespace IcarusGame.DuelPrototype
         private readonly Color selectedColor = new Color(0.92f, 0.64f, 0.2f, 1f);
 
         private DuelEngine engine;
+        private DuelUIManager duelUIManager;
         private Font uiFont;
 
         private Text titleText;
@@ -94,10 +95,15 @@ namespace IcarusGame.DuelPrototype
         private void Awake()
         {
             engine = new DuelEngine();
+            duelUIManager = new DuelUIManager(engine.PhaseManager);
             EnsureEventSystem();
             Build3DArena();
             BuildInterface();
-            engine.StartNewDuel(YugiohCardDatabase.BuildPlayerDeck(), YugiohCardDatabase.BuildOpponentDeck());
+            engine.StartNewDuel(
+                YugiohCardDatabase.BuildPlayerDeck(),
+                YugiohCardDatabase.BuildOpponentDeck(),
+                YugiohCardDatabase.BuildPlayerExtraDeck(),
+                YugiohCardDatabase.BuildOpponentExtraDeck());
             Refresh();
         }
 
@@ -1523,9 +1529,7 @@ namespace IcarusGame.DuelPrototype
 
         private bool IsAutomaticPlayerPhase()
         {
-            if (engine.CurrentPhase != DuelPhase.Draw &&
-                engine.CurrentPhase != DuelPhase.Standby &&
-                engine.CurrentPhase != DuelPhase.End)
+            if (!engine.PhaseManager.IsAutomaticPlayerPhaseCandidate(engine.CurrentPhase))
             {
                 return false;
             }
@@ -1561,19 +1565,12 @@ namespace IcarusGame.DuelPrototype
 
         private string BuildZoneInfo(DuelPlayerState player)
         {
-            return "Deck " + player.Deck.Count +
-                   "   Hand " + player.Hand.Count +
-                   "   GY " + player.Graveyard.Count +
-                   "   Banished " + player.Banished.Count +
-                   "   Field " + (player.FieldZone == null ? "0" : "1");
+            return duelUIManager.BuildZoneInfo(player);
         }
 
         private string BuildDuelOverviewText()
         {
-            string lastEvent = engine.Log.Count > 0 ? engine.Log[engine.Log.Count - 1] : "Duel gestart.";
-            return "Fase: " + PhaseLabel(engine.CurrentPhase) +
-                   "\nActieve speler: " + engine.GetActivePlayer().Name +
-                   "\nLaatste actie: " + lastEvent;
+            return duelUIManager.BuildDuelOverviewText(engine);
         }
 
         private string BuildStatsText(DuelCard card)
@@ -1658,43 +1655,12 @@ namespace IcarusGame.DuelPrototype
 
         private string BuildTributeRuleText(DuelCardDefinition definition)
         {
-            if (definition == null || definition.Kind != DuelCardKind.Monster)
-            {
-                return string.Empty;
-            }
-
-            if (definition.Level <= 4)
-            {
-                return "Summonregel: Level 1-4 heeft geen tribute nodig.";
-            }
-
-            if (definition.Level <= 6)
-            {
-                return "Summonregel: Level 5-6 vereist 1 tribute, tenzij de kaarttekst dit specifiek overschrijft.";
-            }
-
-            return "Summonregel: Level 7 of hoger vereist 2 tributes, tenzij de kaarttekst dit specifiek overschrijft.";
+            return duelUIManager.BuildTributeRuleText(definition);
         }
 
         private string BuildPrototypeExtraEffectText(DuelCardDefinition definition)
         {
-            StringBuilder builder = new StringBuilder();
-            if (definition.IsQuickPlaySpell)
-            {
-                builder.Append("Prototype extra effect: bij activatie krijgen je eigen face-up monsters +500 ATK tot de End Phase.");
-            }
-
-            if (definition.IsContinuousCard)
-            {
-                if (builder.Length > 0)
-                {
-                    builder.AppendLine();
-                }
-
-                builder.Append("Prototype extra effect: zolang deze kaart face-up ligt, krijg je in je Standby Phase +300 LP en je eigen face-up monsters +200 ATK tot de End Phase.");
-            }
-
-            return builder.ToString();
+            return duelUIManager.BuildPrototypeExtraEffectText(definition);
         }
 
         private string NormalizeDisplayedText(string text)
@@ -1812,44 +1778,12 @@ namespace IcarusGame.DuelPrototype
 
         private string PhaseLabel(DuelPhase phase)
         {
-            switch (phase)
-            {
-                case DuelPhase.Draw:
-                    return "Draw Phase";
-                case DuelPhase.Standby:
-                    return "Standby Phase";
-                case DuelPhase.Main1:
-                    return "Main Phase 1";
-                case DuelPhase.Battle:
-                    return "Battle Phase";
-                case DuelPhase.Main2:
-                    return "Main Phase 2";
-                case DuelPhase.End:
-                    return "End Phase";
-                default:
-                    return phase.ToString();
-            }
+            return duelUIManager.PhaseLabel(phase);
         }
 
         private string PhaseShortLabel(DuelPhase phase)
         {
-            switch (phase)
-            {
-                case DuelPhase.Draw:
-                    return "DP";
-                case DuelPhase.Standby:
-                    return "SP";
-                case DuelPhase.Main1:
-                    return "M1";
-                case DuelPhase.Battle:
-                    return "BP";
-                case DuelPhase.Main2:
-                    return "M2";
-                case DuelPhase.End:
-                    return "EP";
-                default:
-                    return phase.ToString();
-            }
+            return duelUIManager.PhaseShortLabel(phase);
         }
 
         private void OnNextPhase()
@@ -1883,7 +1817,11 @@ namespace IcarusGame.DuelPrototype
             playerAutoPhaseRoutineRunning = false;
             loadingImageUrls.Clear();
             ClearSelectedIndexes();
-            engine.StartNewDuel(YugiohCardDatabase.BuildPlayerDeck(), YugiohCardDatabase.BuildOpponentDeck());
+            engine.StartNewDuel(
+                YugiohCardDatabase.BuildPlayerDeck(),
+                YugiohCardDatabase.BuildOpponentDeck(),
+                YugiohCardDatabase.BuildPlayerExtraDeck(),
+                YugiohCardDatabase.BuildOpponentExtraDeck());
             Refresh();
         }
 

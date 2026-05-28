@@ -339,6 +339,9 @@ namespace IcarusGame.DuelPrototype
                     handCard.SetTurn = engine.TurnNumber;
                     handCard.SummonedTurn = engine.TurnNumber;
                     handCard.PositionChangedTurn = engine.TurnNumber;
+                    handCard.Location = DuelLocation.MonsterZone;
+                    handCard.ControllerId = player.Id;
+                    handCard.SummonType = DuelSummonType.Special;
                     player.MonsterZones[zone] = handCard;
                     engine.AddLog(player.Name + " Special Summont " + handCard.Definition.Name + " via Lua.");
                     return;
@@ -532,6 +535,31 @@ namespace IcarusGame.DuelPrototype
                     return script;
                 }
 
+                if (definition.DatabaseId != 0)
+                {
+                    string idKey = NormalizeLookupKey(definition.DatabaseId.ToString(CultureInfo.InvariantCulture));
+                    string cIdKey = NormalizeLookupKey("c" + definition.DatabaseId.ToString(CultureInfo.InvariantCulture));
+                    if (scriptsByCard.TryGetValue(idKey, out script) && script.HasFunction(functionName))
+                    {
+                        return script;
+                    }
+
+                    if (scriptsByCard.TryGetValue(cIdKey, out script) && script.HasFunction(functionName))
+                    {
+                        return script;
+                    }
+
+                    if (scriptsByResourceName.TryGetValue(idKey, out script) && script.HasFunction(functionName))
+                    {
+                        return script;
+                    }
+
+                    if (scriptsByResourceName.TryGetValue(cIdKey, out script) && script.HasFunction(functionName))
+                    {
+                        return script;
+                    }
+                }
+
                 if (definition.Effect != DuelEffectKind.None &&
                     scriptsByEffect.TryGetValue(definition.Effect, out script) &&
                     script.HasFunction(functionName))
@@ -597,6 +625,13 @@ namespace IcarusGame.DuelPrototype
                     if (!string.IsNullOrEmpty(cardName))
                     {
                         scriptsByCard[NormalizeLookupKey(cardName)] = script;
+                    }
+
+                    string cardId = ReadMetadata(asset.text, "id");
+                    if (!string.IsNullOrEmpty(cardId))
+                    {
+                        scriptsByCard[NormalizeLookupKey(cardId)] = script;
+                        scriptsByCard[NormalizeLookupKey("c" + cardId)] = script;
                     }
 
                     string effectName = ReadMetadata(asset.text, "effect");

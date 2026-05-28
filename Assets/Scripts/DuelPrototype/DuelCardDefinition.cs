@@ -45,6 +45,32 @@ namespace IcarusGame.DuelPrototype
         DestroyAttacker
     }
 
+    public enum DuelLocation
+    {
+        Deck,
+        ExtraDeck,
+        Hand,
+        MonsterZone,
+        SpellTrapZone,
+        FieldZone,
+        Graveyard,
+        Banished
+    }
+
+    public enum DuelSummonType
+    {
+        None,
+        Normal,
+        Tribute,
+        Flip,
+        Special,
+        Fusion,
+        Synchro,
+        Xyz,
+        Pendulum,
+        Link
+    }
+
     public sealed class DuelCardDefinition
     {
         public DuelCardDefinition(
@@ -120,6 +146,11 @@ namespace IcarusGame.DuelPrototype
             get { return Kind == DuelCardKind.Monster && ContainsCardType("Link"); }
         }
 
+        public bool IsPendulumMonster
+        {
+            get { return Kind == DuelCardKind.Monster && ContainsCardType("Pendulum"); }
+        }
+
         public bool IsQuickPlaySpell
         {
             get { return Kind == DuelCardKind.Spell && ContainsCardType("Quick-Play"); }
@@ -158,6 +189,11 @@ namespace IcarusGame.DuelPrototype
             get { return Kind == DuelCardKind.Trap && ContainsCardType("Counter"); }
         }
 
+        public bool IsToken
+        {
+            get { return ContainsCardType("Token"); }
+        }
+
         public bool IsExtraDeckMonster
         {
             get
@@ -167,6 +203,32 @@ namespace IcarusGame.DuelPrototype
                         ContainsCardType("Synchro") ||
                         ContainsCardType("Xyz") ||
                         ContainsCardType("Link"));
+            }
+        }
+
+        public bool IsMainDeckMonster
+        {
+            get { return Kind == DuelCardKind.Monster && !IsExtraDeckMonster && !IsToken; }
+        }
+
+        public bool CanBeInMainDeck
+        {
+            get { return Kind != DuelCardKind.Monster || IsMainDeckMonster; }
+        }
+
+        public bool CanBeInExtraDeck
+        {
+            get { return IsExtraDeckMonster; }
+        }
+
+        public bool CannotBeNormalSummonedOrSet
+        {
+            get
+            {
+                return ContainsRulesText("Cannot be Normal Summoned/Set") ||
+                       ContainsRulesText("Cannot be Normal Summoned or Set") ||
+                       ContainsRulesText("cannot be Normal Summoned/Set") ||
+                       ContainsRulesText("cannot be Normal Summoned or Set");
             }
         }
 
@@ -180,6 +242,12 @@ namespace IcarusGame.DuelPrototype
             return !string.IsNullOrEmpty(CardTypeText) &&
                    CardTypeText.IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0;
         }
+
+        private bool ContainsRulesText(string value)
+        {
+            return !string.IsNullOrEmpty(RulesText) &&
+                   RulesText.IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
     }
 
     public sealed class DuelCard
@@ -192,10 +260,16 @@ namespace IcarusGame.DuelPrototype
             SetTurn = -1;
             SummonedTurn = -1;
             PositionChangedTurn = -1;
+            Location = DuelLocation.Deck;
+            ControllerId = ownerId;
+            SummonType = DuelSummonType.None;
         }
 
         public DuelCardDefinition Definition { get; private set; }
         public DuelPlayerId OwnerId { get; private set; }
+        public DuelPlayerId ControllerId { get; set; }
+        public DuelLocation Location { get; set; }
+        public DuelSummonType SummonType { get; set; }
         public bool IsFaceDown { get; set; }
         public bool HasAttacked { get; set; }
         public int SetTurn { get; set; }
@@ -241,6 +315,7 @@ namespace IcarusGame.DuelPrototype
         public bool NormalSummonUsed { get; set; }
 
         public readonly List<DuelCardDefinition> Deck = new List<DuelCardDefinition>();
+        public readonly List<DuelCardDefinition> ExtraDeck = new List<DuelCardDefinition>();
         public readonly List<DuelCard> Hand = new List<DuelCard>();
         public readonly DuelCard[] MonsterZones = new DuelCard[ZoneCount];
         public readonly DuelCard[] SpellTrapZones = new DuelCard[ZoneCount];

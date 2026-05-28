@@ -8,6 +8,7 @@ namespace IcarusGame.DuelPrototype
     {
         private const string ResourcePath = "DuelPrototype/yugioh_cards";
         private const int DeckSize = 40;
+        private const int ExtraDeckSize = 15;
         private const int MaxCopiesPerCard = 3;
         private const string PlayerTheme = "K9";
         private const string OpponentTheme = "Six Samurai";
@@ -30,6 +31,16 @@ namespace IcarusGame.DuelPrototype
             return BuildThemeDeck(OpponentTheme, "Blackwing");
         }
 
+        public static List<DuelCardDefinition> BuildPlayerExtraDeck()
+        {
+            return BuildThemeExtraDeck(PlayerTheme, "Nekroz");
+        }
+
+        public static List<DuelCardDefinition> BuildOpponentExtraDeck()
+        {
+            return BuildThemeExtraDeck(OpponentTheme, "Blackwing");
+        }
+
         private static List<DuelCardDefinition> BuildThemeDeck(string theme, string fallbackTheme)
         {
             EnsureLoaded();
@@ -47,6 +58,64 @@ namespace IcarusGame.DuelPrototype
             }
 
             return BuildBalancedFallbackDeck();
+        }
+
+        private static List<DuelCardDefinition> BuildThemeExtraDeck(string theme, string fallbackTheme)
+        {
+            EnsureLoaded();
+
+            List<DuelCardDefinition> extraDeck = BuildThemeExtraDeckCandidate(theme);
+            if (extraDeck.Count > 0)
+            {
+                return extraDeck;
+            }
+
+            extraDeck = BuildThemeExtraDeckCandidate(fallbackTheme);
+            if (extraDeck.Count > 0)
+            {
+                return extraDeck;
+            }
+
+            return BuildFallbackExtraDeck();
+        }
+
+        private static List<DuelCardDefinition> BuildThemeExtraDeckCandidate(string theme)
+        {
+            List<DuelCardDefinition> extraDeck = new List<DuelCardDefinition>(ExtraDeckSize);
+            if (string.IsNullOrEmpty(theme))
+            {
+                return extraDeck;
+            }
+
+            List<DuelCardDefinition> themeExtra = new List<DuelCardDefinition>();
+            List<DuelCardDefinition> namedSupport = new List<DuelCardDefinition>();
+            for (int i = 0; i < cachedCards.Count; i++)
+            {
+                DuelCardDefinition card = cachedCards[i];
+                if (!card.CanBeInExtraDeck)
+                {
+                    continue;
+                }
+
+                if (IsThemeCard(card, theme))
+                {
+                    themeExtra.Add(card);
+                }
+                else if (MentionsTheme(card, theme))
+                {
+                    namedSupport.Add(card);
+                }
+            }
+
+            SortForDeck(themeExtra);
+            SortForDeck(namedSupport);
+            AddCopiesFromCandidates(extraDeck, themeExtra, ExtraDeckSize, ExtraDeckSize);
+            if (extraDeck.Count < ExtraDeckSize)
+            {
+                AddCopiesFromCandidates(extraDeck, namedSupport, ExtraDeckSize - extraDeck.Count, ExtraDeckSize);
+            }
+
+            return extraDeck;
         }
 
         private static List<DuelCardDefinition> BuildThemeDeckCandidate(string theme)
@@ -125,6 +194,26 @@ namespace IcarusGame.DuelPrototype
 
             TrimDeck(deck);
             return deck;
+        }
+
+        private static List<DuelCardDefinition> BuildFallbackExtraDeck()
+        {
+            EnsureLoaded();
+
+            List<DuelCardDefinition> extraDeck = new List<DuelCardDefinition>(ExtraDeckSize);
+            List<DuelCardDefinition> candidates = new List<DuelCardDefinition>();
+            for (int i = 0; i < cachedCards.Count; i++)
+            {
+                DuelCardDefinition card = cachedCards[i];
+                if (card.CanBeInExtraDeck && card.Attack > 0)
+                {
+                    candidates.Add(card);
+                }
+            }
+
+            SortForDeck(candidates);
+            AddCopiesFromCandidates(extraDeck, candidates, ExtraDeckSize, ExtraDeckSize);
+            return extraDeck;
         }
 
         private static List<DuelCardDefinition> BuildBalancedFallbackDeck()
@@ -318,17 +407,12 @@ namespace IcarusGame.DuelPrototype
 
         private static bool IsMainDeckMonster(DuelCardDefinition card)
         {
-            string type = (card.CardTypeText ?? string.Empty).ToLowerInvariant();
-            return !type.Contains("fusion") &&
-                   !type.Contains("synchro") &&
-                   !type.Contains("xyz") &&
-                   !type.Contains("link") &&
-                   !type.Contains("token");
+            return card != null && card.IsMainDeckMonster;
         }
 
         private static bool IsMainDeckCard(DuelCardDefinition card)
         {
-            return card.Kind != DuelCardKind.Monster || IsMainDeckMonster(card);
+            return card != null && card.CanBeInMainDeck;
         }
 
         private static bool IsThemeCard(DuelCardDefinition card, string theme)
@@ -367,20 +451,25 @@ namespace IcarusGame.DuelPrototype
 
         private static void AddCopiesFromCandidates(List<DuelCardDefinition> deck, List<DuelCardDefinition> candidates, int count)
         {
-            if (count <= 0 || deck.Count >= DeckSize)
+            AddCopiesFromCandidates(deck, candidates, count, DeckSize);
+        }
+
+        private static void AddCopiesFromCandidates(List<DuelCardDefinition> deck, List<DuelCardDefinition> candidates, int count, int maxSize)
+        {
+            if (count <= 0 || deck.Count >= maxSize)
             {
                 return;
             }
 
             Dictionary<int, int> copyCounts = BuildCopyCounts(deck);
-            for (int i = 0; i < candidates.Count && count > 0 && deck.Count < DeckSize; i++)
+            for (int i = 0; i < candidates.Count && count > 0 && deck.Count < maxSize; i++)
             {
                 DuelCardDefinition card = candidates[i];
                 int key = CardKey(card);
                 int currentCopies;
                 copyCounts.TryGetValue(key, out currentCopies);
 
-                while (currentCopies < MaxCopiesPerCard && count > 0 && deck.Count < DeckSize)
+                while (currentCopies < MaxCopiesPerCard && count > 0 && deck.Count < maxSize)
                 {
                     deck.Add(card);
                     currentCopies++;
