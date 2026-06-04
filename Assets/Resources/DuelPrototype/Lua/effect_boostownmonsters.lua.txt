@@ -1,5 +1,0 @@
--- effect: BoostOwnMonsters
-
-function on_activate(ctx)
-    ctx:boost_face_up("controller", ctx.effect_value)
-end

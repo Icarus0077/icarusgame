@@ -1,5 +1,0 @@
--- effect: GainLife
-
-function on_activate(ctx)
-    ctx:gain_life("controller", ctx.effect_value)
-end

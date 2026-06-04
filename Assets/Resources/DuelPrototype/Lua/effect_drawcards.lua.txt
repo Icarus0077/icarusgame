@@ -1,5 +1,0 @@
--- effect: DrawCards
-
-function on_activate(ctx)
-    ctx:draw("controller", ctx.effect_value)
-end

@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2219dd151b4f485ea5b2f03fe5494195, type: 3}
+  m_Name: BlueEyesArtworkCatalog
+  m_EditorClassIdentifier: 
+  entries:
+  - DatabaseId: 8240199
+    Texture: {fileID: 2800000, guid: abd235ab591eff444a16eeeecab9ff45, type: 3}
+  - DatabaseId: 36734924
+    Texture: {fileID: 2800000, guid: ffbc3d99b938aa54298b6ae0cc0b0034, type: 3}
+  - DatabaseId: 89631139
+    Texture: {fileID: 2800000, guid: 8abcbd40c1913654d9c2983f7ec3f5e6, type: 3}
+  - DatabaseId: 30576089
+    Texture: {fileID: 2800000, guid: 187e7b5c3622e3241807b4c6b11e8136, type: 3}
+  - DatabaseId: 66961194
+    Texture: {fileID: 2800000, guid: d4de9c0b901c4854c834ed628c023e6f, type: 3}
+  - DatabaseId: 71143015
+    Texture: {fileID: 2800000, guid: 8a15d6cd6a25e7d499116ebb09c0967d, type: 3}
+  - DatabaseId: 41620959
+    Texture: {fileID: 2800000, guid: b3eeb0418ad2aec4b814dc2d4676172d, type: 3}
+  - DatabaseId: 48800175
+    Texture: {fileID: 2800000, guid: 5651d48e6aca6814480c7e74ada2f211, type: 3}
+  - DatabaseId: 38120068
+    Texture: {fileID: 2800000, guid: 0c1de9f8b7b73ac4f887814953eddb3d, type: 3}
+  - DatabaseId: 17655904
+    Texture: {fileID: 2800000, guid: 90550fa7917e71f488887745b506134b, type: 3}
+  - DatabaseId: 62089826
+    Texture: {fileID: 2800000, guid: 8d50a3a5ef6639842bb234c29b5978c7, type: 3}
+  - DatabaseId: 56920308
+    Texture: {fileID: 2800000, guid: 1b3cde7115062b047b8546a1690a3c60, type: 3}
+  - DatabaseId: 88241506
+    Texture: {fileID: 2800000, guid: 8d9777bb515ce114a846ce2ebab94f49, type: 3}
+  - DatabaseId: 48048590
+    Texture: {fileID: 2800000, guid: d56ee2d8a2e294b4d91b15d47ba550b4, type: 3}
+  - DatabaseId: 59822133
+    Texture: {fileID: 2800000, guid: fc6de518aa6003c488fa34a87b856fb5, type: 3}
+  - DatabaseId: 89604813
+    Texture: {fileID: 2800000, guid: 48cc06f3fadfeb44c9eb8ebeafbef0c7, type: 3}
+  - DatabaseId: 2129638
+    Texture: {fileID: 2800000, guid: ad6e67f427fc1aa40be2353ff7c47a07, type: 3}
+  - DatabaseId: 63767246
+    Texture: {fileID: 2800000, guid: eae564a55d04b9a428b5ce753fac0a25, type: 3}
+  - DatabaseId: 24361622
+    Texture: {fileID: 2800000, guid: ed10b8afd043fab45968666ba8e7b8d9, type: 3}
