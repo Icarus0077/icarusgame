@@ -78,7 +78,15 @@ namespace IcarusGame.MasterDuel
             string typeLine,
             string text,
             string archetype,
-            string effectId)
+            string effectId,
+            int cdbType = 0,
+            int cdbRace = 0,
+            int cdbAttribute = 0,
+            long cdbCategory = 0L,
+            int cdbAlias = 0,
+            string cdbSetCode = "",
+            int cdbOt = 0,
+            int cdbLinkMarkers = 0)
         {
             Id = id;
             Name = name;
@@ -91,6 +99,14 @@ namespace IcarusGame.MasterDuel
             Text = text;
             Archetype = archetype;
             EffectId = effectId;
+            CdbType = cdbType;
+            CdbRace = cdbRace;
+            CdbAttribute = cdbAttribute;
+            CdbCategory = cdbCategory;
+            CdbAlias = cdbAlias;
+            CdbSetCode = cdbSetCode;
+            CdbOt = cdbOt;
+            CdbLinkMarkers = cdbLinkMarkers;
         }
 
         public int Id { get; private set; }
@@ -104,6 +120,19 @@ namespace IcarusGame.MasterDuel
         public string Text { get; private set; }
         public string Archetype { get; private set; }
         public string EffectId { get; private set; }
+        public int CdbType { get; private set; }
+        public int CdbRace { get; private set; }
+        public int CdbAttribute { get; private set; }
+        public long CdbCategory { get; private set; }
+        public int CdbAlias { get; private set; }
+        public string CdbSetCode { get; private set; }
+        public int CdbOt { get; private set; }
+        public int CdbLinkMarkers { get; private set; }
+
+        public bool HasCdbData
+        {
+            get { return CdbType != 0; }
+        }
 
         public bool IsMonster
         {
@@ -149,16 +178,40 @@ namespace IcarusGame.MasterDuel
         public int SummonedTurn { get; set; }
         public int SetTurn { get; set; }
         public int TemporaryAttack { get; set; }
+        public int PermanentAttack { get; set; }
+        public int LevelModifier { get; set; }
+        public int EquipAttackBonus { get; set; }
+        public int ProtectionCounters { get; set; }
+        public CardInstance EquippedTo { get; set; }
+        public PlayerId? PreviousEquipTargetController { get; set; }
+        public bool CannotAttack { get; set; }
+        public bool CannotAttackThisTurn { get; set; }
+        public bool EffectDisabled { get; set; }
         public readonly List<CardInstance> Materials = new List<CardInstance>();
+        public readonly List<CardInstance> EquippedCards = new List<CardInstance>();
 
         public int CurrentAttack
         {
-            get { return Mathf.Max(0, Data.Attack + TemporaryAttack); }
+            get
+            {
+                int attack = Data.Attack + PermanentAttack + TemporaryAttack;
+                for (int i = 0; i < EquippedCards.Count; i++)
+                {
+                    attack += EquippedCards[i].EquipAttackBonus;
+                }
+
+                return Mathf.Max(0, attack);
+            }
         }
 
         public int CurrentDefense
         {
             get { return Mathf.Max(0, Data.Defense); }
+        }
+
+        public int CurrentLevel
+        {
+            get { return Mathf.Max(0, Data.Level + LevelModifier); }
         }
 
         public string PublicName
@@ -220,7 +273,7 @@ namespace IcarusGame.MasterDuel
                 case DuelPhase.Standby:
                     return DuelPhase.Main1;
                 case DuelPhase.Main1:
-                    return turnNumber == 1 ? DuelPhase.End : DuelPhase.Battle;
+                    return CanEnterBattlePhase(turnNumber) ? DuelPhase.Battle : DuelPhase.End;
                 case DuelPhase.Battle:
                     return DuelPhase.Main2;
                 case DuelPhase.Main2:
@@ -228,6 +281,11 @@ namespace IcarusGame.MasterDuel
                 default:
                     return DuelPhase.Draw;
             }
+        }
+
+        public bool CanEnterBattlePhase(int turnNumber)
+        {
+            return turnNumber > 1;
         }
 
         public string Label(DuelPhase phase)
@@ -392,7 +450,7 @@ namespace IcarusGame.MasterDuel
 
         public bool StaysOnField(CardData data)
         {
-            return IsContinuous(data) || IsField(data);
+            return IsContinuous(data) || IsField(data) || IsEquip(data);
         }
 
         public bool IsQuickPlay(CardData data)
@@ -408,6 +466,11 @@ namespace IcarusGame.MasterDuel
         public bool IsField(CardData data)
         {
             return data.TypeLine.IndexOf("Field", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        public bool IsEquip(CardData data)
+        {
+            return data.TypeLine.IndexOf("Equip", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private int CountMonsters(PlayerState player)
@@ -482,6 +545,8 @@ namespace IcarusGame.MasterDuel
                    !monster.FaceDown &&
                    monster.Data.IsMonster &&
                    monster.Position == MonsterPosition.Attack &&
+                   !monster.CannotAttack &&
+                   !monster.CannotAttackThisTurn &&
                    !monster.HasAttacked &&
                    phase == DuelPhase.Battle &&
                    turnNumber > 1;
@@ -555,6 +620,8 @@ namespace IcarusGame.MasterDuel
     public sealed class DuelManager
     {
         private readonly System.Random random = new System.Random();
+        private YgoCardDatabase cardDatabase;
+        private string cardDatabaseLoadError = string.Empty;
         public readonly DuelState State = new DuelState();
         public readonly PhaseManager PhaseManager = new PhaseManager();
         public readonly TurnManager TurnManager = new TurnManager();
@@ -576,6 +643,24 @@ namespace IcarusGame.MasterDuel
                 duel.Log(opponent.Name + " takes 800 effect damage.");
                 duel.CheckWin();
             });
+            Lua.Register("rebirth_tablet", (duel, source, controller) => duel.ActivateRebirthTablet(source, controller));
+            Lua.Register("spiritualistic_medium", (duel, source, controller) => duel.ActivateSpiritualisticMedium(source, controller));
+            Lua.Register("dark_sanctuary", (duel, source, controller) => duel.Log(source.Data.Name + " will respond when the opponent attacks."));
+            Lua.Register("fearful_earthbound", (duel, source, controller) => duel.Log(source.Data.Name + " will burn the opponent when they attack."));
+            Lua.Register("mirror_tablet", (duel, source, controller) => duel.ActivateMirrorTablet(source, controller));
+            Lua.Register("negative_energy_generator", (duel, source, controller) => duel.ActivateNegativeEnergyGenerator(source, controller));
+            Lua.Register("grief_tablet", (duel, source, controller) => duel.ActivateGriefTablet(source, controller));
+            Lua.Register("dark_dragon_ritual", (duel, source, controller) => duel.ActivateDarkDragonRitual(source, controller));
+            Lua.Register("cursed_twin_dolls", (duel, source, controller) => duel.Log(source.Data.Name + " watches cards sent to the Graveyard."));
+            Lua.Register("counterbalance", (duel, source, controller) => duel.Log(source.Data.Name + " will mill cards during each End Phase."));
+            Lua.Register("toon_kingdom", (duel, source, controller) => duel.ActivateToonKingdom(source, controller));
+            Lua.Register("toon_roll_back", (duel, source, controller) => duel.ActivateToonRollBack(source, controller));
+            Lua.Register("toon_shadow", (duel, source, controller) => duel.ActivateToonShadow(source, controller));
+            Lua.Register("mimicat", (duel, source, controller) => duel.ActivateMimicat(source, controller));
+            Lua.Register("comic_hand", (duel, source, controller) => duel.ActivateComicHand(source, controller));
+            Lua.Register("toon_briefcase", (duel, source, controller) => duel.ActivateToonBriefcase(source, controller));
+            Lua.Register("miracle_rupture", (duel, source, controller) => duel.ActivateMiracleRupture(source, controller));
+            Lua.Register("sacred_defence_barrier", (duel, source, controller) => duel.Log(source.Data.Name + " will protect summoned Rock monsters."));
         }
 
         public PlayerState ActivePlayer
@@ -597,7 +682,17 @@ namespace IcarusGame.MasterDuel
             State.WinnerText = string.Empty;
             State.TurnPlayer = PlayerId.Player;
             State.TurnNumber = 0;
+            LoadCardDatabase();
             BuildDecks();
+            if (cardDatabase != null)
+            {
+                Log("Loaded " + cardDatabase.Count + " cards from cards.cdb.");
+            }
+            else if (!string.IsNullOrEmpty(cardDatabaseLoadError))
+            {
+                Log("cards.cdb unavailable: " + cardDatabaseLoadError);
+            }
+
             Shuffle(State.Player.Deck);
             Shuffle(State.Opponent.Deck);
             Draw(State.Player, 5, false);
@@ -624,6 +719,21 @@ namespace IcarusGame.MasterDuel
             ResetAttackFlags(ActivePlayer);
             Log("Turn " + State.TurnNumber + ": " + ActivePlayer.Name);
             EnterPhase(DuelPhase.Draw);
+            AutoAdvanceTurnStartToMainPhase();
+        }
+
+        private void AutoAdvanceTurnStartToMainPhase()
+        {
+            if (State.GameOver || State.Phase != DuelPhase.Draw)
+            {
+                return;
+            }
+
+            EnterPhase(DuelPhase.Standby);
+            if (!State.GameOver && State.Phase == DuelPhase.Standby)
+            {
+                EnterPhase(DuelPhase.Main1);
+            }
         }
 
         public void AdvancePhase()
@@ -649,6 +759,24 @@ namespace IcarusGame.MasterDuel
             EnterPhase(next);
         }
 
+        public void EndTurn()
+        {
+            if (State.GameOver)
+            {
+                return;
+            }
+
+            if (State.Phase != DuelPhase.End)
+            {
+                EnterPhase(DuelPhase.End);
+            }
+
+            if (!State.GameOver)
+            {
+                AdvancePhase();
+            }
+        }
+
         public void EnterPhase(DuelPhase phase)
         {
             State.Phase = phase;
@@ -663,6 +791,14 @@ namespace IcarusGame.MasterDuel
                 {
                     Log("First turn player does not draw.");
                 }
+            }
+            else if (phase == DuelPhase.Standby)
+            {
+                ResolveStandbyPhaseTriggers(ActivePlayer);
+            }
+            else if (phase == DuelPhase.End)
+            {
+                ResolveEndPhaseTriggers();
             }
         }
 
@@ -701,6 +837,11 @@ namespace IcarusGame.MasterDuel
             player.Monsters[zone] = card;
             player.NormalSummonUsed = true;
             Log(player.Name + (setDefense ? " sets a monster." : " Normal Summons " + card.Data.Name + "."));
+            if (!setDefense)
+            {
+                ResolveSummonSuccessTriggers(player, card);
+            }
+
             return true;
         }
 
@@ -834,6 +975,555 @@ namespace IcarusGame.MasterDuel
             }
         }
 
+        private void ActivateRebirthTablet(CardInstance source, PlayerState controller)
+        {
+            CardInstance target = FindInGraveyard(controller, c => c.Data.IsMonster);
+            if (target == null)
+            {
+                Log(source.Data.Name + " has no monster to Special Summon from the Graveyard.");
+                return;
+            }
+
+            SpecialSummonCard(controller, target, "Special Summons");
+        }
+
+        private void ActivateSpiritualisticMedium(CardInstance source, PlayerState controller)
+        {
+            CardInstance target = FirstFaceUpMonster(controller, c => true);
+            if (target == null)
+            {
+                Log(source.Data.Name + " has no face-up monster to empower.");
+                return;
+            }
+
+            PlayerState opponent = OpponentOf(controller.Id);
+            int discarded = opponent.Hand.Count;
+            int boost = discarded * 500;
+            target.PermanentAttack += boost;
+            while (opponent.Hand.Count > 0)
+            {
+                CardInstance discardedCard = opponent.Hand[0];
+                opponent.Hand.RemoveAt(0);
+                SendToGraveyard(opponent, discardedCard, true, source);
+            }
+
+            Log(source.Data.Name + " gives " + target.Data.Name + " +" + boost + " ATK and discards " + discarded + " opponent card(s).");
+        }
+
+        private void ActivateMirrorTablet(CardInstance source, PlayerState controller)
+        {
+            CardInstance target = FirstFaceUpAttackMonster(controller);
+            CardInstance mirror = HighestAttackFaceUpMonster(OpponentOf(controller.Id));
+            if (target == null || mirror == null)
+            {
+                Log(source.Data.Name + " needs a face-up attack monster on each side.");
+                return;
+            }
+
+            int boost = mirror.CurrentAttack / 2;
+            target.TemporaryAttack += boost;
+            Log(source.Data.Name + " gives " + target.Data.Name + " +" + boost + " ATK for this battle.");
+        }
+
+        private void ActivateNegativeEnergyGenerator(CardInstance source, PlayerState controller)
+        {
+            CardInstance target = FirstFaceUpMonster(controller, IsDarkMonster);
+            if (target == null)
+            {
+                target = FirstFaceUpMonster(OpponentOf(controller.Id), IsDarkMonster);
+            }
+
+            if (target == null)
+            {
+                Log(source.Data.Name + " has no face-up DARK monster to equip.");
+                return;
+            }
+
+            EquipToMonster(source, target, 500);
+            Log(source.Data.Name + " equips to " + target.Data.Name + "; it gains 500 ATK.");
+        }
+
+        private void ActivateGriefTablet(CardInstance source, PlayerState controller)
+        {
+            CardInstance target = FirstFaceUpMonster(OpponentOf(controller.Id), c => true);
+            if (target == null)
+            {
+                target = FirstFaceUpMonster(controller, c => true);
+            }
+
+            if (target == null)
+            {
+                Log(source.Data.Name + " has no face-up monster to equip.");
+                return;
+            }
+
+            EquipToMonster(source, target, 0);
+            ApplyGriefTabletLock(target);
+            Log(source.Data.Name + " equips to " + target.Data.Name + "; it cannot attack and its effects are disabled.");
+        }
+
+        private void ActivateDarkDragonRitual(CardInstance source, PlayerState controller)
+        {
+            if (ZoneManager.FirstEmpty(controller.Monsters) < 0)
+            {
+                Log(controller.Name + " has no open Monster Zone for " + source.Data.Name + ".");
+                return;
+            }
+
+            CardInstance ritualMonster = FindInHand(controller, c => c.Data.Id == 12319);
+            if (ritualMonster == null)
+            {
+                ritualMonster = FindInDeck(controller, c => c.Data.Id == 12319);
+            }
+
+            if (ritualMonster == null)
+            {
+                Log(source.Data.Name + " cannot find Knight of Dark Dragons.");
+                return;
+            }
+
+            CardInstance tribute = FirstRitualTribute(controller, ritualMonster);
+            if (tribute == null)
+            {
+                Log(source.Data.Name + " needs a monster tribute.");
+                return;
+            }
+
+            RemoveCardFromKnownZone(controller, tribute);
+            SendToGraveyard(controller, tribute, false, source);
+            Log(controller.Name + " Tributes " + tribute.Data.Name + " for " + source.Data.Name + ".");
+            SpecialSummonCard(controller, ritualMonster, "Ritual Summons");
+        }
+
+        private void ActivateToonKingdom(CardInstance source, PlayerState controller)
+        {
+            int banished = BanishTopDeck(controller, 5);
+            Log(source.Data.Name + " banishes the top " + banished + " card(s) of " + controller.Name + "'s Deck.");
+        }
+
+        private bool ActivateToonKingdomIgnition(CardInstance source, PlayerState controller)
+        {
+            CardInstance target = FindInBanished(controller, IsToonCard);
+            if (target == null)
+            {
+                Log(source.Data.Name + " has no banished Toon card to recover.");
+                return false;
+            }
+
+            if (controller.LifePoints < 1000)
+            {
+                Log(controller.Name + " cannot pay 1000 LP for " + source.Data.Name + ".");
+                return false;
+            }
+
+            controller.LifePoints -= 1000;
+            controller.Banished.Remove(target);
+            target.Location = CardLocation.Hand;
+            target.Controller = controller.Id;
+            target.FaceDown = false;
+            controller.Hand.Add(target);
+            Log(controller.Name + " pays 1000 LP and adds " + target.Data.Name + " from banishment to hand.");
+            CheckWin();
+            return true;
+        }
+
+        private void ActivateToonRollBack(CardInstance source, PlayerState controller)
+        {
+            List<int> toonZones = FaceUpToonMonsterZones(controller, 2);
+            if (toonZones.Count < 2)
+            {
+                Log(source.Data.Name + " needs 2 face-up Toon monsters.");
+                return;
+            }
+
+            toonZones.Sort();
+            for (int i = toonZones.Count - 1; i >= 0; i--)
+            {
+                int zone = toonZones[i];
+                CardInstance toon = controller.Monsters[zone];
+                controller.Monsters[zone] = null;
+                DestroyAttachedEquipCards(toon);
+                toon.Location = CardLocation.Deck;
+                toon.FaceDown = false;
+                controller.Deck.Add(toon);
+                Log(controller.Name + " returns " + toon.Data.Name + " to the Deck.");
+            }
+
+            Shuffle(controller.Deck);
+            Draw(controller, 3, true);
+            Log(controller.Name + " draws 3 cards with " + source.Data.Name + ".");
+        }
+
+        private void ActivateToonShadow(CardInstance source, PlayerState controller)
+        {
+            if (!HasToonWorld(controller))
+            {
+                Log(source.Data.Name + " needs Toon Kingdom or Toon World face-up.");
+                return;
+            }
+
+            PlayerState opponent = OpponentOf(controller.Id);
+            CardInstance target = HighestAttackFaceUpMonster(opponent);
+            if (target == null)
+            {
+                Log(source.Data.Name + " has no face-up opponent monster to target.");
+                return;
+            }
+
+            int damage = target.CurrentAttack;
+            opponent.LifePoints -= damage;
+            Log(source.Data.Name + " deals " + damage + " damage to " + opponent.Name + " using " + target.Data.Name + "'s ATK.");
+            CheckWin();
+        }
+
+        private void ActivateMimicat(CardInstance source, PlayerState controller)
+        {
+            PlayerState opponent = OpponentOf(controller.Id);
+            if (!HasToonWorld(controller) || opponent.Graveyard.Count == 0)
+            {
+                Log(source.Data.Name + " needs Toon Kingdom or Toon World and an opponent card in the Graveyard.");
+                return;
+            }
+
+            int banished = BanishTopDeck(controller, 5);
+            CardInstance target = opponent.Graveyard[0];
+            opponent.Graveyard.RemoveAt(0);
+            target.Location = CardLocation.Hand;
+            target.Controller = controller.Id;
+            target.FaceDown = false;
+            controller.Hand.Add(target);
+            Log(source.Data.Name + " banishes " + banished + " card(s), then adds " + target.Data.Name + " from the opponent's Graveyard to hand.");
+        }
+
+        private void ActivateComicHand(CardInstance source, PlayerState controller)
+        {
+            PlayerState opponent = OpponentOf(controller.Id);
+            CardInstance target = FirstFaceUpMonster(opponent, c => true);
+            if (!HasToonWorld(controller) || target == null || ZoneManager.FirstEmpty(controller.Monsters) < 0)
+            {
+                Log(source.Data.Name + " needs Toon Kingdom or Toon World, an opponent monster, and an open Monster Zone.");
+                return;
+            }
+
+            if (!MoveMonsterControl(opponent, controller, target))
+            {
+                return;
+            }
+
+            EquipToMonster(source, target, 0);
+            Log(source.Data.Name + " takes control of " + target.Data.Name + " and equips to it.");
+        }
+
+        private void ActivateToonBriefcase(CardInstance source, PlayerState controller)
+        {
+            PlayerState opponent = OpponentOf(controller.Id);
+            CardInstance target = FirstFaceUpMonster(opponent, c => true);
+            if (!HasToonWorld(controller) || target == null)
+            {
+                Log(source.Data.Name + " needs Toon Kingdom or Toon World and an opponent monster.");
+                return;
+            }
+
+            ReturnMonsterToDeck(opponent, target);
+            Log(source.Data.Name + " returns " + target.Data.Name + " to the Deck.");
+        }
+
+        private void ActivateMiracleRupture(CardInstance source, PlayerState controller)
+        {
+            CardInstance rock = FindInDeck(controller, IsRockMonster);
+            if (rock == null)
+            {
+                Log(source.Data.Name + " cannot find a Rock monster in the Deck.");
+                return;
+            }
+
+            controller.Deck.Remove(rock);
+            SendToGraveyard(controller, rock, true, source);
+            Draw(controller, 1, true);
+            Log(source.Data.Name + " sends " + rock.Data.Name + " to the Graveyard, then draws 1 card.");
+        }
+
+        public bool CanActivateMonsterEffect(int zoneIndex)
+        {
+            if (zoneIndex < 0 || zoneIndex >= PlayerState.ZoneCount || !PhaseManager.IsMainPhase(State.Phase))
+            {
+                return false;
+            }
+
+            CardInstance card = ActivePlayer.Monsters[zoneIndex];
+            return card != null &&
+                   !card.FaceDown &&
+                   !card.EffectDisabled &&
+                   (card.Data.Id == 12309 || card.Data.Id == 12319 || card.Data.Id == 12338);
+        }
+
+        public bool ActivateMonsterEffect(int zoneIndex)
+        {
+            if (!CanActivateMonsterEffect(zoneIndex))
+            {
+                return false;
+            }
+
+            CardInstance card = ActivePlayer.Monsters[zoneIndex];
+            if (card.Data.Id == 12309)
+            {
+                return ActivateDiaboundKernelEquip(zoneIndex);
+            }
+
+            if (card.Data.Id == 12338)
+            {
+                return ActivateFlintCragger(zoneIndex);
+            }
+
+            return ActivateKnightOfDarkDragons(zoneIndex);
+        }
+
+        public bool CanActivateFaceUpSpellTrapEffect(int zoneIndex)
+        {
+            if (zoneIndex < 0 || zoneIndex >= PlayerState.ZoneCount || !PhaseManager.IsMainPhase(State.Phase))
+            {
+                return false;
+            }
+
+            CardInstance card = ActivePlayer.SpellsTraps[zoneIndex];
+            return card != null && !card.FaceDown && (card.Data.Id == 12309 || card.Data.Id == 12323);
+        }
+
+        public bool ActivateFaceUpSpellTrapEffect(int zoneIndex)
+        {
+            if (!CanActivateFaceUpSpellTrapEffect(zoneIndex))
+            {
+                return false;
+            }
+
+            CardInstance card = ActivePlayer.SpellsTraps[zoneIndex];
+            if (card.Data.Id == 12309)
+            {
+                RemoveFromSpellTrapZone(ActivePlayer, card);
+                ReleaseEquipFromTarget(card);
+                return SpecialSummonCard(ActivePlayer, card, "Special Summons");
+            }
+
+            return ActivateToonKingdomIgnition(card, ActivePlayer);
+        }
+
+        private bool ActivateDiaboundKernelEquip(int zoneIndex)
+        {
+            PlayerState player = ActivePlayer;
+            CardInstance diabound = player.Monsters[zoneIndex];
+            int spellZone = ZoneManager.FirstEmpty(player.SpellsTraps);
+            CardInstance target = FirstFaceUpMonster(OpponentOf(player.Id), c => true);
+            if (spellZone < 0 || target == null)
+            {
+                Log(diabound.Data.Name + " needs an open Spell/Trap Zone and a face-up opponent monster.");
+                return false;
+            }
+
+            player.Monsters[zoneIndex] = null;
+            diabound.Location = CardLocation.SpellTrapZone;
+            diabound.Controller = player.Id;
+            diabound.FaceDown = false;
+            player.SpellsTraps[spellZone] = diabound;
+            EquipToMonster(diabound, target, -1800);
+            Log(diabound.Data.Name + " equips to " + target.Data.Name + "; that monster loses 1800 ATK.");
+            return true;
+        }
+
+        private bool ActivateFlintCragger(int zoneIndex)
+        {
+            PlayerState player = ActivePlayer;
+            CardInstance flint = player.Monsters[zoneIndex];
+            PlayerState opponent = OpponentOf(player.Id);
+            player.Monsters[zoneIndex] = null;
+            SendToGraveyard(player, flint, false, flint);
+            opponent.LifePoints -= 500;
+            Log(player.Name + " sends " + flint.Data.Name + " to the Graveyard; " + opponent.Name + " takes 500 damage.");
+            CheckWin();
+            return true;
+        }
+
+        private bool ActivateKnightOfDarkDragons(int zoneIndex)
+        {
+            PlayerState player = ActivePlayer;
+            CardInstance knight = player.Monsters[zoneIndex];
+            CardInstance redEyes = FindInHand(player, c => c.Data.Id == 74677422);
+            if (redEyes == null)
+            {
+                redEyes = FindInDeck(player, c => c.Data.Id == 74677422);
+            }
+
+            if (redEyes == null)
+            {
+                Log(knight.Data.Name + " cannot find Red-Eyes Black Dragon.");
+                return false;
+            }
+
+            player.Monsters[zoneIndex] = null;
+            SendToGraveyard(player, knight, false, knight);
+            Log(player.Name + " releases " + knight.Data.Name + ".");
+            if (SpecialSummonCard(player, redEyes, "Special Summons"))
+            {
+                redEyes.CannotAttackThisTurn = true;
+                Log(redEyes.Data.Name + " cannot attack this turn.");
+                return true;
+            }
+
+            return false;
+        }
+
+        private void ResolveStandbyPhaseTriggers(PlayerState activePlayer)
+        {
+            for (int i = 0; i < PlayerState.ZoneCount; i++)
+            {
+                CardInstance monster = activePlayer.Monsters[i];
+                if (monster != null && !monster.FaceDown && monster.Data.Id == 12315)
+                {
+                    monster.PermanentAttack += 500;
+                    monster.LevelModifier += 1;
+                    Log(monster.Data.Name + " gains 500 ATK and 1 Level.");
+                }
+
+                CardInstance spellTrap = activePlayer.SpellsTraps[i];
+                if (spellTrap != null && !spellTrap.FaceDown && spellTrap.Data.Id == 12316 && IsEquippedToFaceUpMonster(spellTrap))
+                {
+                    spellTrap.EquipAttackBonus += 500;
+                    Log(spellTrap.Data.Name + " gives another 500 ATK to " + spellTrap.EquippedTo.Data.Name + ".");
+                }
+            }
+        }
+
+        private void ResolveEndPhaseTriggers()
+        {
+            ResolveStoneGiantEndPhase(ActivePlayer);
+            int monsterCount = CountFieldMonsters();
+            if (monsterCount == 0)
+            {
+                return;
+            }
+
+            ResolveCounterbalanceFor(State.Player, monsterCount);
+            ResolveCounterbalanceFor(State.Opponent, monsterCount);
+        }
+
+        private void ResolveStoneGiantEndPhase(PlayerState activePlayer)
+        {
+            for (int i = 0; i < PlayerState.ZoneCount; i++)
+            {
+                CardInstance monster = activePlayer.Monsters[i];
+                if (monster != null && !monster.FaceDown && monster.Data.Id == 12334 && !monster.HasAttacked)
+                {
+                    activePlayer.LifePoints -= 500;
+                    Log(monster.Data.Name + " did not attack, so " + activePlayer.Name + " takes 500 damage.");
+                    CheckWin();
+                }
+            }
+        }
+
+        private void ResolveCounterbalanceFor(PlayerState controller, int monsterCount)
+        {
+            for (int i = 0; i < PlayerState.ZoneCount; i++)
+            {
+                CardInstance card = controller.SpellsTraps[i];
+                if (card == null || card.FaceDown || card.Data.Id != 12322)
+                {
+                    continue;
+                }
+
+                PlayerState target = State.TurnPlayer == controller.Id ? controller : OpponentOf(controller.Id);
+                Mill(target, monsterCount, true, card);
+                Log(card.Data.Name + " mills " + monsterCount + " card(s) from " + target.Name + ".");
+            }
+        }
+
+        private void ResolveSummonSuccessTriggers(PlayerState summonedPlayer, CardInstance summoned)
+        {
+            if (summoned == null || summoned.FaceDown)
+            {
+                return;
+            }
+
+            if (TryAutoActivateToonBriefcase(summonedPlayer, summoned))
+            {
+                return;
+            }
+
+            ResolveShellKnightSummon(summonedPlayer, summoned);
+            ResolveSampleFossilSummon(summonedPlayer, summoned);
+            ResolveSacredDefenceBarrier(State.Player, summoned);
+            ResolveSacredDefenceBarrier(State.Opponent, summoned);
+        }
+
+        private void ResolveShellKnightSummon(PlayerState summonedPlayer, CardInstance summoned)
+        {
+            if (summoned.Data.Id != 12340)
+            {
+                return;
+            }
+
+            PlayerState opponent = OpponentOf(summonedPlayer.Id);
+            if (summoned.Position == MonsterPosition.Attack)
+            {
+                summoned.Position = MonsterPosition.DefenseFaceUp;
+                Log(summoned.Data.Name + " changes to Defense Position.");
+            }
+
+            opponent.LifePoints -= 500;
+            Log(summoned.Data.Name + " deals 500 damage to " + opponent.Name + ".");
+            CheckWin();
+        }
+
+        private void ResolveSampleFossilSummon(PlayerState summonedPlayer, CardInstance summoned)
+        {
+            if (summoned.Data.Id != 12339)
+            {
+                return;
+            }
+
+            int spellZone = ZoneManager.FirstEmpty(summonedPlayer.SpellsTraps);
+            PlayerState opponent = OpponentOf(summonedPlayer.Id);
+            CardInstance fossil = FindInGraveyard(opponent, c => c.Data.IsMonster && c.CurrentLevel <= 4);
+            if (spellZone < 0 || fossil == null)
+            {
+                return;
+            }
+
+            opponent.Graveyard.Remove(fossil);
+            fossil.Controller = summonedPlayer.Id;
+            fossil.Location = CardLocation.SpellTrapZone;
+            fossil.FaceDown = false;
+            summonedPlayer.SpellsTraps[spellZone] = fossil;
+            EquipToMonster(fossil, summoned, fossil.CurrentAttack);
+            Log(summoned.Data.Name + " equips " + fossil.Data.Name + " from the opponent's Graveyard and gains its ATK.");
+        }
+
+        private bool TryAutoActivateToonBriefcase(PlayerState summonedPlayer, CardInstance summoned)
+        {
+            PlayerState responder = OpponentOf(summonedPlayer.Id);
+            CardInstance briefcase = FindSpellTrap(responder, 12328);
+            if (briefcase == null || briefcase.SetTurn == State.TurnNumber || !HasToonWorld(responder))
+            {
+                return false;
+            }
+
+            RemoveFromSpellTrapZone(responder, briefcase);
+            briefcase.FaceDown = false;
+            ReturnMonsterToDeck(summonedPlayer, summoned);
+            Log(responder.Name + " activates " + briefcase.Data.Name + " and returns " + summoned.Data.Name + " to the Deck.");
+            SendToGraveyard(responder, briefcase, true, briefcase);
+            return true;
+        }
+
+        private void ResolveSacredDefenceBarrier(PlayerState controller, CardInstance summoned)
+        {
+            if (!IsRockMonster(summoned) || FindFaceUpSpellTrap(controller, 12337) == null)
+            {
+                return;
+            }
+
+            summoned.ProtectionCounters += 1;
+            Log(summoned.Data.Name + " gains a protection counter from Sacred Defence Barrier.");
+        }
+
         public void ResolveDeckChoiceFromHand(CardInstance source, CardInstance selected)
         {
             PlayerState player = ActivePlayer;
@@ -876,21 +1566,7 @@ namespace IcarusGame.MasterDuel
 
         public bool SpecialSummonFromHand(PlayerState player, CardInstance card)
         {
-            int zone = ZoneManager.FirstEmpty(player.Monsters);
-            if (zone < 0 || card == null || !card.Data.IsMonster)
-            {
-                return false;
-            }
-
-            player.Hand.Remove(card);
-            card.Location = CardLocation.MonsterZone;
-            card.Controller = player.Id;
-            card.FaceDown = false;
-            card.Position = MonsterPosition.Attack;
-            card.SummonedTurn = State.TurnNumber;
-            player.Monsters[zone] = card;
-            Log(player.Name + " Special Summons " + card.Data.Name + ".");
-            return true;
+            return SpecialSummonCard(player, card, "Special Summons");
         }
 
         public bool CanSummonFromExtra(CardInstance extra, PlayerState player)
@@ -945,6 +1621,7 @@ namespace IcarusGame.MasterDuel
             extra.SummonedTurn = State.TurnNumber;
             player.Monsters[zone] = extra;
             Log(player.Name + " " + ExtraSummonLabel(extra.Data.Frame) + " Summons " + extra.Data.Name + ".");
+            ResolveSummonSuccessTriggers(player, extra);
             return true;
         }
 
@@ -989,13 +1666,13 @@ namespace IcarusGame.MasterDuel
             for (int tuner = 0; tuner < PlayerState.ZoneCount; tuner++)
             {
                 CardInstance tunerCard = player.Monsters[tuner];
-                if (tunerCard == null || tunerCard.FaceDown || !IsTuner(tunerCard) || tunerCard.Data.Level >= targetLevel)
+                if (tunerCard == null || tunerCard.FaceDown || !IsTuner(tunerCard) || tunerCard.CurrentLevel >= targetLevel)
                 {
                     continue;
                 }
 
                 List<int> materials = new List<int> { tuner };
-                if (TrySelectSynchroNonTuners(player, 0, tuner, targetLevel - tunerCard.Data.Level, materials))
+                if (TrySelectSynchroNonTuners(player, 0, tuner, targetLevel - tunerCard.CurrentLevel, materials))
                 {
                     return materials;
                 }
@@ -1014,13 +1691,13 @@ namespace IcarusGame.MasterDuel
             for (int zone = startZone; zone < PlayerState.ZoneCount; zone++)
             {
                 CardInstance card = player.Monsters[zone];
-                if (zone == tunerZone || !IsFaceUpNonTuner(card) || card.Data.Level > remainingLevel)
+                if (zone == tunerZone || !IsFaceUpNonTuner(card) || card.CurrentLevel > remainingLevel)
                 {
                     continue;
                 }
 
                 materials.Add(zone);
-                if (TrySelectSynchroNonTuners(player, zone + 1, tunerZone, remainingLevel - card.Data.Level, materials))
+                if (TrySelectSynchroNonTuners(player, zone + 1, tunerZone, remainingLevel - card.CurrentLevel, materials))
                 {
                     return true;
                 }
@@ -1036,7 +1713,7 @@ namespace IcarusGame.MasterDuel
             for (int first = 0; first < PlayerState.ZoneCount; first++)
             {
                 CardInstance firstCard = player.Monsters[first];
-                if (firstCard == null || firstCard.FaceDown || firstCard.Data.Level != rank)
+                if (firstCard == null || firstCard.FaceDown || firstCard.CurrentLevel != rank)
                 {
                     continue;
                 }
@@ -1044,7 +1721,7 @@ namespace IcarusGame.MasterDuel
                 for (int second = first + 1; second < PlayerState.ZoneCount; second++)
                 {
                     CardInstance secondCard = player.Monsters[second];
-                    if (secondCard != null && !secondCard.FaceDown && secondCard.Data.Level == rank)
+                    if (secondCard != null && !secondCard.FaceDown && secondCard.CurrentLevel == rank)
                     {
                         return new List<int> { first, second };
                     }
@@ -1105,6 +1782,12 @@ namespace IcarusGame.MasterDuel
             }
 
             CardInstance defender = defenderZone >= 0 ? InactivePlayer.Monsters[defenderZone] : null;
+            if (ResolveAttackAnnounceTriggers(attacker, ActivePlayer, InactivePlayer))
+            {
+                CheckWin();
+                return 0;
+            }
+
             int damage = BattleSystem.ResolveAttack(attacker, defender, ActivePlayer, InactivePlayer);
             Log(defender == null
                 ? attacker.Data.Name + " declares a direct attack."
@@ -1172,12 +1855,59 @@ namespace IcarusGame.MasterDuel
 
         private void BuildDecks()
         {
-            List<CardData> blueEyes = SampleCards.BlueEyesMainDeck();
-            List<CardData> sforce = SampleCards.SForceMainDeck();
+            List<CardData> playerMainDeck = SampleCards.BlueEyesMainDeck();
+            playerMainDeck.AddRange(SampleCards.ScriptedLuaMainDeck());
+            List<CardData> blueEyes = EnrichWithCardDatabase(playerMainDeck);
+            List<CardData> sforce = EnrichWithCardDatabase(SampleCards.SForceMainDeck());
             AddDeck(State.Player, blueEyes, PlayerId.Player);
             AddDeck(State.Opponent, sforce, PlayerId.Opponent);
-            AddExtra(State.Player, SampleCards.BlueEyesExtraDeck(), PlayerId.Player);
-            AddExtra(State.Opponent, SampleCards.SForceExtraDeck(), PlayerId.Opponent);
+            AddExtra(State.Player, EnrichWithCardDatabase(SampleCards.BlueEyesExtraDeck()), PlayerId.Player);
+            AddExtra(State.Opponent, EnrichWithCardDatabase(SampleCards.SForceExtraDeck()), PlayerId.Opponent);
+        }
+
+        private void LoadCardDatabase()
+        {
+            if (cardDatabase != null)
+            {
+                return;
+            }
+
+            YgoCardDatabase loaded;
+            string error;
+            if (YgoCardDatabase.TryLoadDefault(out loaded, out error))
+            {
+                cardDatabase = loaded;
+                cardDatabaseLoadError = string.Empty;
+            }
+            else
+            {
+                cardDatabaseLoadError = error;
+            }
+        }
+
+        private List<CardData> EnrichWithCardDatabase(List<CardData> cards)
+        {
+            if (cardDatabase == null)
+            {
+                return cards;
+            }
+
+            List<CardData> enriched = new List<CardData>(cards.Count);
+            for (int i = 0; i < cards.Count; i++)
+            {
+                CardData source = cards[i];
+                CardData databaseCard;
+                if (source != null && cardDatabase.TryCreateCardData(source.Id, source.Archetype, source.EffectId, out databaseCard))
+                {
+                    enriched.Add(databaseCard);
+                }
+                else
+                {
+                    enriched.Add(source);
+                }
+            }
+
+            return enriched;
         }
 
         private void AddDeck(PlayerState player, List<CardData> cards, PlayerId owner)
@@ -1232,6 +1962,7 @@ namespace IcarusGame.MasterDuel
                 if (player.Monsters[i] != null)
                 {
                     player.Monsters[i].TemporaryAttack = 0;
+                    player.Monsters[i].CannotAttackThisTurn = false;
                 }
             }
         }
@@ -1247,6 +1978,60 @@ namespace IcarusGame.MasterDuel
             }
         }
 
+        private bool ResolveAttackAnnounceTriggers(CardInstance attacker, PlayerState attackerPlayer, PlayerState defenderPlayer)
+        {
+            ResolveFearfulEarthbound(defenderPlayer, attackerPlayer);
+            return ResolveDarkSanctuary(defenderPlayer, attackerPlayer, attacker);
+        }
+
+        private void ResolveFearfulEarthbound(PlayerState controller, PlayerState attackerPlayer)
+        {
+            for (int i = 0; i < PlayerState.ZoneCount; i++)
+            {
+                CardInstance card = controller.SpellsTraps[i];
+                if (card != null && !card.FaceDown && card.Data.Id == 12313)
+                {
+                    attackerPlayer.LifePoints -= 500;
+                    Log(card.Data.Name + " deals 500 damage to " + attackerPlayer.Name + ".");
+                }
+            }
+        }
+
+        private bool ResolveDarkSanctuary(PlayerState controller, PlayerState attackerPlayer, CardInstance attacker)
+        {
+            CardInstance sanctuary = null;
+            for (int i = 0; i < PlayerState.ZoneCount; i++)
+            {
+                CardInstance card = controller.SpellsTraps[i];
+                if (card != null && !card.FaceDown && card.Data.Id == 12312)
+                {
+                    sanctuary = card;
+                    break;
+                }
+            }
+
+            if (sanctuary == null || !HasCardInGraveyard(controller, 31829185) || random.Next(2) != 0)
+            {
+                return false;
+            }
+
+            int recovered = attacker.CurrentAttack;
+            int zone = FindMonsterZone(attackerPlayer, attacker);
+            if (zone >= 0)
+            {
+            if (DestroyMonster(attackerPlayer, zone))
+            {
+                controller.LifePoints += recovered;
+                Log(sanctuary.Data.Name + " destroys the attacking monster and restores " + recovered + " LP to " + controller.Name + ".");
+                return true;
+            }
+
+            return false;
+            }
+
+            return false;
+        }
+
         private void ResolveBattleDestruction(int attackerZone, int defenderZone, CardInstance attacker, CardInstance defender)
         {
             if (defender == null)
@@ -1257,38 +2042,155 @@ namespace IcarusGame.MasterDuel
             int defenderValue = defender.Position == MonsterPosition.Attack ? defender.CurrentAttack : defender.CurrentDefense;
             if (attacker.CurrentAttack > defenderValue)
             {
-                DestroyMonster(InactivePlayer, defenderZone);
+                if (TryPreventToonBattleDestruction(InactivePlayer, defender))
+                {
+                    return;
+                }
+
+                DestroyMonsterByBattle(InactivePlayer, defenderZone, attacker);
             }
             else if (defender.Position == MonsterPosition.Attack && attacker.CurrentAttack < defender.CurrentAttack)
             {
-                DestroyMonster(ActivePlayer, attackerZone);
+                if (TryPreventToonBattleDestruction(ActivePlayer, attacker))
+                {
+                    return;
+                }
+
+                DestroyMonsterByBattle(ActivePlayer, attackerZone, defender);
             }
             else if (defender.Position == MonsterPosition.Attack && attacker.CurrentAttack == defender.CurrentAttack && attacker.CurrentAttack > 0)
             {
-                DestroyMonster(ActivePlayer, attackerZone);
-                DestroyMonster(InactivePlayer, defenderZone);
+                bool attackerProtected = TryPreventToonBattleDestruction(ActivePlayer, attacker);
+                bool defenderProtected = TryPreventToonBattleDestruction(InactivePlayer, defender);
+                if (!attackerProtected)
+                {
+                    DestroyMonsterByBattle(ActivePlayer, attackerZone, defender);
+                }
+
+                if (!defenderProtected)
+                {
+                    DestroyMonsterByBattle(InactivePlayer, defenderZone, attacker);
+                }
             }
         }
 
-        private void DestroyMonster(PlayerState player, int zone)
+        private void DestroyMonsterByBattle(PlayerState player, int zone, CardInstance battleOpponent)
+        {
+            CardInstance destroyed = player.Monsters[zone];
+            if (DestroyMonster(player, zone))
+            {
+                ResolveBattleDestroyedTriggers(player, destroyed, battleOpponent);
+            }
+        }
+
+        private bool DestroyMonster(PlayerState player, int zone)
         {
             CardInstance monster = player.Monsters[zone];
             if (monster == null)
             {
-                return;
+                return false;
+            }
+
+            if (monster.ProtectionCounters > 0)
+            {
+                monster.ProtectionCounters--;
+                Log(monster.Data.Name + " spends a protection counter instead of being destroyed.");
+                return false;
             }
 
             player.Monsters[zone] = null;
             SendToGraveyard(player, monster);
             Log(monster.Data.Name + " is sent to the Graveyard.");
+            return true;
         }
 
-        private void SendToGraveyard(PlayerState owner, CardInstance card)
+        private void ResolveBattleDestroyedTriggers(PlayerState player, CardInstance destroyed, CardInstance battleOpponent)
         {
+            if (destroyed == null)
+            {
+                return;
+            }
+
+            AutoActivateRebirthTablet(player);
+            AutoActivateMirrorTablet(player, battleOpponent);
+        }
+
+        private void AutoActivateRebirthTablet(PlayerState player)
+        {
+            CardInstance tablet = FindSpellTrap(player, 12310);
+            if (tablet == null || tablet.SetTurn == State.TurnNumber)
+            {
+                return;
+            }
+
+            CardInstance target = FindInGraveyard(player, c => c.Data.IsMonster);
+            if (target == null)
+            {
+                return;
+            }
+
+            RemoveFromSpellTrapZone(player, tablet);
+            tablet.FaceDown = false;
+            Log(player.Name + " activates " + tablet.Data.Name + ".");
+            SpecialSummonCard(player, target, "Special Summons");
+            SendToGraveyard(player, tablet, true, tablet);
+        }
+
+        private void AutoActivateMirrorTablet(PlayerState player, CardInstance battleOpponent)
+        {
+            CardInstance tablet = FindSpellTrap(player, 12314);
+            CardInstance target = FirstFaceUpAttackMonster(player);
+            if (tablet == null || tablet.SetTurn == State.TurnNumber || target == null || battleOpponent == null || battleOpponent.FaceDown)
+            {
+                return;
+            }
+
+            int boost = battleOpponent.CurrentAttack / 2;
+            target.TemporaryAttack += boost;
+            RemoveFromSpellTrapZone(player, tablet);
+            tablet.FaceDown = false;
+            Log(player.Name + " activates " + tablet.Data.Name + "; " + target.Data.Name + " gains " + boost + " ATK.");
+            SendToGraveyard(player, tablet, true, tablet);
+        }
+
+        private void SendToGraveyard(PlayerState owner, CardInstance card, bool reasonEffect = false, CardInstance source = null)
+        {
+            if (card == null)
+            {
+                return;
+            }
+
+            CardLocation previousLocation = card.Location;
+            if (previousLocation == CardLocation.Graveyard && owner.Graveyard.Contains(card))
+            {
+                return;
+            }
+
+            DestroyAttachedEquipCards(card);
+            ReleaseEquipFromTarget(card);
+            RemoveCardFromKnownZone(owner, card);
             card.Location = CardLocation.Graveyard;
             card.FaceDown = false;
             card.HasAttacked = false;
+            card.CannotAttackThisTurn = false;
             owner.Graveyard.Add(card);
+            ResolveGriefTabletDamage(card);
+            ResolveGraveyardTriggers(owner, card, previousLocation, reasonEffect, source);
+            ResolveDiaboundKernelGraveyardTrigger(owner, card, previousLocation, source);
+        }
+
+        private void ResolveDiaboundKernelGraveyardTrigger(PlayerState owner, CardInstance card, CardLocation previousLocation, CardInstance source)
+        {
+            if (card.Data.Id != 12309 || previousLocation != CardLocation.SpellTrapZone || source == null || source.Controller == owner.Id)
+            {
+                return;
+            }
+
+            if (ZoneManager.FirstEmpty(owner.Monsters) >= 0)
+            {
+                SpecialSummonCard(owner, card, "Special Summons");
+                Log(card.Data.Name + " returns from the Graveyard after being removed as an equip card.");
+            }
         }
 
         private void TributeFirstMonster(PlayerState player)
@@ -1304,6 +2206,499 @@ namespace IcarusGame.MasterDuel
                     return;
                 }
             }
+        }
+
+        private bool SpecialSummonCard(PlayerState player, CardInstance card, string summonLabel)
+        {
+            int zone = ZoneManager.FirstEmpty(player.Monsters);
+            if (zone < 0 || card == null || !card.Data.IsMonster)
+            {
+                return false;
+            }
+
+            RemoveCardFromKnownZone(player, card);
+            card.Location = CardLocation.MonsterZone;
+            card.Controller = player.Id;
+            card.FaceDown = false;
+            card.Position = MonsterPosition.Attack;
+            card.SummonedTurn = State.TurnNumber;
+            card.CannotAttack = HasGriefTablet(card);
+            card.EffectDisabled = HasGriefTablet(card);
+            player.Monsters[zone] = card;
+            Log(player.Name + " " + summonLabel + " " + card.Data.Name + ".");
+            ResolveSummonSuccessTriggers(player, card);
+            return true;
+        }
+
+        private void EquipToMonster(CardInstance equip, CardInstance target, int attackBonus)
+        {
+            if (equip == null || target == null)
+            {
+                return;
+            }
+
+            ReleaseEquipFromTarget(equip);
+            equip.EquippedTo = target;
+            equip.PreviousEquipTargetController = target.Controller;
+            equip.EquipAttackBonus = attackBonus;
+            if (!target.EquippedCards.Contains(equip))
+            {
+                target.EquippedCards.Add(equip);
+            }
+        }
+
+        private void ApplyGriefTabletLock(CardInstance target)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            target.CannotAttack = true;
+            target.EffectDisabled = true;
+        }
+
+        private void DestroyAttachedEquipCards(CardInstance card)
+        {
+            if (card == null || card.EquippedCards.Count == 0)
+            {
+                return;
+            }
+
+            List<CardInstance> equippedCards = new List<CardInstance>(card.EquippedCards);
+            for (int i = 0; i < equippedCards.Count; i++)
+            {
+                CardInstance equip = equippedCards[i];
+                PlayerState equipController = Player(equip.Controller);
+                RemoveFromSpellTrapZone(equipController, equip);
+                SendToGraveyard(equipController, equip, false, null);
+            }
+
+            card.EquippedCards.Clear();
+        }
+
+        private void ReleaseEquipFromTarget(CardInstance equip)
+        {
+            if (equip == null || equip.EquippedTo == null)
+            {
+                return;
+            }
+
+            CardInstance target = equip.EquippedTo;
+            target.EquippedCards.Remove(equip);
+            equip.EquippedTo = null;
+            equip.EquipAttackBonus = 0;
+            if (equip.Data.Id == 12317)
+            {
+                bool stillLocked = HasGriefTablet(target);
+                target.CannotAttack = stillLocked;
+                target.EffectDisabled = stillLocked;
+            }
+        }
+
+        private void ResolveGriefTabletDamage(CardInstance card)
+        {
+            if (card.Data.Id != 12317 || !card.PreviousEquipTargetController.HasValue)
+            {
+                return;
+            }
+
+            PlayerState damaged = Player(card.PreviousEquipTargetController.Value);
+            damaged.LifePoints -= 500;
+            Log(card.Data.Name + " deals 500 damage to " + damaged.Name + ".");
+            card.PreviousEquipTargetController = null;
+            CheckWin();
+        }
+
+        private void ResolveGraveyardTriggers(PlayerState owner, CardInstance card, CardLocation previousLocation, bool reasonEffect, CardInstance source)
+        {
+            ResolveCursedTwinDolls(State.Player, owner, card, previousLocation, reasonEffect, source);
+            ResolveCursedTwinDolls(State.Opponent, owner, card, previousLocation, reasonEffect, source);
+        }
+
+        private void ResolveCursedTwinDolls(PlayerState controller, PlayerState sentOwner, CardInstance sentCard, CardLocation previousLocation, bool reasonEffect, CardInstance source)
+        {
+            for (int i = 0; i < PlayerState.ZoneCount; i++)
+            {
+                CardInstance dolls = controller.SpellsTraps[i];
+                if (dolls == null || dolls.FaceDown || dolls.Data.Id != 12321)
+                {
+                    continue;
+                }
+
+                PlayerState opponent = OpponentOf(controller.Id);
+                if (sentCard.Owner == opponent.Id)
+                {
+                    opponent.LifePoints += 200;
+                    Log(dolls.Data.Name + " restores 200 LP to " + opponent.Name + ".");
+                }
+
+                bool sourceIsDolls = source != null && source.Data.Id == 12321;
+                if (reasonEffect && !sourceIsDolls && previousLocation == CardLocation.Deck && sentOwner.Id == opponent.Id)
+                {
+                    int count = CountMonsterCards(controller.Graveyard);
+                    if (count > 0)
+                    {
+                        Mill(opponent, count, true, dolls);
+                        Log(dolls.Data.Name + " mills " + count + " card(s) from " + opponent.Name + ".");
+                    }
+                }
+            }
+        }
+
+        private void RemoveCardFromKnownZone(PlayerState player, CardInstance card)
+        {
+            player.Hand.Remove(card);
+            player.Deck.Remove(card);
+            player.ExtraDeck.Remove(card);
+            player.Graveyard.Remove(card);
+            player.Banished.Remove(card);
+            RemoveFromMonsterZone(player, card);
+            RemoveFromSpellTrapZone(player, card);
+        }
+
+        private void RemoveFromMonsterZone(PlayerState player, CardInstance card)
+        {
+            for (int i = 0; i < PlayerState.ZoneCount; i++)
+            {
+                if (player.Monsters[i] == card)
+                {
+                    player.Monsters[i] = null;
+                }
+            }
+        }
+
+        private void RemoveFromSpellTrapZone(PlayerState player, CardInstance card)
+        {
+            for (int i = 0; i < PlayerState.ZoneCount; i++)
+            {
+                if (player.SpellsTraps[i] == card)
+                {
+                    player.SpellsTraps[i] = null;
+                }
+            }
+        }
+
+        private bool MoveMonsterControl(PlayerState from, PlayerState to, CardInstance card)
+        {
+            int targetZone = ZoneManager.FirstEmpty(to.Monsters);
+            if (targetZone < 0 || card == null)
+            {
+                return false;
+            }
+
+            RemoveFromMonsterZone(from, card);
+            card.Controller = to.Id;
+            card.Location = CardLocation.MonsterZone;
+            card.FaceDown = false;
+            to.Monsters[targetZone] = card;
+            return true;
+        }
+
+        private void ReturnMonsterToDeck(PlayerState player, CardInstance card)
+        {
+            if (card == null)
+            {
+                return;
+            }
+
+            DestroyAttachedEquipCards(card);
+            RemoveFromMonsterZone(player, card);
+            card.Location = CardLocation.Deck;
+            card.FaceDown = false;
+            card.HasAttacked = false;
+            card.CannotAttackThisTurn = false;
+            player.Deck.Add(card);
+            Shuffle(player.Deck);
+        }
+
+        private int BanishTopDeck(PlayerState player, int count)
+        {
+            int banished = 0;
+            for (int i = 0; i < count && player.Deck.Count > 0; i++)
+            {
+                CardInstance card = player.Deck[0];
+                player.Deck.RemoveAt(0);
+                card.Location = CardLocation.Banished;
+                card.FaceDown = false;
+                card.HasAttacked = false;
+                player.Banished.Add(card);
+                banished++;
+            }
+
+            return banished;
+        }
+
+        private int Mill(PlayerState player, int count, bool reasonEffect, CardInstance source)
+        {
+            int milled = 0;
+            for (int i = 0; i < count && player.Deck.Count > 0; i++)
+            {
+                CardInstance card = player.Deck[0];
+                player.Deck.RemoveAt(0);
+                SendToGraveyard(player, card, reasonEffect, source);
+                milled++;
+            }
+
+            return milled;
+        }
+
+        private CardInstance FirstRitualTribute(PlayerState player, CardInstance ritualMonster)
+        {
+            CardInstance tribute = FirstFaceUpMonster(player, c => c != ritualMonster);
+            if (tribute != null)
+            {
+                return tribute;
+            }
+
+            return FindInHand(player, c => c != ritualMonster && c.Data.IsMonster);
+        }
+
+        private CardInstance FirstFaceUpMonster(PlayerState player, Predicate<CardInstance> predicate)
+        {
+            for (int i = 0; i < PlayerState.ZoneCount; i++)
+            {
+                CardInstance card = player.Monsters[i];
+                if (card != null && !card.FaceDown && predicate(card))
+                {
+                    return card;
+                }
+            }
+
+            return null;
+        }
+
+        private CardInstance FirstFaceUpAttackMonster(PlayerState player)
+        {
+            for (int i = 0; i < PlayerState.ZoneCount; i++)
+            {
+                CardInstance card = player.Monsters[i];
+                if (card != null && !card.FaceDown && card.Position == MonsterPosition.Attack)
+                {
+                    return card;
+                }
+            }
+
+            return null;
+        }
+
+        private CardInstance HighestAttackFaceUpMonster(PlayerState player)
+        {
+            CardInstance best = null;
+            for (int i = 0; i < PlayerState.ZoneCount; i++)
+            {
+                CardInstance card = player.Monsters[i];
+                if (card != null && !card.FaceDown && (best == null || card.CurrentAttack > best.CurrentAttack))
+                {
+                    best = card;
+                }
+            }
+
+            return best;
+        }
+
+        private int FindMonsterZone(PlayerState player, CardInstance target)
+        {
+            for (int i = 0; i < PlayerState.ZoneCount; i++)
+            {
+                if (player.Monsters[i] == target)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private CardInstance FindSpellTrap(PlayerState player, int cardId)
+        {
+            for (int i = 0; i < PlayerState.ZoneCount; i++)
+            {
+                CardInstance card = player.SpellsTraps[i];
+                if (card != null && card.Data.Id == cardId)
+                {
+                    return card;
+                }
+            }
+
+            return null;
+        }
+
+        private CardInstance FindFaceUpSpellTrap(PlayerState player, int cardId)
+        {
+            for (int i = 0; i < PlayerState.ZoneCount; i++)
+            {
+                CardInstance card = player.SpellsTraps[i];
+                if (card != null && !card.FaceDown && card.Data.Id == cardId)
+                {
+                    return card;
+                }
+            }
+
+            return null;
+        }
+
+        private List<int> FaceUpToonMonsterZones(PlayerState player, int maxCount)
+        {
+            List<int> zones = new List<int>();
+            for (int i = 0; i < PlayerState.ZoneCount && zones.Count < maxCount; i++)
+            {
+                CardInstance card = player.Monsters[i];
+                if (card != null && !card.FaceDown && card.Data.IsMonster && IsToonCard(card))
+                {
+                    zones.Add(i);
+                }
+            }
+
+            return zones;
+        }
+
+        private CardInstance FindInBanished(PlayerState player, Predicate<CardInstance> predicate)
+        {
+            for (int i = 0; i < player.Banished.Count; i++)
+            {
+                if (predicate(player.Banished[i]))
+                {
+                    return player.Banished[i];
+                }
+            }
+
+            return null;
+        }
+
+        private CardInstance FindInGraveyard(PlayerState player, Predicate<CardInstance> predicate)
+        {
+            for (int i = 0; i < player.Graveyard.Count; i++)
+            {
+                if (predicate(player.Graveyard[i]))
+                {
+                    return player.Graveyard[i];
+                }
+            }
+
+            return null;
+        }
+
+        private bool HasCardInGraveyard(PlayerState player, int cardId)
+        {
+            return FindInGraveyard(player, c => c.Data.Id == cardId) != null;
+        }
+
+        private bool HasToonWorld(PlayerState player)
+        {
+            for (int i = 0; i < PlayerState.ZoneCount; i++)
+            {
+                CardInstance card = player.SpellsTraps[i];
+                if (card != null && !card.FaceDown && (card.Data.Id == 12323 || card.Data.Id == 15259703))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool TryPreventToonBattleDestruction(PlayerState player, CardInstance monster)
+        {
+            if (monster == null || !IsToonCard(monster) || !HasToonWorld(player))
+            {
+                return false;
+            }
+
+            CardInstance replacement = FindInHand(player, c => c.Data.IsMonster && IsToonCard(c));
+            if (replacement == null)
+            {
+                return false;
+            }
+
+            player.Hand.Remove(replacement);
+            SendToGraveyard(player, replacement, true, FaceUpToonKingdom(player));
+            Log(player.Name + " sends " + replacement.Data.Name + " from hand to protect " + monster.Data.Name + ".");
+            return true;
+        }
+
+        private CardInstance FaceUpToonKingdom(PlayerState player)
+        {
+            for (int i = 0; i < PlayerState.ZoneCount; i++)
+            {
+                CardInstance card = player.SpellsTraps[i];
+                if (card != null && !card.FaceDown && card.Data.Id == 12323)
+                {
+                    return card;
+                }
+            }
+
+            return null;
+        }
+
+        private bool IsEquippedToFaceUpMonster(CardInstance equip)
+        {
+            return equip != null &&
+                   equip.EquippedTo != null &&
+                   equip.EquippedTo.Location == CardLocation.MonsterZone &&
+                   !equip.EquippedTo.FaceDown;
+        }
+
+        private bool HasGriefTablet(CardInstance target)
+        {
+            if (target == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < target.EquippedCards.Count; i++)
+            {
+                if (target.EquippedCards[i].Data.Id == 12317)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsDarkMonster(CardInstance card)
+        {
+            return card != null &&
+                   card.Data.IsMonster &&
+                   (card.Data.CdbAttribute == 0x20 ||
+                    card.Data.TypeLine.IndexOf("DARK", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    card.Data.Name.IndexOf("Dark", StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
+        private bool IsRockMonster(CardInstance card)
+        {
+            return card != null &&
+                   card.Data.IsMonster &&
+                   (card.Data.CdbRace == 0x100 ||
+                    card.Data.TypeLine.IndexOf("Rock", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    card.Data.Name.IndexOf("Stone", StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
+        private bool IsToonCard(CardInstance card)
+        {
+            return card != null &&
+                   (string.Equals(card.Data.Archetype, "Toon", StringComparison.OrdinalIgnoreCase) ||
+                    card.Data.Name.IndexOf("Toon", StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
+        private int CountMonsterCards(List<CardInstance> cards)
+        {
+            int count = 0;
+            for (int i = 0; i < cards.Count; i++)
+            {
+                if (cards[i].Data.IsMonster)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        private int CountFieldMonsters()
+        {
+            return ZoneManager.CountMonsters(State.Player) + ZoneManager.CountMonsters(State.Opponent);
         }
 
         private CardInstance FindInDeck(PlayerState player, Predicate<CardInstance> predicate)
@@ -1376,6 +2771,42 @@ namespace IcarusGame.MasterDuel
             };
         }
 
+        public static List<CardData> ScriptedLuaMainDeck()
+        {
+            return new List<CardData>
+            {
+                Monster(12309, "Diabound Kernel", MonsterFrame.Effect, 5, 1800, 1200, "Fiend / DARK / Effect", "Once per turn: equip this card to a face-up opponent monster; it loses 1800 ATK. While equipped, you can Special Summon this card. If it is sent from the Spell/Trap Zone to the Graveyard by your opponent: Special Summon it.", "Diabound", "diabound_kernel"),
+                Trap(12310, "Rebirth Tablet", "Normal Trap", "When your monster is destroyed by battle: Special Summon 1 monster from your Graveyard.", "Tablet", "rebirth_tablet"),
+                Spell(12311, "Spiritialistic Medium", "Normal Spell", "Target 1 face-up monster you control; it gains 500 ATK for each card in your opponent's hand, then your opponent discards their hand.", "Occult", "spiritualistic_medium"),
+                Spell(12312, "Dark Sanctuary", "Field Spell", "When your opponent attacks while Spirit Message I is in your Graveyard, a coin result may destroy the attacker and restore LP equal to its ATK.", "Destiny Board", "dark_sanctuary"),
+                Trap(12313, "Fearful Earthbound", "Continuous Trap", "When your opponent declares an attack: inflict 500 damage to your opponent.", "Earthbound", "fearful_earthbound"),
+                Trap(12314, "Mirror Tablet", "Normal Trap", "When your monster is destroyed by battle: another face-up attack position monster you control gains ATK equal to half the opposing monster's ATK.", "Tablet", "mirror_tablet"),
+                Monster(12315, "Silent Swordsman LV:0", MonsterFrame.Effect, 1, 500, 500, "Warrior / LIGHT / Effect", "During your Standby Phase: this card gains 500 ATK and 1 Level.", "Silent Swordsman", "silent_swordsman_lv0"),
+                Spell(12316, "Negative Energy Generator", "Equip Spell", "Equip only to a face-up DARK monster. It gains 500 ATK, then gains another 500 ATK during each of your Standby Phases.", "Dark Dragon", "negative_energy_generator"),
+                Spell(12317, "Grief Tablet", "Equip Spell", "Equip to a face-up monster. It cannot attack, cannot change battle position, and its effects are disabled. If this card is destroyed: its previous target's controller takes 500 damage.", "Cursed", "grief_tablet"),
+                Monster(12319, "Knight of Dark Dragons", MonsterFrame.Ritual, 4, 1900, 1200, "Dragon / DARK / Ritual / Effect", "You can release this card; Special Summon 1 Red-Eyes Black Dragon from your hand or Deck, but it cannot attack this turn.", "Dark Dragon", "knight_of_dark_dragons"),
+                Spell(12320, "Dark Dragon Ritual", "Ritual Spell", "Ritual Summon Knight of Dark Dragons by Tributing a monster from your field or hand.", "Dark Dragon", "dark_dragon_ritual"),
+                Spell(12321, "Cursed Twin Dolls", "Continuous Spell", "When an opponent-owned card is sent to the Graveyard, that opponent gains 200 LP. If an opponent's card is sent from Deck to Graveyard by another effect, mill cards from that opponent's Deck equal to your monsters in the Graveyard.", "Cursed", "cursed_twin_dolls"),
+                Spell(12322, "Counterbalance", "Continuous Spell", "During each End Phase: the turn player mills cards equal to the number of monsters on the field if you control this during your turn; otherwise your opponent mills that many.", "Cursed", "counterbalance"),
+                Spell(12323, "Toon Kingdom", "Field Spell", "When activated: banish the top 5 cards of your Deck. Once per turn: pay 1000 LP; add 1 banished Toon card to your hand. Toon monsters you control can be protected from battle destruction by sending a Toon monster from your hand to the Graveyard.", "Toon", "toon_kingdom"),
+                Spell(12324, "Toon Roll-Back", "Normal Spell", "Shuffle 2 face-up Toon monsters you control into the Deck, then draw 3 cards.", "Toon", "toon_roll_back"),
+                Trap(12325, "Toon Shadow", "Normal Trap", "If Toon Kingdom or Toon World is face-up: target a face-up opponent monster; inflict damage to your opponent equal to its ATK.", "Toon", "toon_shadow"),
+                Spell(12326, "Mimicat", "Normal Spell", "If Toon Kingdom or Toon World is face-up and your opponent has a card in the Graveyard: banish the top 5 cards of your Deck, then add 1 card from your opponent's Graveyard to your hand.", "Toon", "mimicat"),
+                Spell(12327, "Comic Hand", "Equip Spell", "If Toon Kingdom or Toon World is face-up: take control of 1 face-up opponent monster and equip this card to it.", "Toon", "comic_hand"),
+                Trap(12328, "Toon Briefcase", "Normal Trap", "If Toon Kingdom or Toon World is face-up when your opponent Summons a monster: return that monster to the Deck.", "Toon", "toon_briefcase"),
+                Monster(12334, "Stone Giant", MonsterFrame.Effect, 4, 1600, 2000, "Rock / EARTH / Effect", "During your End Phase, if this card did not attack this turn: take 500 damage.", "Rock", "stone_giant"),
+                Spell(12336, "Miracle Rupture", "Normal Spell", "Send 1 Rock monster from your Deck to the Graveyard, then draw 1 card.", "Rock", "miracle_rupture"),
+                Trap(12337, "Sacred Defence Barrier", "Continuous Trap", "When a Rock monster is Summoned: place a protection counter on it. If it would be destroyed, remove one counter instead.", "Rock", "sacred_defence_barrier"),
+                Monster(12338, "Flint Cragger", MonsterFrame.Effect, 3, 800, 1600, "Rock / EARTH / Effect", "You can send this card to the Graveyard; inflict 500 damage to your opponent.", "Rock", "flint_cragger"),
+                Monster(12339, "Sample Fossil", MonsterFrame.Effect, 2, 700, 500, "Rock / EARTH / Effect", "When this card is Summoned: equip 1 Level 4 or lower monster from your opponent's Graveyard to this card; this card gains that monster's ATK.", "Rock", "sample_fossil"),
+                Monster(12340, "Shell Knight", MonsterFrame.Effect, 4, 0, 2000, "Rock / EARTH / Effect", "When this card is Summoned: change it to Defense Position, then inflict 500 damage to your opponent.", "Rock", "shell_knight"),
+                Spell(31829185, "Spirit Message I", "Continuous Spell", "Support card for Dark Sanctuary's attack trigger.", "Destiny Board", ""),
+                Monster(74677422, "Red-Eyes Black Dragon", MonsterFrame.Normal, 7, 2400, 2000, "Dragon / DARK / Normal", "A ferocious dragon with a deadly attack.", "Red-Eyes", ""),
+                Monster(65458948, "Toon Mermaid", MonsterFrame.Effect, 4, 1400, 1500, "Aqua / WATER / Toon / Effect", "A Toon monster used as Toon Kingdom and Toon Roll-Back support.", "Toon", ""),
+                Monster(53183600, "Blue-Eyes Toon Dragon", MonsterFrame.Effect, 8, 3000, 2500, "Dragon / LIGHT / Toon / Effect", "A high-ATK Toon monster used as Toon Kingdom support.", "Toon", "")
+            };
+        }
+
         public static List<CardData> BlueEyesExtraDeck()
         {
             return new List<CardData>
@@ -1392,20 +2823,20 @@ namespace IcarusGame.MasterDuel
         {
             return new List<CardData>
             {
-                Monster(3001, "S-Force Rappa Chiyomaru", MonsterFrame.Effect, 2, 800, 1000, "Warrior / Effect", "Banish an S-Force card from hand; Special Summon an S-Force from Deck.", "S-Force", "search_sforce"),
-                Monster(3002, "S-Force Lapcewell", MonsterFrame.Effect, 6, 2400, 2500, "Fiend / Effect", "If Special Summoned: target monsters based on S-Force columns.", "S-Force", "burn_800"),
-                Monster(3003, "S-Force Professor DiGamma", MonsterFrame.Effect, 3, 1000, 1500, "Psychic / Effect", "Column based disruption.", "S-Force", "boost_team"),
-                Monster(3004, "S-Force Orrafist", MonsterFrame.Effect, 4, 1800, 1000, "Cyberse / Effect", "Banish an opponent's monster when it targets an S-Force.", "S-Force", "counter"),
-                Spell(3101, "S-Force Bridgehead", "Field Spell", "When activated: add 1 S-Force monster from Deck to hand.", "S-Force", "search_sforce"),
-                Spell(3102, "S-Force Showdown", "Quick-Play Spell", "Special Summon or return S-Force cards.", "S-Force", "quick_special"),
-                Trap(3201, "S-Force Chase", "Normal Trap", "Return opponent monsters in the same columns as your S-Force monsters.", "S-Force", "counter"),
-                Trap(3202, "S-Force Specimen", "Normal Trap", "Special Summon a banished S-Force monster.", "S-Force", "quick_special"),
-                Spell(3103, "Reinforcement Command", "Normal Spell", "Add a Warrior monster from Deck to hand.", "S-Force", "search_sforce"),
-                Monster(3005, "S-Force Dog Tag", MonsterFrame.Effect, 5, 1600, 2100, "Machine / Effect", "Special Summons itself when opponent summons.", "S-Force", "special_blueeyes"),
-                Monster(3006, "S-Force Gravitino", MonsterFrame.Effect, 5, 2000, 1400, "Psychic / Effect", "Adds an S-Force card and pressures columns.", "S-Force", "search_sforce"),
-                Spell(3104, "Dimensional Pursuit", "Normal Spell", "Deal effect damage and move cards between zones.", "S-Force", "burn_800"),
-                Trap(3203, "Column Lock", "Continuous Trap", "Locks opponent actions in occupied columns.", "S-Force", "boost_team"),
-                Monster(3007, "S-Force Pla-Tina", MonsterFrame.Effect, 6, 2200, 2000, "Spellcaster / Effect", "Special Summons banished S-Force monsters.", "S-Force", "quick_special")
+                Monster(22180094, "S-Force Rappa Chiyomaru", MonsterFrame.Effect, 2, 800, 1000, "Warrior / Effect", "Banish an S-Force card from hand; Special Summon an S-Force from Deck.", "S-Force", "search_sforce"),
+                Monster(27383719, "S-Force Lapcewell", MonsterFrame.Effect, 6, 2400, 2500, "Fiend / Effect", "If Special Summoned: target monsters based on S-Force columns.", "S-Force", "burn_800"),
+                Monster(58589739, "S-Force Professor DiGamma", MonsterFrame.Effect, 3, 1000, 1500, "Psychic / Effect", "Column based disruption.", "S-Force", "boost_team"),
+                Monster(95974848, "S-Force Orrafist", MonsterFrame.Effect, 4, 1800, 1000, "Cyberse / Effect", "Banish an opponent's monster when it targets an S-Force.", "S-Force", "counter"),
+                Spell(23377425, "S-Force Bridgehead", "Field Spell", "When activated: add 1 S-Force monster from Deck to hand.", "S-Force", "search_sforce"),
+                Spell(69761020, "S-Force Showdown", "Quick-Play Spell", "Special Summon or return S-Force cards.", "S-Force", "quick_special"),
+                Trap(55049722, "S-Force Chase", "Normal Trap", "Return opponent monsters in the same columns as your S-Force monsters.", "S-Force", "counter"),
+                Trap(82977464, "S-Force Specimen", "Normal Trap", "Special Summon a banished S-Force monster.", "S-Force", "quick_special"),
+                Spell(32807846, "Reinforcement of the Army", "Normal Spell", "Add a Warrior monster from Deck to hand.", "S-Force", "search_sforce"),
+                Monster(65479980, "S-Force Dog Tag", MonsterFrame.Effect, 5, 1600, 2100, "Machine / Effect", "Special Summons itself when opponent summons.", "S-Force", "special_blueeyes"),
+                Monster(21368442, "S-Force Gravitino", MonsterFrame.Effect, 5, 2000, 1400, "Psychic / Effect", "Adds an S-Force card and pressures columns.", "S-Force", "search_sforce"),
+                Spell(23377425, "S-Force Bridgehead", "Field Spell", "Deal effect damage and move cards between zones.", "S-Force", "burn_800"),
+                Trap(55049722, "S-Force Chase", "Normal Trap", "Locks opponent actions in occupied columns.", "S-Force", "boost_team"),
+                Monster(58363151, "S-Force Pla-Tina", MonsterFrame.Effect, 6, 2200, 2000, "Spellcaster / Effect", "Special Summons banished S-Force monsters.", "S-Force", "quick_special")
             };
         }
 
@@ -1413,11 +2844,11 @@ namespace IcarusGame.MasterDuel
         {
             return new List<CardData>
             {
-                Monster(4001, "S-Force Nightchaser", MonsterFrame.Link, 0, 800, 0, "Cyberse / Link / Effect", "1 non-Link S-Force monster. Adds S-Force follow-up.", "S-Force", "search_sforce"),
-                Monster(4002, "S-Force Justify", MonsterFrame.Link, 0, 2600, 0, "Cyberse / Link / Effect", "3 Effect Monsters. Column-based boss monster.", "S-Force", "counter"),
-                Monster(4003, "Number 41: Bagooska", MonsterFrame.Xyz, 4, 2100, 2000, "Fiend / Xyz / Effect", "2 Level 4 monsters. Slows the game.", "S-Force", "counter"),
-                Monster(4004, "PSY-Framelord Omega", MonsterFrame.Synchro, 8, 2800, 2200, "Psychic / Synchro / Effect", "A Synchro utility monster.", "S-Force", "counter"),
-                Monster(4005, "Guardian Chimera", MonsterFrame.Fusion, 9, 3300, 3300, "Beast / Fusion / Effect", "Fusion boss used as Extra Deck reference.", "S-Force", "draw_two")
+                Monster(20515672, "S-Force Nightchaser", MonsterFrame.Link, 1, 800, 0, "Cyberse / Link / Effect", "1 non-Link S-Force monster. Adds S-Force follow-up.", "S-Force", "search_sforce"),
+                Monster(35334193, "S-Force Justify", MonsterFrame.Link, 3, 2600, 0, "Cyberse / Link / Effect", "3 Effect Monsters. Column-based boss monster.", "S-Force", "counter"),
+                Monster(90590303, "Number 41: Bagooska the Terribly Tired Tapir", MonsterFrame.Xyz, 4, 2100, 2000, "Fiend / Xyz / Effect", "2 Level 4 monsters. Slows the game.", "S-Force", "counter"),
+                Monster(74586817, "PSY-Framelord Omega", MonsterFrame.Synchro, 8, 2800, 2200, "Psychic / Synchro / Effect", "A Synchro utility monster.", "S-Force", "counter"),
+                Monster(11321089, "Guardian Chimera", MonsterFrame.Fusion, 9, 3300, 3300, "Beast / Fusion / Effect", "Fusion boss used as Extra Deck reference.", "S-Force", "draw_two")
             };
         }
 
@@ -1463,7 +2894,7 @@ namespace IcarusGame.MasterDuel
                 : "Origin: Main Deck.");
             if (card.Data.IsMonster)
             {
-                builder.AppendLine("Level/Rank/Link " + card.Data.Level + "   ATK " + card.CurrentAttack + " / DEF " + card.CurrentDefense);
+                builder.AppendLine("Level/Rank/Link " + card.CurrentLevel + "   ATK " + card.CurrentAttack + " / DEF " + card.CurrentDefense);
                 if (card.Data.Frame == MonsterFrame.Synchro)
                 {
                     builder.AppendLine("Synchro rule: exactly 1 face-up Tuner + 1 or more face-up non-Tuners; their Levels must exactly total " + card.Data.Level + ".");
@@ -1537,12 +2968,13 @@ namespace IcarusGame.MasterDuel
     public sealed class MasterDuelRuntime : MonoBehaviour
     {
         private const float UiUnitsPerCentimeter = 37.8f;
-        private const float HandCardWidth = 3.5f * UiUnitsPerCentimeter;
-        private const float HandCardHeight = 6.5f * UiUnitsPerCentimeter;
+        private const float CardAspectRatio = 813f / 1185f;
+        private const float HandCardHeight = 6.8f * UiUnitsPerCentimeter;
+        private const float HandCardWidth = HandCardHeight * CardAspectRatio;
         private const float HandRowHeight = HandCardHeight + 12f;
         private const float BottomBarHeight = HandRowHeight + 82f;
-        private const float ChoiceCardWidth = 76f;
-        private const float ChoiceCardHeight = 108f;
+        private const float ChoiceCardHeight = 136f;
+        private const float ChoiceCardWidth = ChoiceCardHeight * CardAspectRatio;
 
         private readonly DuelManager duel = new DuelManager();
         private readonly DuelUIManager duelUi = new DuelUIManager();
@@ -1703,47 +3135,47 @@ namespace IcarusGame.MasterDuel
             RectTransform root = canvasObject.GetComponent<RectTransform>();
             Stretch(root);
 
-            RectTransform top = Panel("Top HUD", root, new Color(0f, 0f, 0f, 0.0f));
-            Anchor(top, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(20f, -130f), new Vector2(-20f, -20f));
-            AddHorizontal(top.gameObject, 0, 0, 0, 0, 16f, TextAnchor.MiddleCenter);
-            playerLpText = Label("Player LP", top, 30, FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
-            AddLayout(playerLpText.gameObject, 360f, 90f, 0f, 0f);
-            phaseText = Label("Phase", top, 34, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.86f, 0.45f, 1f));
-            AddLayout(phaseText.gameObject, -1f, 90f, 1f, 0f);
-            opponentLpText = Label("Opponent LP", top, 30, FontStyle.Bold, TextAnchor.MiddleRight, Color.white);
-            AddLayout(opponentLpText.gameObject, 480f, 90f, 0f, 0f);
+            RectTransform top = Panel("Top HUD", root, new Color(0.008f, 0.012f, 0.02f, 0.78f));
+            Anchor(top, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -104f), new Vector2(-24f, -20f));
+            AddHorizontal(top.gameObject, 18, 18, 0, 0, 18f, TextAnchor.MiddleCenter);
+            playerLpText = Label("Player LP", top, 28, FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
+            AddLayout(playerLpText.gameObject, 420f, 70f, 0f, 0f);
+            phaseText = Label("Phase", top, 31, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.86f, 0.45f, 1f));
+            AddLayout(phaseText.gameObject, -1f, 70f, 1f, 0f);
+            opponentLpText = Label("Opponent LP", top, 28, FontStyle.Bold, TextAnchor.MiddleRight, Color.white);
+            AddLayout(opponentLpText.gameObject, 420f, 70f, 0f, 0f);
 
-            RectTransform inspector = Panel("Card Inspector", root, new Color(0.02f, 0.035f, 0.055f, 0.86f));
-            Anchor(inspector, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(20f, 128f), new Vector2(420f, -145f));
-            AddVertical(inspector.gameObject, 16, 16, 16, 16, 8f);
-            inspectorTitle = Label("Inspector Title", inspector, 28, FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
-            AddLayout(inspectorTitle.gameObject, -1f, 54f, 0f, 0f);
-            inspectorBody = Label("Inspector Body", inspector, 22, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.9f, 0.96f, 1f, 1f));
+            RectTransform inspector = Panel("Card Inspector", root, new Color(0.015f, 0.022f, 0.035f, 0.84f));
+            Anchor(inspector, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(20f, BottomBarHeight + 30f), new Vector2(400f, -122f));
+            AddVertical(inspector.gameObject, 14, 14, 14, 14, 7f);
+            inspectorTitle = Label("Inspector Title", inspector, 24, FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
+            AddLayout(inspectorTitle.gameObject, -1f, 46f, 0f, 0f);
+            inspectorBody = Label("Inspector Body", inspector, 18, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.9f, 0.96f, 1f, 1f));
             AddLayout(inspectorBody.gameObject, -1f, -1f, 1f, 1f);
 
-            RectTransform bottom = Panel("Bottom Bar", root, new Color(0.025f, 0.025f, 0.035f, 0.84f));
-            Anchor(bottom, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(435f, 18f), new Vector2(-20f, BottomBarHeight));
-            AddVertical(bottom.gameObject, 10, 10, 10, 10, 8f);
+            RectTransform bottom = Panel("Bottom Bar", root, new Color(0.008f, 0.01f, 0.016f, 0.88f));
+            Anchor(bottom, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(24f, 14f), new Vector2(-24f, BottomBarHeight));
+            AddVertical(bottom.gameObject, 18, 18, 10, 12, 8f);
             handRow = Panel("Hand", bottom, new Color(0f, 0f, 0f, 0f));
-            AddHorizontal(handRow.gameObject, 0, 0, 0, 0, 8f, TextAnchor.MiddleCenter);
+            AddHorizontal(handRow.gameObject, 0, 0, 0, 0, 10f, TextAnchor.MiddleCenter);
             AddLayout(handRow.gameObject, -1f, HandRowHeight, 1f, 0f);
             actionRow = Panel("Actions", bottom, new Color(0f, 0f, 0f, 0f));
             AddHorizontal(actionRow.gameObject, 0, 0, 0, 0, 8f, TextAnchor.MiddleCenter);
             AddLayout(actionRow.gameObject, -1f, 54f, 0f, 0f);
 
-            RectTransform logPanel = Panel("Log", root, new Color(0.02f, 0.025f, 0.035f, 0.78f));
-            Anchor(logPanel, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-390f, BottomBarHeight + 20f), new Vector2(-20f, BottomBarHeight + 300f));
-            AddVertical(logPanel.gameObject, 12, 12, 12, 12, 6f);
-            logText = Label("Log Text", logPanel, 16, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.8f, 0.9f, 1f, 1f));
+            RectTransform logPanel = Panel("Log", root, new Color(0.012f, 0.017f, 0.028f, 0.80f));
+            Anchor(logPanel, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-402f, BottomBarHeight + 30f), new Vector2(-20f, -122f));
+            AddVertical(logPanel.gameObject, 14, 14, 14, 14, 6f);
+            logText = Label("Log Text", logPanel, 15, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.8f, 0.9f, 1f, 1f));
             AddLayout(logText.gameObject, -1f, -1f, 1f, 1f);
 
-            bannerText = Label("Banner", root, 62, FontStyle.BoldAndItalic, TextAnchor.MiddleCenter, new Color(1f, 0.94f, 0.65f, 0.95f));
+            bannerText = Label("Banner", root, 48, FontStyle.BoldAndItalic, TextAnchor.MiddleCenter, new Color(1f, 0.94f, 0.65f, 0.50f));
             RectTransform bannerRect = bannerText.GetComponent<RectTransform>();
-            Anchor(bannerRect, new Vector2(0.18f, 0.48f), new Vector2(0.82f, 0.62f), Vector2.zero, Vector2.zero);
+            Anchor(bannerRect, new Vector2(0.24f, 0.48f), new Vector2(0.76f, 0.60f), Vector2.zero, Vector2.zero);
             bannerText.raycastTarget = false;
 
             choicePanel = Panel("Choice Panel", root, new Color(0.01f, 0.015f, 0.025f, 0.94f));
-            Anchor(choicePanel, new Vector2(0.28f, 0.24f), new Vector2(0.78f, 0.44f), Vector2.zero, Vector2.zero);
+            Anchor(choicePanel, new Vector2(0.24f, 0.36f), new Vector2(0.76f, 0.64f), Vector2.zero, Vector2.zero);
             AddVertical(choicePanel.gameObject, 16, 16, 14, 14, 10f);
             choicePanel.gameObject.SetActive(false);
         }
@@ -1872,6 +3304,11 @@ namespace IcarusGame.MasterDuel
                     }
                 }
 
+                if (CanChooseEndTurn())
+                {
+                    AddEndTurnButton();
+                }
+
                 AddButton("Cancel", actionRow, () => { ClearSelection(); RefreshAll(); }, new Color(0.18f, 0.2f, 0.24f, 1f), 110f);
                 return;
             }
@@ -1884,19 +3321,39 @@ namespace IcarusGame.MasterDuel
                     AddButton("Activate", actionRow, () => { duel.ActivateSetSpellTrap(selectedSpellTrap); ClearSelection(); RefreshAll(); }, new Color(0.44f, 0.32f, 0.12f, 1f), 130f);
                 }
 
+                if (duel.CanActivateFaceUpSpellTrapEffect(selectedSpellTrap))
+                {
+                    AddButton("Effect", actionRow, () => { duel.ActivateFaceUpSpellTrapEffect(selectedSpellTrap); ClearSelection(); RefreshAll(); }, new Color(0.36f, 0.26f, 0.54f, 1f), 120f);
+                }
+
                 AddButton("Next Phase", actionRow, () => { duel.AdvancePhase(); ClearSelection(); RefreshAll(); }, new Color(0.18f, 0.34f, 0.58f, 1f), 150f);
+                if (CanChooseEndTurn())
+                {
+                    AddEndTurnButton();
+                }
+
                 AddButton("Cancel", actionRow, () => { ClearSelection(); RefreshAll(); }, new Color(0.18f, 0.2f, 0.24f, 1f), 110f);
                 return;
             }
 
             if (selectedMonster >= 0)
             {
+                if (duel.CanActivateMonsterEffect(selectedMonster))
+                {
+                    AddButton("Effect", actionRow, () => { duel.ActivateMonsterEffect(selectedMonster); ClearSelection(); RefreshAll(); }, new Color(0.36f, 0.26f, 0.54f, 1f), 120f);
+                }
+
                 if (duel.BattleSystem.CanAttack(duel.State.Player.Monsters[selectedMonster], duel.State.Phase, duel.State.TurnNumber))
                 {
                     AddButton("Direct", actionRow, () => { duel.Attack(selectedMonster, -1); ClearSelection(); RefreshAll(); }, new Color(0.56f, 0.16f, 0.14f, 1f), 110f);
                 }
 
                 AddButton("Next Phase", actionRow, () => { duel.AdvancePhase(); ClearSelection(); RefreshAll(); }, new Color(0.18f, 0.34f, 0.58f, 1f), 150f);
+                if (CanChooseEndTurn())
+                {
+                    AddEndTurnButton();
+                }
+
                 AddButton("Cancel", actionRow, () => { ClearSelection(); RefreshAll(); }, new Color(0.18f, 0.2f, 0.24f, 1f), 110f);
                 return;
             }
@@ -1907,16 +3364,25 @@ namespace IcarusGame.MasterDuel
             }
 
             AddButton("Next Phase", actionRow, () => { duel.AdvancePhase(); RefreshAll(); }, new Color(0.18f, 0.34f, 0.58f, 1f), 150f);
-            AddButton("End Turn", actionRow, () =>
-            {
-                while (!duel.State.GameOver && duel.State.Phase != DuelPhase.End)
-                {
-                    duel.AdvancePhase();
-                }
+            AddEndTurnButton();
+        }
 
-                duel.AdvancePhase();
-                RefreshAll();
-            }, new Color(0.28f, 0.24f, 0.34f, 1f), 130f);
+        private bool CanChooseEndTurn()
+        {
+            return duel.State.Phase == DuelPhase.Battle || duel.State.Phase == DuelPhase.Main2;
+        }
+
+        private void AddEndTurnButton()
+        {
+            string label = duel.State.Phase == DuelPhase.Battle ? "End" : "End Turn";
+            AddButton(label, actionRow, EndCurrentTurn, new Color(0.28f, 0.24f, 0.34f, 1f), 130f);
+        }
+
+        private void EndCurrentTurn()
+        {
+            ClearSelection();
+            duel.EndTurn();
+            RefreshAll();
         }
 
         private void ActivateSelectedHandCard()
@@ -1949,7 +3415,7 @@ namespace IcarusGame.MasterDuel
 
             RectTransform row = Panel("Choice Cards", choicePanel, new Color(0.02f, 0.05f, 0.12f, 1f));
             AddHorizontal(row.gameObject, 12, 12, 8, 8, 10f, TextAnchor.MiddleCenter);
-            AddLayout(row.gameObject, -1f, 115f, 1f, 0f);
+            AddLayout(row.gameObject, -1f, ChoiceCardHeight + 22f, 1f, 0f);
             int shown = 0;
             for (int i = 0; i < duel.State.Player.Deck.Count && shown < 6; i++)
             {
@@ -2004,7 +3470,7 @@ namespace IcarusGame.MasterDuel
 
             RectTransform row = Panel("Extra Deck Cards", choicePanel, new Color(0.02f, 0.05f, 0.12f, 1f));
             AddHorizontal(row.gameObject, 12, 12, 8, 8, 10f, TextAnchor.MiddleCenter);
-            AddLayout(row.gameObject, -1f, 115f, 1f, 0f);
+            AddLayout(row.gameObject, -1f, ChoiceCardHeight + 22f, 1f, 0f);
 
             for (int i = 0; i < duel.State.Player.ExtraDeck.Count; i++)
             {
@@ -2365,7 +3831,7 @@ namespace IcarusGame.MasterDuel
             name.raycastTarget = false;
             AddLayout(name.gameObject, -1f, 48f, 0f, 0f);
             Text stats = Label("Stats", go.transform, 11, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.95f, 0.95f, 1f, 1f));
-            stats.text = card.Data.IsMonster && !card.FaceDown ? "Lv " + card.Data.Level + "\nATK " + card.CurrentAttack : card.Data.Kind.ToString();
+            stats.text = card.Data.IsMonster && !card.FaceDown ? "Lv " + card.CurrentLevel + "\nATK " + card.CurrentAttack : card.Data.Kind.ToString();
             stats.raycastTarget = false;
             AddLayout(stats.gameObject, -1f, 46f, 1f, 0f);
             return button;
