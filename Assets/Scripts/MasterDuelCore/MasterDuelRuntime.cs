@@ -220,7 +220,7 @@ namespace IcarusGame.MasterDuel
                 case DuelPhase.Standby:
                     return DuelPhase.Main1;
                 case DuelPhase.Main1:
-                    return turnNumber == 1 ? DuelPhase.End : DuelPhase.Battle;
+                    return CanEnterBattlePhase(turnNumber) ? DuelPhase.Battle : DuelPhase.End;
                 case DuelPhase.Battle:
                     return DuelPhase.Main2;
                 case DuelPhase.Main2:
@@ -228,6 +228,11 @@ namespace IcarusGame.MasterDuel
                 default:
                     return DuelPhase.Draw;
             }
+        }
+
+        public bool CanEnterBattlePhase(int turnNumber)
+        {
+            return turnNumber > 1;
         }
 
         public string Label(DuelPhase phase)
@@ -624,6 +629,21 @@ namespace IcarusGame.MasterDuel
             ResetAttackFlags(ActivePlayer);
             Log("Turn " + State.TurnNumber + ": " + ActivePlayer.Name);
             EnterPhase(DuelPhase.Draw);
+            AutoAdvanceTurnStartToMainPhase();
+        }
+
+        private void AutoAdvanceTurnStartToMainPhase()
+        {
+            if (State.GameOver || State.Phase != DuelPhase.Draw)
+            {
+                return;
+            }
+
+            EnterPhase(DuelPhase.Standby);
+            if (!State.GameOver && State.Phase == DuelPhase.Standby)
+            {
+                EnterPhase(DuelPhase.Main1);
+            }
         }
 
         public void AdvancePhase()
@@ -647,6 +667,24 @@ namespace IcarusGame.MasterDuel
             }
 
             EnterPhase(next);
+        }
+
+        public void EndTurn()
+        {
+            if (State.GameOver)
+            {
+                return;
+            }
+
+            if (State.Phase != DuelPhase.End)
+            {
+                EnterPhase(DuelPhase.End);
+            }
+
+            if (!State.GameOver)
+            {
+                AdvancePhase();
+            }
         }
 
         public void EnterPhase(DuelPhase phase)
@@ -1537,12 +1575,13 @@ namespace IcarusGame.MasterDuel
     public sealed class MasterDuelRuntime : MonoBehaviour
     {
         private const float UiUnitsPerCentimeter = 37.8f;
-        private const float HandCardWidth = 3.5f * UiUnitsPerCentimeter;
-        private const float HandCardHeight = 6.5f * UiUnitsPerCentimeter;
+        private const float CardAspectRatio = 813f / 1185f;
+        private const float HandCardHeight = 6.8f * UiUnitsPerCentimeter;
+        private const float HandCardWidth = HandCardHeight * CardAspectRatio;
         private const float HandRowHeight = HandCardHeight + 12f;
         private const float BottomBarHeight = HandRowHeight + 82f;
-        private const float ChoiceCardWidth = 76f;
-        private const float ChoiceCardHeight = 108f;
+        private const float ChoiceCardHeight = 136f;
+        private const float ChoiceCardWidth = ChoiceCardHeight * CardAspectRatio;
 
         private readonly DuelManager duel = new DuelManager();
         private readonly DuelUIManager duelUi = new DuelUIManager();
@@ -1703,47 +1742,47 @@ namespace IcarusGame.MasterDuel
             RectTransform root = canvasObject.GetComponent<RectTransform>();
             Stretch(root);
 
-            RectTransform top = Panel("Top HUD", root, new Color(0f, 0f, 0f, 0.0f));
-            Anchor(top, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(20f, -130f), new Vector2(-20f, -20f));
-            AddHorizontal(top.gameObject, 0, 0, 0, 0, 16f, TextAnchor.MiddleCenter);
-            playerLpText = Label("Player LP", top, 30, FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
-            AddLayout(playerLpText.gameObject, 360f, 90f, 0f, 0f);
-            phaseText = Label("Phase", top, 34, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.86f, 0.45f, 1f));
-            AddLayout(phaseText.gameObject, -1f, 90f, 1f, 0f);
-            opponentLpText = Label("Opponent LP", top, 30, FontStyle.Bold, TextAnchor.MiddleRight, Color.white);
-            AddLayout(opponentLpText.gameObject, 480f, 90f, 0f, 0f);
+            RectTransform top = Panel("Top HUD", root, new Color(0.008f, 0.012f, 0.02f, 0.78f));
+            Anchor(top, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -104f), new Vector2(-24f, -20f));
+            AddHorizontal(top.gameObject, 18, 18, 0, 0, 18f, TextAnchor.MiddleCenter);
+            playerLpText = Label("Player LP", top, 28, FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
+            AddLayout(playerLpText.gameObject, 420f, 70f, 0f, 0f);
+            phaseText = Label("Phase", top, 31, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.86f, 0.45f, 1f));
+            AddLayout(phaseText.gameObject, -1f, 70f, 1f, 0f);
+            opponentLpText = Label("Opponent LP", top, 28, FontStyle.Bold, TextAnchor.MiddleRight, Color.white);
+            AddLayout(opponentLpText.gameObject, 420f, 70f, 0f, 0f);
 
-            RectTransform inspector = Panel("Card Inspector", root, new Color(0.02f, 0.035f, 0.055f, 0.86f));
-            Anchor(inspector, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(20f, 128f), new Vector2(420f, -145f));
-            AddVertical(inspector.gameObject, 16, 16, 16, 16, 8f);
-            inspectorTitle = Label("Inspector Title", inspector, 28, FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
-            AddLayout(inspectorTitle.gameObject, -1f, 54f, 0f, 0f);
-            inspectorBody = Label("Inspector Body", inspector, 22, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.9f, 0.96f, 1f, 1f));
+            RectTransform inspector = Panel("Card Inspector", root, new Color(0.015f, 0.022f, 0.035f, 0.84f));
+            Anchor(inspector, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(20f, BottomBarHeight + 30f), new Vector2(400f, -122f));
+            AddVertical(inspector.gameObject, 14, 14, 14, 14, 7f);
+            inspectorTitle = Label("Inspector Title", inspector, 24, FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
+            AddLayout(inspectorTitle.gameObject, -1f, 46f, 0f, 0f);
+            inspectorBody = Label("Inspector Body", inspector, 18, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.9f, 0.96f, 1f, 1f));
             AddLayout(inspectorBody.gameObject, -1f, -1f, 1f, 1f);
 
-            RectTransform bottom = Panel("Bottom Bar", root, new Color(0.025f, 0.025f, 0.035f, 0.84f));
-            Anchor(bottom, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(435f, 18f), new Vector2(-20f, BottomBarHeight));
-            AddVertical(bottom.gameObject, 10, 10, 10, 10, 8f);
+            RectTransform bottom = Panel("Bottom Bar", root, new Color(0.008f, 0.01f, 0.016f, 0.88f));
+            Anchor(bottom, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(24f, 14f), new Vector2(-24f, BottomBarHeight));
+            AddVertical(bottom.gameObject, 18, 18, 10, 12, 8f);
             handRow = Panel("Hand", bottom, new Color(0f, 0f, 0f, 0f));
-            AddHorizontal(handRow.gameObject, 0, 0, 0, 0, 8f, TextAnchor.MiddleCenter);
+            AddHorizontal(handRow.gameObject, 0, 0, 0, 0, 10f, TextAnchor.MiddleCenter);
             AddLayout(handRow.gameObject, -1f, HandRowHeight, 1f, 0f);
             actionRow = Panel("Actions", bottom, new Color(0f, 0f, 0f, 0f));
             AddHorizontal(actionRow.gameObject, 0, 0, 0, 0, 8f, TextAnchor.MiddleCenter);
             AddLayout(actionRow.gameObject, -1f, 54f, 0f, 0f);
 
-            RectTransform logPanel = Panel("Log", root, new Color(0.02f, 0.025f, 0.035f, 0.78f));
-            Anchor(logPanel, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-390f, BottomBarHeight + 20f), new Vector2(-20f, BottomBarHeight + 300f));
-            AddVertical(logPanel.gameObject, 12, 12, 12, 12, 6f);
-            logText = Label("Log Text", logPanel, 16, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.8f, 0.9f, 1f, 1f));
+            RectTransform logPanel = Panel("Log", root, new Color(0.012f, 0.017f, 0.028f, 0.80f));
+            Anchor(logPanel, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-402f, BottomBarHeight + 30f), new Vector2(-20f, -122f));
+            AddVertical(logPanel.gameObject, 14, 14, 14, 14, 6f);
+            logText = Label("Log Text", logPanel, 15, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.8f, 0.9f, 1f, 1f));
             AddLayout(logText.gameObject, -1f, -1f, 1f, 1f);
 
-            bannerText = Label("Banner", root, 62, FontStyle.BoldAndItalic, TextAnchor.MiddleCenter, new Color(1f, 0.94f, 0.65f, 0.95f));
+            bannerText = Label("Banner", root, 48, FontStyle.BoldAndItalic, TextAnchor.MiddleCenter, new Color(1f, 0.94f, 0.65f, 0.50f));
             RectTransform bannerRect = bannerText.GetComponent<RectTransform>();
-            Anchor(bannerRect, new Vector2(0.18f, 0.48f), new Vector2(0.82f, 0.62f), Vector2.zero, Vector2.zero);
+            Anchor(bannerRect, new Vector2(0.24f, 0.48f), new Vector2(0.76f, 0.60f), Vector2.zero, Vector2.zero);
             bannerText.raycastTarget = false;
 
             choicePanel = Panel("Choice Panel", root, new Color(0.01f, 0.015f, 0.025f, 0.94f));
-            Anchor(choicePanel, new Vector2(0.28f, 0.24f), new Vector2(0.78f, 0.44f), Vector2.zero, Vector2.zero);
+            Anchor(choicePanel, new Vector2(0.24f, 0.36f), new Vector2(0.76f, 0.64f), Vector2.zero, Vector2.zero);
             AddVertical(choicePanel.gameObject, 16, 16, 14, 14, 10f);
             choicePanel.gameObject.SetActive(false);
         }
@@ -1872,6 +1911,11 @@ namespace IcarusGame.MasterDuel
                     }
                 }
 
+                if (CanChooseEndTurn())
+                {
+                    AddEndTurnButton();
+                }
+
                 AddButton("Cancel", actionRow, () => { ClearSelection(); RefreshAll(); }, new Color(0.18f, 0.2f, 0.24f, 1f), 110f);
                 return;
             }
@@ -1885,6 +1929,11 @@ namespace IcarusGame.MasterDuel
                 }
 
                 AddButton("Next Phase", actionRow, () => { duel.AdvancePhase(); ClearSelection(); RefreshAll(); }, new Color(0.18f, 0.34f, 0.58f, 1f), 150f);
+                if (CanChooseEndTurn())
+                {
+                    AddEndTurnButton();
+                }
+
                 AddButton("Cancel", actionRow, () => { ClearSelection(); RefreshAll(); }, new Color(0.18f, 0.2f, 0.24f, 1f), 110f);
                 return;
             }
@@ -1897,6 +1946,11 @@ namespace IcarusGame.MasterDuel
                 }
 
                 AddButton("Next Phase", actionRow, () => { duel.AdvancePhase(); ClearSelection(); RefreshAll(); }, new Color(0.18f, 0.34f, 0.58f, 1f), 150f);
+                if (CanChooseEndTurn())
+                {
+                    AddEndTurnButton();
+                }
+
                 AddButton("Cancel", actionRow, () => { ClearSelection(); RefreshAll(); }, new Color(0.18f, 0.2f, 0.24f, 1f), 110f);
                 return;
             }
@@ -1907,16 +1961,25 @@ namespace IcarusGame.MasterDuel
             }
 
             AddButton("Next Phase", actionRow, () => { duel.AdvancePhase(); RefreshAll(); }, new Color(0.18f, 0.34f, 0.58f, 1f), 150f);
-            AddButton("End Turn", actionRow, () =>
-            {
-                while (!duel.State.GameOver && duel.State.Phase != DuelPhase.End)
-                {
-                    duel.AdvancePhase();
-                }
+            AddEndTurnButton();
+        }
 
-                duel.AdvancePhase();
-                RefreshAll();
-            }, new Color(0.28f, 0.24f, 0.34f, 1f), 130f);
+        private bool CanChooseEndTurn()
+        {
+            return duel.State.Phase == DuelPhase.Battle || duel.State.Phase == DuelPhase.Main2;
+        }
+
+        private void AddEndTurnButton()
+        {
+            string label = duel.State.Phase == DuelPhase.Battle ? "End" : "End Turn";
+            AddButton(label, actionRow, EndCurrentTurn, new Color(0.28f, 0.24f, 0.34f, 1f), 130f);
+        }
+
+        private void EndCurrentTurn()
+        {
+            ClearSelection();
+            duel.EndTurn();
+            RefreshAll();
         }
 
         private void ActivateSelectedHandCard()
@@ -1949,7 +2012,7 @@ namespace IcarusGame.MasterDuel
 
             RectTransform row = Panel("Choice Cards", choicePanel, new Color(0.02f, 0.05f, 0.12f, 1f));
             AddHorizontal(row.gameObject, 12, 12, 8, 8, 10f, TextAnchor.MiddleCenter);
-            AddLayout(row.gameObject, -1f, 115f, 1f, 0f);
+            AddLayout(row.gameObject, -1f, ChoiceCardHeight + 22f, 1f, 0f);
             int shown = 0;
             for (int i = 0; i < duel.State.Player.Deck.Count && shown < 6; i++)
             {
@@ -2004,7 +2067,7 @@ namespace IcarusGame.MasterDuel
 
             RectTransform row = Panel("Extra Deck Cards", choicePanel, new Color(0.02f, 0.05f, 0.12f, 1f));
             AddHorizontal(row.gameObject, 12, 12, 8, 8, 10f, TextAnchor.MiddleCenter);
-            AddLayout(row.gameObject, -1f, 115f, 1f, 0f);
+            AddLayout(row.gameObject, -1f, ChoiceCardHeight + 22f, 1f, 0f);
 
             for (int i = 0; i < duel.State.Player.ExtraDeck.Count; i++)
             {
