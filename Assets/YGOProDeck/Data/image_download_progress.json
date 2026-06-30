@@ -1,0 +1,12 @@
+{
+  "status": "complete",
+  "processed": 14369,
+  "total": 14369,
+  "downloaded": 7068,
+  "skipped": 7301,
+  "failed": 0,
+  "ratePerSecond": 20.19,
+  "lastDatabaseId": "76080032",
+  "updatedAt": "2026-06-04T11:59:12Z",
+  "recentFailures": []
+}

@@ -1,0 +1,52 @@
+Blue-Eyes screenshot decklijst - CleanDuel
+Project: D:\unity\icarusgame
+
+Main Deck: 41 kaarten
+Extra Deck: 10 kaarten
+
+Kaarten met effect hebben een CleanDuel EffectKey en krijgen een simpele maar werkende Activate-actie. Normal Monsters zoals Blue-Eyes White Dragon hebben juist geen Activate-actie; die speel je via Summon of Set met de normale tribute-regels.
+
+Main Deck
+Count | Card ID  | Card name                            | Clean rule
+----- | -------- | ------------------------------------ | ----------
+3     | 89631139 | Blue-Eyes White Dragon               | No Activate; Level 8 Normal Monster requires 2 tributes to Summon/Set
+3     | 17947697 | Maiden of White                      | Place True Light face-up from hand/deck/GY
+3     | 8240199  | Sage with Eyes of Blue               | Search a Blue-Eyes card
+3     | 71039903 | The White Stone of Ancients          | Special summon a Blue-Eyes monster
+2     | 88241506 | Maiden with Eyes of Blue             | Special summon a Blue-Eyes monster
+1     | 2295440  | One for One                          | Special summon a Level 1 monster
+1     | 97268402 | Effect Veiler                        | Change rival strongest monster to defense
+1     | 14558127 | Ash Blossom & Joyous Spring          | Destroy/pressure rival strongest monster
+1     | 94145021 | Droll & Lock Bird                    | Draw 1 and deal small clean damage
+1     | 66961194 | Dictator of D.                       | Send deck monster to GY and summon Blue-Eyes
+1     | 64202399 | Blue-Eyes Abyss Dragon               | Search a Blue-Eyes card
+2     | 30576089 | Blue-Eyes Jet Dragon                 | Special summon self / boost team
+1     | 6637331  | Bystial Druiswurm                    | Special summon self / pressure rival monster
+1     | 33854624 | Bystial Magnamhut                    | Special summon self and search Blue-Eyes
+1     | 69145169 | Successor Soul                       | Clear rival monster and summon Blue-Eyes
+1     | 93437091 | Bingo Machine, Go!!!                 | Search a Blue-Eyes card
+2     | 80326401 | Wishes for Eyes of Blue              | Search Blue-Eyes and setup GY
+2     | 17725109 | Roar of the Blue-Eyed Dragons        | Special summon a non-Ritual Blue-Eyes monster
+1     | 45895206 | Dark-Piercing Light                  | Clear rival monsters or draw
+1     | 24382602 | Mausoleum of White                   | Special summon Level 1 / boost team
+1     | 21082832 | Chaos Form                           | Ritual Summon Blue-Eyes Chaos MAX Dragon with exact Level tributes
+1     | 55410871 | Blue-Eyes Chaos MAX Dragon           | Ritual Monster; waits for Chaos Form
+1     | 41620959 | Dragon Shrine                        | Send best non-Ritual monster from deck to GY
+3     | 71143015 | Ultimate Fusion                      | Summon Dragon Master Magia from Extra Deck
+3     | 62089826 | True Light                           | Popup: summon Blue-Eyes from hand/GY or set listed Spell/Trap from Deck
+
+Extra Deck
+Count | Card ID  | Card name                            | Clean rule
+----- | -------- | ------------------------------------ | ----------
+1     | 23995346 | Blue-Eyes Ultimate Dragon            | No Activate; Normal Fusion Monster
+3     | 12381100 | Dragon Master Magia                  | Destroy/pressure, draw 1, boost team
+2     | 59822133 | Blue-Eyes Spirit Dragon              | Summon Ultimate Spirit from Extra Deck
+1     | 89604813 | Blue-Eyes Ultimate Spirit Dragon     | Boost team and pressure rival monster
+3     | 42097666 | Spirit with Eyes of Blue             | Search a Blue-Eyes card
+
+Notes
+- Traps zoals True Light zet je eerst met Set S/T; face-down activeer je met Flip, face-up gebruik je Activate voor de keuze-popup.
+- True Light beschermt face-up Blue-Eyes White Dragon in je Monster Zone tegen targeted clean card effects van de tegenstander.
+- Monsters met clean effects kunnen vanuit hand of face-up monsterzone activeren wanneer de voorwaarden kloppen. Ritual Monsters activeren of summonen niet uit zichzelf; ze wachten op een Ritual Spell zoals Chaos Form.
+- Normal Summon/Set gebruikt tribute-regels: Level 5-6 = 1 tribute, Level 7+ = 2 tributes. Normal Monsters hebben geen Activate-knop.
+- Extra Deck kaarten zitten nu apart in CleanPlayerState.ExtraDeck en worden door effecten zoals Ultimate Fusion gebruikt.

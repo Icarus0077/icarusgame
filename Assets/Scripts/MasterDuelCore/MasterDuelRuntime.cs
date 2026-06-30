@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -2979,10 +2980,16 @@ namespace IcarusGame.MasterDuel
         private readonly DuelManager duel = new DuelManager();
         private readonly DuelUIManager duelUi = new DuelUIManager();
         private readonly Dictionary<Collider, ZoneClickTarget> targets = new Dictionary<Collider, ZoneClickTarget>();
+        private static readonly string[] CardArtworkExtensions = { ".jpg", ".jpeg", ".png" };
+        private static readonly string[] FieldArtworkExtensions = { ".png", ".jpg", ".jpeg" };
+
         private readonly Dictionary<int, Sprite> artworkSprites = new Dictionary<int, Sprite>();
+        private readonly Dictionary<int, Texture2D> fileArtworkTextures = new Dictionary<int, Texture2D>();
 
         private Font font;
         private CardArtworkCatalog artworkCatalog;
+        private Texture2D tableFieldTexture;
+        private string[] fieldArtworkPaths;
         private Camera arenaCamera;
         private Transform arenaRoot;
         private Canvas canvas;
@@ -3097,7 +3104,13 @@ namespace IcarusGame.MasterDuel
             mainLight.type = LightType.Directional;
             mainLight.intensity = 1.25f;
 
-            CreateBox("Table", Vector3.zero, new Vector3(14.6f, 0.16f, 8.0f), new Color(0.02f, 0.28f, 0.22f, 1f));
+            Renderer tableRenderer = CreateBox("Table", Vector3.zero, new Vector3(14.6f, 0.16f, 8.0f), new Color(0.02f, 0.28f, 0.22f, 1f)).GetComponent<Renderer>();
+            tableFieldTexture = LoadDefaultFieldTexture();
+            if (tableFieldTexture != null)
+            {
+                SetMaterialTexture(tableRenderer.material, tableFieldTexture);
+                SetMaterialColor(tableRenderer.material, Color.white);
+            }
             CreateBox("Center Rail", new Vector3(0f, 0.12f, 0f), new Vector3(13.8f, 0.08f, 0.16f), new Color(0.95f, 0.55f, 0.12f, 1f));
             CreateBox("Player Neon Rail", new Vector3(0f, 0.14f, -3.82f), new Vector3(14.4f, 0.12f, 0.22f), new Color(0.62f, 0.08f, 0.9f, 1f));
             CreateBox("Opponent Neon Rail", new Vector3(0f, 0.14f, 3.82f), new Vector3(14.4f, 0.12f, 0.22f), new Color(0.95f, 0.24f, 0.08f, 1f));
@@ -3942,13 +3955,133 @@ namespace IcarusGame.MasterDuel
 
         private Texture2D GetArtworkTexture(CardInstance card)
         {
-            if (card == null || card.FaceDown || artworkCatalog == null)
+            if (card == null || card.FaceDown)
             {
                 return null;
             }
 
             Texture2D texture;
-            return artworkCatalog.TryGetTexture(card.Data.Id, out texture) ? texture : null;
+            if (artworkCatalog != null && artworkCatalog.TryGetTexture(card.Data.Id, out texture))
+            {
+                return texture;
+            }
+
+            return LoadArtworkTexture(card.Data.Id);
+        }
+
+        private Texture2D LoadArtworkTexture(int cardId)
+        {
+            Texture2D texture;
+            if (fileArtworkTextures.TryGetValue(cardId, out texture))
+            {
+                return texture;
+            }
+
+            string path = FindImagePathForId(CardImageDirectory, cardId, CardArtworkExtensions);
+            if (string.IsNullOrEmpty(path))
+            {
+                fileArtworkTextures[cardId] = null;
+                return null;
+            }
+
+            texture = LoadTextureFile(path, "CardArt_" + cardId);
+            fileArtworkTextures[cardId] = texture;
+            return texture;
+        }
+
+        private Texture2D LoadDefaultFieldTexture()
+        {
+            if (tableFieldTexture != null)
+            {
+                return tableFieldTexture;
+            }
+
+            EnsureFieldArtworkPaths();
+            if (fieldArtworkPaths.Length == 0)
+            {
+                return null;
+            }
+
+            return LoadTextureFile(fieldArtworkPaths[0], "FieldArt_Default");
+        }
+
+        private void EnsureFieldArtworkPaths()
+        {
+            if (fieldArtworkPaths != null)
+            {
+                return;
+            }
+
+            if (!Directory.Exists(FieldImageDirectory))
+            {
+                fieldArtworkPaths = new string[0];
+                return;
+            }
+
+            List<string> paths = new List<string>();
+            for (int i = 0; i < FieldArtworkExtensions.Length; i++)
+            {
+                paths.AddRange(Directory.GetFiles(FieldImageDirectory, "*" + FieldArtworkExtensions[i], SearchOption.TopDirectoryOnly));
+            }
+
+            fieldArtworkPaths = paths.ToArray();
+            Array.Sort(fieldArtworkPaths, StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static string CardImageDirectory
+        {
+            get { return Path.Combine(Application.dataPath, "YGOProDeck", "CardImages"); }
+        }
+
+        private static string FieldImageDirectory
+        {
+            get { return Path.Combine(Application.dataPath, "YGOProDeck", "FieldImages"); }
+        }
+
+        private static string FindImagePathForId(string directory, int imageId, string[] extensions)
+        {
+            string rawId = imageId.ToString();
+            string path = FindImagePath(directory, rawId, extensions);
+            if (!string.IsNullOrEmpty(path))
+            {
+                return path;
+            }
+
+            string paddedId = imageId.ToString("D8");
+            return paddedId == rawId ? string.Empty : FindImagePath(directory, paddedId, extensions);
+        }
+
+        private static string FindImagePath(string directory, string fileStem, string[] extensions)
+        {
+            if (!Directory.Exists(directory))
+            {
+                return string.Empty;
+            }
+
+            for (int i = 0; i < extensions.Length; i++)
+            {
+                string path = Path.Combine(directory, fileStem + extensions[i]);
+                if (File.Exists(path))
+                {
+                    return path;
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private static Texture2D LoadTextureFile(string path, string textureName)
+        {
+            byte[] bytes = File.ReadAllBytes(path);
+            Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            texture.name = textureName;
+            if (!ImageConversion.LoadImage(texture, bytes, false))
+            {
+                UnityEngine.Object.Destroy(texture);
+                return null;
+            }
+
+            return texture;
         }
 
         private Sprite GetArtworkSprite(CardInstance card)

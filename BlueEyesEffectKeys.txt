@@ -1,0 +1,48 @@
+Blue-Eyes deck - EffectKey overzicht
+Project: D:\unity\icarusgame
+
+Regel:
+- Kaarten met een effect hebben een EffectKey.
+- Normal Monsters hebben bewust geen EffectKey en krijgen geen Activate-knop.
+
+Geen EffectKey (bewust Normal Monster)
+Count | Card ID  | Card name
+----- | -------- | -------------------------
+3     | 89631139 | Blue-Eyes White Dragon
+1     | 23995346 | Blue-Eyes Ultimate Dragon
+
+Main Deck EffectKeys
+Count | Card ID  | Card name                       | EffectKey
+----- | -------- | ------------------------------- | ---------------------------
+3     | 17947697 | Maiden of White                 | maiden_white
+3     | 8240199  | Sage with Eyes of Blue          | sage_clean
+3     | 71039903 | The White Stone of Ancients     | stone_ancients_clean
+2     | 88241506 | Maiden with Eyes of Blue        | maiden_with_eyes_clean
+1     | 2295440  | One for One                     | one_for_one_clean
+1     | 97268402 | Effect Veiler                   | veiler_clean
+1     | 14558127 | Ash Blossom & Joyous Spring     | ash_clean
+1     | 94145021 | Droll & Lock Bird               | droll_clean
+1     | 66961194 | Dictator of D.                  | dictator_clean
+1     | 64202399 | Blue-Eyes Abyss Dragon          | abyss_clean
+2     | 30576089 | Blue-Eyes Jet Dragon            | jet_clean
+1     | 55410871 | Blue-Eyes Chaos MAX Dragon      | chaos_max_clean (Ritual target; no self Activate)
+1     | 6637331  | Bystial Druiswurm               | bystial_clean
+1     | 33854624 | Bystial Magnamhut               | bystial_search_clean
+1     | 69145169 | Successor Soul                  | successor_soul_clean
+1     | 93437091 | Bingo Machine, Go!!!            | bingo_clean
+2     | 80326401 | Wishes for Eyes of Blue         | wishes_clean
+3     | 17725109 | Roar of the Blue-Eyed Dragons   | roar_clean
+1     | 45895206 | Dark-Piercing Light             | dark_piercing_clean
+1     | 24382602 | Mausoleum of White              | mausoleum_clean
+1     | 21082832 | Chaos Form                      | chaos_form_clean
+1     | 41620959 | Dragon Shrine                   | dragon_shrine_clean
+3     | 71143015 | Ultimate Fusion                 | ultimate_fusion_clean
+3     | 62089826 | True Light                      | true_light_clean
+
+Extra Deck EffectKeys
+Count | Card ID  | Card name                       | EffectKey
+----- | -------- | ------------------------------- | ---------------------------
+3     | 12381100 | Dragon Master Magia             | magia_clean
+2     | 59822133 | Blue-Eyes Spirit Dragon         | spirit_dragon_clean
+1     | 89604813 | Blue-Eyes Ultimate Spirit Dragon| ultimate_spirit_clean
+3     | 42097666 | Spirit with Eyes of Blue        | spirit_with_eyes_clean

@@ -1,0 +1,252 @@
+﻿Lua Script Catalog
+==================
+Generated UTC: 2026-06-22T13:00:51Z
+Source folder: D:\unity\script
+Output folder: Assets/StreamingAssets/LuaScriptCatalog
+Total Lua files: 19085
+Card scripts: 19067
+Library/procedure scripts: 18
+Scripts with card id: 19067
+Scripts with leading card name: 17769
+Effect.CreateEffect calls: 50786
+Library/procedure function declarations: 679
+
+Script kinds:
+  card: 19067
+  rush_duel_library: 15
+  library: 1
+  procedure_library: 1
+  utility_library: 1
+
+Effect families:
+  special_summon: 7285
+  search_or_recover: 3922
+  summon_trigger: 3837
+  destroy: 3302
+  unclassified: 2557
+  phase_trigger: 1966
+  stat_change: 1745
+  graveyard_trigger: 1640
+  draw: 1233
+  burn: 1131
+  send_to_grave: 1014
+  banish: 1002
+  destroy_trigger: 873
+  equip: 846
+  attack_trigger: 804
+  position: 605
+  mill: 464
+  recover: 381
+  control_change: 269
+  counter: 191
+
+Categories:
+  CATEGORY_SPECIAL_SUMMON: 7285
+  CATEGORY_TOHAND: 3876
+  CATEGORY_DESTROY: 3302
+  CATEGORY_SEARCH: 2265
+  CATEGORY_ATKCHANGE: 1745
+  CATEGORY_DRAW: 1233
+  CATEGORY_DAMAGE: 1131
+  CATEGORY_TOGRAVE: 1014
+  CATEGORY_REMOVE: 1002
+  CATEGORY_TODECK: 965
+  CATEGORY_EQUIP: 846
+  CATEGORY_POSITION: 605
+  CATEGORY_NEGATE: 558
+  CATEGORY_DISABLE: 503
+  CATEGORY_LEAVE_GRAVE: 487
+  CATEGORY_DECKDES: 464
+  CATEGORY_RECOVER: 381
+  CATEGORY_HANDES: 317
+  CATEGORY_TOKEN: 315
+  CATEGORY_GRAVE_ACTION: 311
+  CATEGORY_FUSION_SUMMON: 291
+  CATEGORY_GRAVE_SPSUMMON: 279
+  CATEGORY_CONTROL: 269
+  CATEGORY_DEFCHANGE: 231
+  CATEGORY_COUNTER: 191
+  CATEGORY_SUMMON: 128
+  CATEGORY_TOEXTRA: 115
+  CATEGORY_COIN: 76
+  CATEGORY_DISABLE_SUMMON: 74
+  CATEGORY_DICE: 72
+
+Events:
+  EVENT_FREE_CHAIN: 7305
+  EVENT_SPSUMMON_SUCCESS: 3094
+  EVENT_PHASE: 1966
+  EVENT_SUMMON_SUCCESS: 1858
+  EVENT_TO_GRAVE: 1640
+  EVENT_CHAINING: 1269
+  EVENT_DESTROYED: 873
+  EVENT_ATTACK_ANNOUNCE: 804
+  EVENT_BATTLE_DESTROYED: 452
+  EVENT_BATTLE_DESTROYING: 438
+  EVENT_LEAVE_FIELD: 400
+  EVENT_BE_MATERIAL: 322
+  EVENT_BATTLE_DAMAGE: 271
+  EVENT_REMOVE: 263
+  EVENT_CHAIN_SOLVING: 238
+  EVENT_BATTLED: 220
+  EVENT_BE_BATTLE_TARGET: 217
+  EVENT_FLIP_SUMMON_SUCCESS: 215
+  EVENT_PRE_DAMAGE_CALCULATE: 193
+  EVENT_DAMAGE_STEP_END: 188
+  EVENT_BATTLE_START: 183
+  EVENT_CHAIN_SOLVED: 165
+  EVENT_FLIP: 132
+  EVENT_CUSTOM: 123
+  EVENT_RELEASE: 115
+  EVENT_DAMAGE: 114
+  EVENT_TO_HAND: 110
+  EVENT_LEAVE_FIELD_P: 90
+  EVENT_DRAW: 87
+  EVENT_ADJUST: 81
+
+Duel calls:
+  SetOperationInfo: 14892
+  Hint: 13257
+  IsExistingMatchingCard: 10904
+  GetLocationCount: 7143
+  SelectMatchingCard: 7122
+  SelectTarget: 6892
+  IsExistingTarget: 6675
+  GetFirstTarget: 6387
+  SpecialSummon: 6135
+  GetMatchingGroup: 4571
+  Destroy: 3892
+  SendtoHand: 3865
+  ConfirmCards: 3356
+  SendtoGrave: 3214
+  GetChainInfo: 2930
+  RegisterEffect: 2853
+  BreakEffect: 2592
+  Remove: 2235
+  SelectYesNo: 1765
+  GetTurnPlayer: 1687
+  Release: 1528
+  GetFieldGroupCount: 1423
+  GetAttacker: 1327
+  SetTargetPlayer: 1291
+  SetTargetParam: 1244
+  GetCurrentPhase: 1222
+  SendtoDeck: 1204
+  Damage: 1196
+  Draw: 1158
+  SpecialSummonComplete: 1064
+  SpecialSummonStep: 1063
+  GetMZoneCount: 1031
+  GetAttackTarget: 1006
+  IsPlayerCanDraw: 987
+  IsPlayerAffectedByEffect: 929
+  GetMatchingGroupCount: 912
+  HintSelection: 862
+  Equip: 860
+  DiscardHand: 834
+  SetTargetCard: 834
+
+Card calls:
+  IsFaceup: 1090
+  IsRelateToEffect: 811
+  IsSetCard: 715
+  IsType: 598
+  IsRace: 584
+  IsLocation: 465
+  IsCode: 444
+  IsAbleToRemove: 396
+  IsDiscardable: 373
+  IsAttribute: 325
+  GetCode: 321
+  IsAbleToHand: 251
+  IsAbleToDeck: 234
+  IsFusionSetCard: 220
+  IsAbleToGraveAsCost: 192
+  GetLevel: 191
+  IsLinkRace: 133
+  IsFacedown: 130
+  IsLinkType: 127
+  IsAbleToGrave: 122
+  IsLinkSetCard: 118
+  GetAttack: 114
+  IsControler: 112
+  IsDestructable: 82
+  IsAbleToRemoveAsCost: 69
+  GetRace: 53
+  IsCanAddCounter: 53
+  IsCanBeRitualMaterial: 49
+  IsOnField: 47
+  IsPosition: 46
+  GetBaseAttack: 45
+  IsFusionAttribute: 45
+  IsLinkAttribute: 45
+  IsSynchroSummonable: 45
+  IsFusionType: 44
+  GetAttribute: 42
+  IsControlerCanBeChanged: 40
+  IsDefensePos: 39
+  IsFusionCode: 38
+  IsSynchroType: 36
+
+Auxiliary calls:
+  Stringid: 13312
+  NecroValleyFilter: 1769
+  FilterBoolFunction: 1168
+  AddCodeList: 984
+  TRUE: 917
+  bfgcost: 898
+  AddXyzProcedure: 805
+  NonTuner: 673
+  AddSynchroProcedure: 650
+  AddLinkProcedure: 639
+  EnablePendulumAttribute: 556
+  TargetBoolFunction: 538
+  tgoval: 331
+  Next: 291
+  dscon: 290
+  dncheck: 255
+  AddFusionProcFun2: 188
+  IsCodeListed: 187
+  FALSE: 184
+  xyz_number: 184
+  ExceptThisCard: 182
+  MustMaterialCheck: 163
+  exccon: 163
+  AddFusionProcFunRep: 157
+  AddFusionProcCode2: 137
+  indoval: 132
+  AddFusionProcCodeFun: 120
+  fuslimit: 119
+  EnableChangeCode: 118
+  GCheckAdditional: 115
+  bdocon: 103
+  chainreg: 94
+  NOT: 93
+  SelectFromOptions: 90
+  NegateAnyFilter: 79
+  imval1: 77
+  AND: 75
+  AddContactFusionProcedure: 69
+  NegateEffectMonsterFilter: 68
+  NegateMonsterFilter: 67
+
+Library/procedure scripts:
+  constant.lua [library] functions=0, globals=853, families=attack_trigger|banish|burn|control_change|counter|destroy|destroy_trigger|draw|equip|graveyard_trigger|library_helper|mill|phase_trigger|position|recover|search_or_recover|send_to_grave|special_summon|stat_change|summon_trigger
+  procedure.lua [procedure_library] functions=161, globals=44, families=banish|mill|procedure_fusion|procedure_library|procedure_link|procedure_pendulum|procedure_ritual|procedure_synchro|procedure_xyz|special_summon|summon_trigger
+  RDAction.lua [rush_duel_library] functions=35, globals=2, families=rush_duel_action|rush_duel_helper
+  RDAttach.lua [rush_duel_library] functions=24, globals=1, families=attack_trigger|phase_trigger|rush_duel_attach|rush_duel_helper
+  RDBase.lua [rush_duel_library] functions=29, globals=16, families=attack_trigger|rush_duel_base|rush_duel_helper|summon_trigger
+  RDCode.lua [rush_duel_library] functions=7, globals=8, families=rush_duel_code|rush_duel_helper
+  RDCondition.lua [rush_duel_library] functions=27, globals=1, families=rush_duel_condition|rush_duel_helper
+  RDCost.lua [rush_duel_library] functions=36, globals=2, families=rush_duel_cost|rush_duel_helper
+  RDEquip.lua [rush_duel_library] functions=4, globals=1, families=equip|rush_duel_equip|rush_duel_helper
+  RDExpand.lua [rush_duel_library] functions=83, globals=6, families=attack_trigger|burn|draw|recover|rush_duel_expand|rush_duel_helper
+  RDFunction.lua [rush_duel_library] functions=16, globals=4, families=rush_duel_function|rush_duel_helper
+  RDFusion.lua [rush_duel_library] functions=8, globals=7, families=rush_duel_fusion|rush_duel_helper|special_summon
+  RDLegend.lua [rush_duel_library] functions=5, globals=5, families=rush_duel_helper|rush_duel_legend
+  RDMaximum.lua [rush_duel_library] functions=12, globals=4, families=rush_duel_helper|rush_duel_maximum
+  RDRule.lua [rush_duel_library] functions=6, globals=2, families=rush_duel_helper|rush_duel_rule
+  RDTarget.lua [rush_duel_library] functions=8, globals=1, families=burn|draw|mill|recover|rush_duel_helper|rush_duel_target
+  RDValue.lua [rush_duel_library] functions=11, globals=10, families=rush_duel_helper|rush_duel_value
+  utility.lua [utility_library] functions=207, globals=38, families=banish|burn|destroy|equip|graveyard_trigger|phase_trigger|recover|search_or_recover|special_summon|summon_trigger|utility_helper
+
