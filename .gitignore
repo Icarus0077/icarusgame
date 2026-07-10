@@ -21,3 +21,5 @@
 *.apk
 *.aab
 *.unitypackage
+# Local bulk card-image import; keep out of normal Git pushes without LFS.
+Assets/YGOProDeck/CardImages/

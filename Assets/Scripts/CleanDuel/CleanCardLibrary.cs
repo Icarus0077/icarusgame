@@ -8,35 +8,36 @@ namespace IcarusGame.CleanDuel
         private static readonly Dictionary<int, CleanCardDefinition> fallbackCards =
             new Dictionary<int, CleanCardDefinition>
             {
-                { 89631139, Monster(89631139, "Blue-Eyes White Dragon", 8, 3000, 2500, string.Empty) },
-                { 17947697, Monster(17947697, "Maiden of White", 1, 0, 0, "maiden_white") },
-                { 8240199, Monster(8240199, "Sage with Eyes of Blue", 1, 0, 1500, "sage_clean") },
-                { 71039903, Monster(71039903, "The White Stone of Ancients", 1, 600, 500, "stone_ancients_clean") },
-                { 88241506, Monster(88241506, "Maiden with Eyes of Blue", 1, 0, 0, "maiden_with_eyes_clean") },
-                { 97268402, Monster(97268402, "Effect Veiler", 1, 0, 0, "veiler_clean") },
-                { 14558127, Monster(14558127, "Ash Blossom & Joyous Spring", 3, 0, 1800, "ash_clean") },
-                { 94145021, Monster(94145021, "Droll & Lock Bird", 1, 0, 0, "droll_clean") },
-                { 66961194, Monster(66961194, "Dictator of D.", 4, 1200, 1100, "dictator_clean") },
-                { 64202399, Monster(64202399, "Blue-Eyes Abyss Dragon", 8, 2500, 2500, "abyss_clean") },
-                { 30576089, Monster(30576089, "Blue-Eyes Jet Dragon", 8, 3000, 0, "jet_clean") },
-                { 55410871, RitualMonster(55410871, "Blue-Eyes Chaos MAX Dragon", 8, 4000, 0, "chaos_max_clean") },
-                { 6637331, Monster(6637331, "Bystial Druiswurm", 6, 2500, 2000, "bystial_clean") },
-                { 33854624, Monster(33854624, "Bystial Magnamhut", 6, 2500, 2000, "bystial_search_clean") },
-                { 23995346, Monster(23995346, "Blue-Eyes Ultimate Dragon", 12, 4500, 3800, string.Empty) },
-                { 12381100, Monster(12381100, "Dragon Master Magia", 12, 5000, 4000, "magia_clean") },
-                { 59822133, Monster(59822133, "Blue-Eyes Spirit Dragon", 9, 2500, 3000, "spirit_dragon_clean") },
-                { 89604813, Monster(89604813, "Blue-Eyes Ultimate Spirit Dragon", 12, 3500, 4000, "ultimate_spirit_clean") },
-                { 42097666, Monster(42097666, "Spirit with Eyes of Blue", 1, 300, 0, "spirit_with_eyes_clean") },
-                { 2295440, Spell(2295440, "One for One", "one_for_one_clean") },
-                { 69145169, Spell(69145169, "Successor Soul", "successor_soul_clean") },
+                { 89631139, Monster(89631139, "Blue-Eyes White Dragon", 8, 3000, 2500, string.Empty, "Dragon / Normal") },
+                { 88241506, Monster(88241506, "Maiden with Eyes of Blue", 1, 0, 0, "maiden_with_eyes_clean", "Spellcaster / Tuner / Effect") },
+                { 8240199, Monster(8240199, "Sage with Eyes of Blue", 1, 0, 1500, "sage_clean", "Spellcaster / Tuner / Effect") },
+                { 71039903, Monster(71039903, "The White Stone of Ancients", 1, 600, 500, "stone_ancients_clean", "Dragon / Tuner / Effect") },
+                { 17947697, Monster(17947697, "Maiden of White", 1, 0, 0, "maiden_white", "Spellcaster / Tuner / Effect") },
+                { 23434538, Monster(23434538, "Maxx \"C\"", 2, 500, 200, "maxx_c_clean", "Insect / Effect") },
+                { 97268402, Monster(97268402, "Effect Veiler", 1, 0, 0, "veiler_clean", "Spellcaster / Tuner / Effect") },
+                { 14558127, Monster(14558127, "Ash Blossom & Joyous Spring", 3, 0, 1800, "ash_clean", "Zombie / Tuner / Effect") },
+                { 59438930, Monster(59438930, "Ghost Ogre & Snow Rabbit", 3, 0, 1800, "ghost_ogre_clean", "Psychic / Tuner / Effect") },
+                { 66961194, Monster(66961194, "Dictator of D.", 4, 1200, 1100, "dictator_clean", "Spellcaster / Effect") },
+                { 30576089, Monster(30576089, "Blue-Eyes Jet Dragon", 8, 3000, 0, "jet_clean", "Dragon / Effect") },
+                { 45467446, Monster(45467446, "Dragon Spirit of White", 8, 2500, 2000, "dragon_spirit_white_clean", "Dragon / Effect") },
+                { 55410871, RitualMonster(55410871, "Blue-Eyes Chaos MAX Dragon", 8, 4000, 0, "chaos_max_clean", "Dragon / Ritual / Effect") },
+                { 20654247, RitualMonster(20654247, "Blue-Eyes Chaos Dragon", 8, 3000, 0, "chaos_dragon_clean", "Dragon / Ritual / Effect") },
+                { 70551291, RitualMonster(70551291, "Black Luster Soldier - Legendary Swordsman", 8, 3000, 2500, string.Empty, "Warrior / Ritual / Effect") },
+                { 23995346, Monster(23995346, "Blue-Eyes Ultimate Dragon", 12, 4500, 3800, string.Empty, "Dragon / Fusion / Normal") },
+                { 12381100, Monster(12381100, "Dragon Master Magia", 12, 5000, 4000, "magia_clean", "Dragon / Fusion / Effect") },
+                { 59822133, Monster(59822133, "Blue-Eyes Spirit Dragon", 9, 2500, 3000, "spirit_dragon_clean", "Dragon / LIGHT / Synchro / Effect") },
+                { 89604813, Monster(89604813, "Blue-Eyes Ultimate Spirit Dragon", 12, 3500, 4000, "ultimate_spirit_clean", "Dragon / LIGHT / Synchro / Effect") },
+                { 40908371, Monster(40908371, "Azure-Eyes Silver Dragon", 9, 2500, 3000, "azure_eyes_clean", "Dragon / LIGHT / Synchro / Effect") },
+                { 42097666, Monster(42097666, "Spirit with Eyes of Blue", 1, 300, 0, "spirit_with_eyes_clean", "Dragon / Link / Effect") },
+                { 24382602, Spell(24382602, "Mausoleum of White", "mausoleum_clean") },
                 { 93437091, Spell(93437091, "Bingo Machine, Go!!!", "bingo_clean") },
                 { 80326401, Spell(80326401, "Wishes for Eyes of Blue", "wishes_clean") },
                 { 17725109, Spell(17725109, "Roar of the Blue-Eyed Dragons", "roar_clean") },
-                { 45895206, Spell(45895206, "Dark-Piercing Light", "dark_piercing_clean") },
-                { 24382602, Spell(24382602, "Mausoleum of White", "mausoleum_clean") },
+                { 40089744, Spell(40089744, "Gateway to Chaos", "gateway_chaos_clean") },
+                { 2783661, Spell(2783661, "Majesty with Eyes of Blue", "majesty_blue_clean") },
                 { 21082832, Spell(21082832, "Chaos Form", "chaos_form_clean") },
                 { 41620959, Spell(41620959, "Dragon Shrine", "dragon_shrine_clean") },
-                { 71143015, Spell(71143015, "Ultimate Fusion", "ultimate_fusion_clean") },
+                { 71143015, QuickPlaySpell(71143015, "Ultimate Fusion", "ultimate_fusion_clean") },
                 { 62089826, Trap(62089826, "True Light", "true_light_clean") }
             };
 
@@ -59,7 +60,7 @@ namespace IcarusGame.CleanDuel
             CleanCardDefinition fallback;
             if (!fallbackCards.TryGetValue(id, out fallback))
             {
-                fallback = Monster(id, "Card " + id, 4, 1500, 1500, string.Empty);
+                fallback = Monster(id, "Card " + id, 4, 1500, 1500, string.Empty, "Monster");
             }
 
             YgoCardDatabase loaded = LoadDatabase();
@@ -104,27 +105,26 @@ namespace IcarusGame.CleanDuel
             return new[]
             {
                 89631139, 89631139, 89631139,
-                17947697, 17947697, 17947697,
+                88241506, 88241506, 88241506,
                 8240199, 8240199, 8240199,
                 71039903, 71039903, 71039903,
-                88241506, 88241506,
-                2295440,
+                17947697, 17947697,
+                23434538,
                 97268402,
                 14558127,
-                94145021,
+                59438930,
                 66961194,
-                64202399,
                 30576089, 30576089,
-                6637331,
-                33854624,
-                69145169,
+                45467446,
+                55410871,
+                20654247,
+                24382602,
                 93437091,
                 80326401, 80326401,
-                17725109, 17725109,
-                45895206,
-                24382602,
+                17725109, 17725109, 17725109,
+                40089744,
+                2783661,
                 21082832,
-                55410871,
                 41620959,
                 71143015, 71143015, 71143015,
                 62089826, 62089826, 62089826
@@ -189,19 +189,29 @@ namespace IcarusGame.CleanDuel
             return "lua_" + data.Id;
         }
 
-        private static CleanCardDefinition Monster(int id, string name, int level, int attack, int defense, string effectKey)
+        private static CleanCardDefinition Monster(int id, string name, int level, int attack, int defense, string effectKey, string typeLine)
         {
-            return new CleanCardDefinition(id, name, CleanCardKind.Monster, level, attack, defense, "Monster", string.Empty, effectKey);
+            return new CleanCardDefinition(id, name, CleanCardKind.Monster, level, attack, defense, typeLine, string.Empty, effectKey);
         }
 
-        private static CleanCardDefinition RitualMonster(int id, string name, int level, int attack, int defense, string effectKey)
+        private static CleanCardDefinition RitualMonster(int id, string name, int level, int attack, int defense, string effectKey, string typeLine)
         {
-            return new CleanCardDefinition(id, name, CleanCardKind.Monster, level, attack, defense, "Dragon / Ritual / Effect", string.Empty, effectKey);
+            return new CleanCardDefinition(id, name, CleanCardKind.Monster, level, attack, defense, typeLine, string.Empty, effectKey);
         }
 
         private static CleanCardDefinition Spell(int id, string name, string effectKey)
         {
-            return new CleanCardDefinition(id, name, CleanCardKind.Spell, 0, 0, 0, "Spell", string.Empty, effectKey);
+            return Spell(id, name, effectKey, "Spell");
+        }
+
+        private static CleanCardDefinition QuickPlaySpell(int id, string name, string effectKey)
+        {
+            return Spell(id, name, effectKey, "Quick-Play Spell");
+        }
+
+        private static CleanCardDefinition Spell(int id, string name, string effectKey, string typeLine)
+        {
+            return new CleanCardDefinition(id, name, CleanCardKind.Spell, 0, 0, 0, typeLine, string.Empty, effectKey);
         }
 
         private static CleanCardDefinition Trap(int id, string name, string effectKey)

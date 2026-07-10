@@ -8,10 +8,13 @@ namespace IcarusGame.CleanDuel
     {
         private static readonly string[] CardExtensions = { ".jpg", ".jpeg", ".png" };
         private static readonly string[] FieldExtensions = { ".png", ".jpg", ".jpeg" };
+        private static readonly string[] CardBackExtensions = { ".png", ".jpg", ".jpeg" };
 
         private readonly Dictionary<int, Texture2D> textures = new Dictionary<int, Texture2D>();
         private readonly Dictionary<int, Texture2D> fieldTextures = new Dictionary<int, Texture2D>();
         private readonly Dictionary<int, Sprite> sprites = new Dictionary<int, Sprite>();
+        private Texture2D cardBackTexture;
+        private Sprite cardBackSprite;
         private Texture2D defaultFieldTexture;
         private string[] fieldImagePaths;
 
@@ -98,6 +101,46 @@ namespace IcarusGame.CleanDuel
             return sprite;
         }
 
+        public Texture2D GetCardBackTexture()
+        {
+            if (cardBackTexture != null)
+            {
+                return cardBackTexture;
+            }
+
+            string path = FindImagePath(CardBackDirectory, "CardBack", CardBackExtensions);
+            if (string.IsNullOrEmpty(path))
+            {
+                return null;
+            }
+
+            cardBackTexture = LoadTexture(path, "CardBack");
+            return cardBackTexture;
+        }
+
+        public Sprite GetCardBackSprite()
+        {
+            if (cardBackSprite != null)
+            {
+                return cardBackSprite;
+            }
+
+            Texture2D texture = GetCardBackTexture();
+            if (texture == null)
+            {
+                return null;
+            }
+
+            cardBackSprite = Sprite.Create(
+                texture,
+                new Rect(0f, 0f, texture.width, texture.height),
+                new Vector2(0.5f, 0.5f),
+                100f,
+                0u,
+                SpriteMeshType.FullRect);
+            return cardBackSprite;
+        }
+
         public Color CardColor(CleanCard card)
         {
             if (card == null)
@@ -136,6 +179,10 @@ namespace IcarusGame.CleanDuel
             get { return Path.Combine(Application.dataPath, "YGOProDeck", "FieldImages"); }
         }
 
+        private static string CardBackDirectory
+        {
+            get { return Path.Combine(Application.dataPath, "YGOProDeck", "CardBacks"); }
+        }
         private static string FindImagePathForId(string directory, int imageId, string[] extensions)
         {
             string rawId = imageId.ToString();

@@ -17,9 +17,15 @@ namespace IcarusGame.CleanDuel
         private int selectedHand = -1;
         private int selectedMonster = -1;
         private int selectedSpellTrap = -1;
+        private int selectedExtraDeck = -1;
+        private bool hasInspection;
+        private CleanPlayerId inspectedOwner;
+        private CleanZoneKind inspectedZone;
+        private int inspectedIndex = -1;
 
         private void Start()
         {
+            RemoveExistingRuntimeObjects();
             runtimeRoot = new GameObject("Clean Duel Runtime Objects").transform;
             artCache = new CleanDuelArtCache();
             arenaCamera = EnsureCamera();
@@ -41,41 +47,76 @@ namespace IcarusGame.CleanDuel
             selectedHand = selectedHand == index ? -1 : index;
             selectedMonster = -1;
             selectedSpellTrap = -1;
+            selectedExtraDeck = -1;
+            ClearInspection();
             Refresh();
         }
 
         public void HandleZoneClicked(CleanPlayerId owner, CleanZoneKind zone, int index)
         {
-            if (zone == CleanZoneKind.Monster)
+            if (owner == CleanPlayerId.Local && zone == CleanZoneKind.Monster)
             {
-                if (owner == CleanPlayerId.Local)
-                {
-                    CleanCard card = game.State.Local.Monsters[index];
-                    selectedMonster = card == null || selectedMonster == index ? -1 : index;
-                    selectedHand = -1;
-                    selectedSpellTrap = -1;
-                    Refresh();
-                    return;
-                }
-
-                if (selectedMonster >= 0)
-                {
-                    game.Attack(selectedMonster, index);
-                    ClearSelection();
-                    Refresh();
-                }
-
+                CleanCard card = game.State.Local.Monsters[index];
+                selectedMonster = card == null || selectedMonster == index ? -1 : index;
+                selectedHand = -1;
+                selectedSpellTrap = -1;
+                selectedExtraDeck = -1;
+                ClearInspection();
+                Refresh();
                 return;
             }
 
-            if (zone == CleanZoneKind.SpellTrap && owner == CleanPlayerId.Local)
+            if (owner == CleanPlayerId.Local && zone == CleanZoneKind.SpellTrap)
             {
                 CleanCard card = game.State.Local.SpellsTraps[index];
                 selectedSpellTrap = card == null || selectedSpellTrap == index ? -1 : index;
                 selectedHand = -1;
                 selectedMonster = -1;
+                selectedExtraDeck = -1;
+                ClearInspection();
                 Refresh();
+                return;
             }
+
+            if (owner == CleanPlayerId.Local && zone == CleanZoneKind.FieldSpell)
+            {
+                CleanCard card = game.State.Local.FieldSpell;
+                selectedSpellTrap = card == null || selectedSpellTrap == CleanDuelGame.FieldSpellZoneIndex ? -1 : CleanDuelGame.FieldSpellZoneIndex;
+                selectedHand = -1;
+                selectedMonster = -1;
+                selectedExtraDeck = -1;
+                ClearInspection();
+                Refresh();
+                return;
+            }
+            if (owner == CleanPlayerId.Local && zone == CleanZoneKind.ExtraDeck)
+            {
+                int linkIndex = FirstLinkSummonCandidateFromExtraDeck();
+                if (linkIndex >= 0)
+                {
+                    selectedExtraDeck = selectedExtraDeck == linkIndex ? -1 : linkIndex;
+                    selectedHand = -1;
+                    selectedMonster = -1;
+                    selectedSpellTrap = -1;
+                    ClearInspection();
+                    Refresh();
+                    return;
+                }
+            }
+            if (owner == CleanPlayerId.Rival && zone == CleanZoneKind.Monster && selectedMonster >= 0 && game.CanAttackWith(selectedMonster))
+            {
+                CleanCard target = game.State.Rival.Monsters[index];
+                if (target != null)
+                {
+                    game.Attack(selectedMonster, index);
+                    ClearSelection();
+                    Refresh();
+                    return;
+                }
+            }
+
+            InspectZone(owner, zone, index);
+            Refresh();
         }
 
         public void NormalSummonSelected()
@@ -98,6 +139,7 @@ namespace IcarusGame.CleanDuel
         {
             int handIndex = selectedHand;
             int monsterIndex = selectedMonster;
+            int extraDeckIndex = selectedExtraDeck;
             ClearSelection();
             if (handIndex >= 0)
             {
@@ -107,14 +149,33 @@ namespace IcarusGame.CleanDuel
                 }
                 else
                 {
-                    game.SetSpellTrap(handIndex);
+                    game.ActivateLocalQuickEffectHandCard(handIndex);
                 }
+            }
+            else if (extraDeckIndex >= 0)
+            {
+                game.LinkSummonFromExtra(extraDeckIndex);
             }
             else if (monsterIndex >= 0)
             {
-                game.ActivateMonsterZoneCard(monsterIndex);
+                if (game.CanActivateMonsterZoneCard(monsterIndex))
+                {
+                    game.ActivateMonsterZoneCard(monsterIndex);
+                }
+                else
+                {
+                    game.ActivateLocalQuickEffectMonsterZoneCard(monsterIndex);
+                }
             }
 
+            Refresh();
+        }
+
+        public void SetSpellTrapSelected()
+        {
+            int handIndex = selectedHand;
+            ClearSelection();
+            game.SetSpellTrap(handIndex);
             Refresh();
         }
 
@@ -154,6 +215,14 @@ namespace IcarusGame.CleanDuel
             Refresh();
         }
 
+
+        public void PendulumSummon()
+        {
+            ClearSelection();
+            game.PendulumSummon();
+            Refresh();
+        }
+
         public void AdvancePhase()
         {
             if (game.State.GameOver)
@@ -174,6 +243,31 @@ namespace IcarusGame.CleanDuel
             Refresh();
         }
 
+        private void RemoveExistingRuntimeObjects()
+        {
+            DestroyNamedObject("Clean Duel Runtime Objects");
+            DestroyNamedObject("Modern Master Duel Arena");
+            DestroyNamedObject("Top Down Glass Field");
+            DestroyNamedObject("Top Down Field Surface");
+            DestroyNamedObject("Top Down Clear Field Surface");
+            DestroyNamedObject("Glass Duel Surface");
+        }
+
+        private void DestroyNamedObject(string objectName)
+        {
+            GameObject[] objects = Resources.FindObjectsOfTypeAll<GameObject>();
+            for (int i = 0; i < objects.Length; i++)
+            {
+                GameObject stale = objects[i];
+                if (stale == null || stale == gameObject || stale.name != objectName || !stale.scene.IsValid())
+                {
+                    continue;
+                }
+
+                DestroyImmediate(stale);
+            }
+        }
+
         private void Refresh()
         {
             ClampSelection();
@@ -185,7 +279,7 @@ namespace IcarusGame.CleanDuel
 
             if (hudView != null)
             {
-                hudView.Render(game, selectedCard, selectedHand, selectedMonster, selectedSpellTrap);
+                hudView.Render(game, selectedCard, selectedHand, selectedMonster, selectedSpellTrap, selectedExtraDeck);
             }
         }
 
@@ -201,12 +295,82 @@ namespace IcarusGame.CleanDuel
                 return game.State.Local.Monsters[selectedMonster];
             }
 
+            if (selectedExtraDeck >= 0 && selectedExtraDeck < game.State.Local.ExtraDeck.Count)
+            {
+                return game.State.Local.ExtraDeck[selectedExtraDeck];
+            }
+
             if (selectedSpellTrap >= 0 && selectedSpellTrap < CleanPlayerState.ZoneCount)
             {
                 return game.State.Local.SpellsTraps[selectedSpellTrap];
             }
 
-            return null;
+            if (selectedSpellTrap == CleanDuelGame.FieldSpellZoneIndex)
+            {
+                return game.State.Local.FieldSpell;
+            }
+
+            return CardForInspection();
+        }
+
+        private void InspectZone(CleanPlayerId owner, CleanZoneKind zone, int index)
+        {
+            selectedHand = -1;
+            selectedMonster = -1;
+            selectedSpellTrap = -1;
+            selectedExtraDeck = -1;
+            inspectedOwner = owner;
+            inspectedZone = zone;
+            inspectedIndex = index;
+            hasInspection = true;
+            hasInspection = CardForInspection() != null;
+        }
+
+        private CleanCard CardForInspection()
+        {
+            if (!hasInspection)
+            {
+                return null;
+            }
+
+            CleanPlayerState player = game.Player(inspectedOwner);
+            switch (inspectedZone)
+            {
+                case CleanZoneKind.Monster:
+                    return inspectedIndex >= 0 && inspectedIndex < CleanPlayerState.ZoneCount ? player.Monsters[inspectedIndex] : null;
+                case CleanZoneKind.SpellTrap:
+                    return inspectedIndex >= 0 && inspectedIndex < CleanPlayerState.ZoneCount ? player.SpellsTraps[inspectedIndex] : null;
+                case CleanZoneKind.FieldSpell:
+                    return player.FieldSpell;
+                case CleanZoneKind.ExtraMonster:
+                    return inspectedIndex >= 0 && inspectedIndex < game.State.ExtraMonsters.Length ? game.State.ExtraMonsters[inspectedIndex] : null;
+                case CleanZoneKind.Graveyard:
+                    return TopCard(player.Graveyard);
+                case CleanZoneKind.Banished:
+                    return TopCard(player.Banished);
+                case CleanZoneKind.ExtraDeck:
+                    return inspectedOwner == CleanPlayerId.Local ? TopCard(player.ExtraDeck) : null;
+                default:
+                    return null;
+            }
+        }
+
+        private CleanCard TopCard(System.Collections.Generic.List<CleanCard> cards)
+        {
+            return cards.Count == 0 ? null : cards[cards.Count - 1];
+        }
+
+        private int FirstLinkSummonCandidateFromExtraDeck()
+        {
+            for (int i = game.State.Local.ExtraDeck.Count - 1; i >= 0; i--)
+            {
+                if (game.CanLinkSummonFromExtra(i))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
         }
 
         private void ClampSelection()
@@ -221,9 +385,28 @@ namespace IcarusGame.CleanDuel
                 selectedMonster = -1;
             }
 
-            if (selectedSpellTrap >= 0 && game.State.Local.SpellsTraps[selectedSpellTrap] == null)
+            if (selectedExtraDeck >= game.State.Local.ExtraDeck.Count)
             {
-                selectedSpellTrap = -1;
+                selectedExtraDeck = -1;
+            }
+
+            if (selectedSpellTrap >= 0)
+            {
+                if (selectedSpellTrap == CleanDuelGame.FieldSpellZoneIndex)
+                {
+                    if (game.State.Local.FieldSpell == null)
+                    {
+                        selectedSpellTrap = -1;
+                    }
+                }
+                else if (selectedSpellTrap >= CleanPlayerState.ZoneCount || game.State.Local.SpellsTraps[selectedSpellTrap] == null)
+                {
+                    selectedSpellTrap = -1;
+                }
+            }
+            if (hasInspection && CardForInspection() == null)
+            {
+                ClearInspection();
             }
         }
 
@@ -232,6 +415,13 @@ namespace IcarusGame.CleanDuel
             selectedHand = -1;
             selectedMonster = -1;
             selectedSpellTrap = -1;
+            ClearInspection();
+        }
+
+        private void ClearInspection()
+        {
+            hasInspection = false;
+            inspectedIndex = -1;
         }
 
         private Camera EnsureCamera()
@@ -244,34 +434,61 @@ namespace IcarusGame.CleanDuel
                 camera = cameraObject.GetComponent<Camera>();
             }
 
-            camera.transform.position = new Vector3(0f, 9.7f, -5.9f);
-            camera.transform.rotation = Quaternion.Euler(64f, 0f, 0f);
-            camera.fieldOfView = 52f;
+            camera.transform.position = new Vector3(0f, 14.8f, 0f);
+            camera.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            camera.orthographic = true;
+            camera.orthographicSize = 5.25f;
             camera.nearClipPlane = 0.1f;
-            camera.farClipPlane = 200f;
+            camera.farClipPlane = 80f;
             camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = new Color(0.026f, 0.036f, 0.052f, 1f);
+            camera.backgroundColor = new Color(0.006f, 0.008f, 0.016f, 1f);
+            DisableCameraPostProcessing(camera);
             return camera;
+        }
+
+        private void DisableCameraPostProcessing(Camera camera)
+        {
+            Component[] components = camera.GetComponents<Component>();
+            for (int i = 0; i < components.Length; i++)
+            {
+                Component component = components[i];
+                if (component == null)
+                {
+                    continue;
+                }
+
+                System.Type type = component.GetType();
+                if (type.FullName != "UnityEngine.Rendering.Universal.UniversalAdditionalCameraData")
+                {
+                    continue;
+                }
+
+                System.Reflection.PropertyInfo renderPostProcessing = type.GetProperty("renderPostProcessing");
+                if (renderPostProcessing != null && renderPostProcessing.CanWrite)
+                {
+                    renderPostProcessing.SetValue(component, false, null);
+                }
+            }
         }
 
         private void EnsureLighting()
         {
             GameObject key = new GameObject("Clean Duel Key Light", typeof(Light));
             key.transform.SetParent(runtimeRoot, false);
-            key.transform.rotation = Quaternion.Euler(48f, -28f, 0f);
+            key.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
             Light light = key.GetComponent<Light>();
             light.type = LightType.Directional;
-            light.intensity = 1.25f;
-            light.color = new Color(1f, 0.94f, 0.86f, 1f);
+            light.intensity = 1.15f;
+            light.color = new Color(0.78f, 0.95f, 1f, 1f);
 
             GameObject fill = new GameObject("Clean Duel Fill Light", typeof(Light));
             fill.transform.SetParent(runtimeRoot, false);
-            fill.transform.position = new Vector3(0f, 5.5f, -4f);
+            fill.transform.position = new Vector3(0f, 3.6f, 0f);
             Light fillLight = fill.GetComponent<Light>();
             fillLight.type = LightType.Point;
-            fillLight.intensity = 2.2f;
-            fillLight.range = 12f;
-            fillLight.color = new Color(0.46f, 0.74f, 1f, 1f);
+            fillLight.intensity = 1.85f;
+            fillLight.range = 14f;
+            fillLight.color = new Color(0.5f, 0.74f, 1f, 1f);
         }
 
         private void EnsureEventSystem()

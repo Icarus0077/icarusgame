@@ -242,6 +242,11 @@ namespace IcarusGame.CleanDuel
             AddFamilyIfCategory(info, "CATEGORY_DESTROY", families, "destroy");
             AddFamilyIfCategory(info, "CATEGORY_SPECIAL_SUMMON", families, "special_summon");
             AddFamilyIfCategory(info, "CATEGORY_FUSION_SUMMON", families, "fusion_summon");
+            if (info.ContainsText("Synchro"))
+            {
+                AddFamily(families, "synchro_summon");
+            }
+
             AddFamilyIfCategory(info, "CATEGORY_TOHAND", families, "search_or_recover");
             AddFamilyIfCategory(info, "CATEGORY_SEARCH", families, "search_or_recover");
             AddFamilyIfCategory(info, "CATEGORY_DAMAGE", families, "burn");
@@ -265,7 +270,15 @@ namespace IcarusGame.CleanDuel
 
         private static void AddFamilyIfCategory(CleanLuaScriptInfo info, string category, List<string> families, string family)
         {
-            if (info.HasCategory(category) && !families.Contains(family))
+            if (info.HasCategory(category))
+            {
+                AddFamily(families, family);
+            }
+        }
+
+        private static void AddFamily(List<string> families, string family)
+        {
+            if (!families.Contains(family))
             {
                 families.Add(family);
             }
@@ -440,6 +453,199 @@ namespace IcarusGame.CleanDuel
             return card == null ? string.Empty : repository.Describe(card.Definition.Id);
         }
 
+        public bool CanResolve(CleanDuelGame game, CleanPlayerState controller, CleanPlayerState rival, CleanCard card)
+        {
+            CleanLuaScriptInfo script;
+            if (card == null || controller == null || rival == null || !repository.TryGet(card.Definition.Id, out script))
+            {
+                return false;
+            }
+
+            if (CanResolveExactCard(game, controller, rival, card))
+            {
+                return true;
+            }
+
+            if (script.HasFamily("draw"))
+            {
+                return controller.Deck.Count >= Math.Max(1, script.EstimateDrawAmount(1));
+            }
+
+            if (script.HasFamily("burn") || script.HasFamily("recover"))
+            {
+                return true;
+            }
+
+            if (script.HasFamily("destroy"))
+            {
+                return HasMonster(rival);
+            }
+
+            if (script.HasFamily("synchro_summon"))
+            {
+                return game != null && game.LuaCanSynchroSummonBestAvailable(controller, 0);
+            }
+
+            if (script.HasFamily("fusion_summon"))
+            {
+                return game != null && game.LuaCanFusionSummonBestAvailable(controller, 0);
+            }
+
+            if (script.HasFamily("special_summon") || script.HasFamily("graveyard_action"))
+            {
+                return HasEmptyMonsterZone(controller) && (HasMonster(controller.Hand) || HasMonster(controller.Graveyard));
+            }
+
+            if (script.HasFamily("search_or_recover"))
+            {
+                return controller.Deck.Count > 0;
+            }
+
+            if (script.HasFamily("send_to_grave") || script.HasFamily("mill"))
+            {
+                return HasMonster(controller.Deck);
+            }
+
+            if (script.HasFamily("stat_change"))
+            {
+                return HasMonster(controller);
+            }
+
+            if (script.HasFamily("position"))
+            {
+                return HasMonster(rival);
+            }
+
+            return false;
+        }
+
+        private bool CanResolveExactCard(CleanDuelGame game, CleanPlayerState controller, CleanPlayerState rival, CleanCard card)
+        {
+            switch (card.Definition.Id)
+            {
+                case 17947697:
+                    return HasEmptySpellTrapZone(controller) &&
+                           (ContainsCard(controller.Hand, 62089826) ||
+                            ContainsCard(controller.Deck, 62089826) ||
+                            ContainsCard(controller.Graveyard, 62089826));
+                case 55144522:
+                    return controller.Deck.Count >= 2;
+                case 12580477:
+                    return HasMonster(rival);
+                case 71143015:
+                    return game != null && game.LuaCanFusionSummonBestAvailable(controller, 12381100);
+                case 62089826:
+                    return (HasEmptyMonsterZone(controller) && HasMonster(controller.Graveyard)) || controller.Deck.Count > 0;
+                case 41620959:
+                    return HasMonster(controller.Deck);
+                case 93437091:
+                case 80326401:
+                    return controller.Deck.Count > 0;
+                case 43845801:
+                    return HasMonster(controller);
+                default:
+                    return false;
+            }
+        }
+
+        private static bool HasEmptyMonsterZone(CleanPlayerState player)
+        {
+            if (player == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < player.Monsters.Length; i++)
+            {
+                if (player.Monsters[i] == null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool HasEmptySpellTrapZone(CleanPlayerState player)
+        {
+            if (player == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < player.SpellsTraps.Length; i++)
+            {
+                if (player.SpellsTraps[i] == null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool HasMonster(CleanPlayerState player)
+        {
+            return player != null && HasMonster(player.Monsters);
+        }
+
+        private static bool HasMonster(CleanCard[] cards)
+        {
+            if (cards == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < cards.Length; i++)
+            {
+                CleanCard card = cards[i];
+                if (card != null && card.Definition.Kind == CleanCardKind.Monster)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool HasMonster(List<CleanCard> cards)
+        {
+            if (cards == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < cards.Count; i++)
+            {
+                CleanCard card = cards[i];
+                if (card != null && card.Definition.Kind == CleanCardKind.Monster)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool ContainsCard(List<CleanCard> cards, int id)
+        {
+            if (cards == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < cards.Count; i++)
+            {
+                CleanCard card = cards[i];
+                if (card != null && card.Definition.Id == id)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public bool TryResolve(CleanDuelGame game, CleanPlayerState controller, CleanPlayerState rival, CleanCard card)
         {
             CleanLuaScriptInfo script;
@@ -481,6 +687,14 @@ namespace IcarusGame.CleanDuel
                 }
 
                 return game.LuaDestroyStrongest(rival) > 0;
+            }
+
+            if (script.HasFamily("synchro_summon"))
+            {
+                if (game.LuaSynchroSummonBestAvailable(controller, 0))
+                {
+                    return true;
+                }
             }
 
             if (script.HasFamily("fusion_summon"))

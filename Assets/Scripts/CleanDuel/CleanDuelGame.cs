@@ -6,16 +6,86 @@ namespace IcarusGame.CleanDuel
 {
     public sealed class CleanDuelGame
     {
+        public const int FieldSpellZoneIndex = CleanPlayerState.ZoneCount;
         private const int MaidenOfWhiteCardId = 17947697;
         private const int TrueLightCardId = 62089826;
         private const int BlueEyesWhiteDragonCardId = 89631139;
         private const int BlueEyesUltimateDragonCardId = 23995346;
         private const int DragonMasterMagiaCardId = 12381100;
         private const int BlueEyesChaosMaxDragonCardId = 55410871;
+        private const int BlueEyesChaosDragonCardId = 20654247;
+        private const int BlackLusterSoldierLegendarySwordsmanCardId = 70551291;
+        private const int MaxxCCardId = 23434538;
+        private const int GhostOgreSnowRabbitCardId = 59438930;
+        private const int SageWithEyesOfBlueCardId = 8240199;
+        private const int BlueEyesJetDragonCardId = 30576089;
+        private const int WhiteStoneOfAncientsCardId = 71039903;
+        private const int RoarOfBlueEyedDragonsCardId = 17725109;
+        private const int BlueEyesSpiritDragonCardId = 59822133;
+        private const int BlueEyesUltimateSpiritDragonCardId = 89604813;
+        private const int AzureEyesSilverDragonCardId = 40908371;
+        private const int SpiritWithEyesOfBlueCardId = 42097666;
+        private const int MaidenWithEyesOfBlueCardId = 88241506;
+        private const int DragonSpiritOfWhiteCardId = 45467446;
+        private const int MausoleumOfWhiteCardId = 24382602;
+        private const int WishesForEyesOfBlueCardId = 80326401;
+        private const int GatewayToChaosCardId = 40089744;
+        private const int MajestyWithEyesOfBlueCardId = 2783661;
+        private const int ChaosFormCardId = 21082832;
+        private const int BurstStreamOfDestructionCardId = 17655904;
         private const int TrueLightSummonOptionId = 1;
         private const int TrueLightSetOptionId = 2;
+        private const int TrueLightSetCardChoicePromptId = -62089826;
+        private const int BattlePhaseChoicePromptId = -2001;
+        private const int BattlePhaseMain2OptionId = 1;
+        private const int BattlePhaseEndOptionId = 2;
+        private const int DragonShrineFirstChoicePromptId = -41620959;
+        private const int DragonShrineSecondChoicePromptId = -41620960;
+        private const int DragonShrineSkipSecondOptionId = -1;
+        private const int WishesDiscardChoicePromptId = -803264011;
+        private const int WishesTunerChoicePromptId = -803264012;
+        private const int WishesSupportChoicePromptId = -803264013;
+        private const int SageSearchChoicePromptId = -82401991;
+        private const int SageTargetChoicePromptId = -82401992;
+        private const int SageBlueEyesChoicePromptId = -82401993;
+        private const int MausoleumTargetChoicePromptId = -243826021;
+        private const int MausoleumNormalChoicePromptId = -243826022;
+        private const int GatewaySearchChoicePromptId = -400897441;
+        private const int SpiritEffectChoicePromptId = -420976661;
+        private const int SpiritMausoleumDestinationChoicePromptId = -420976662;
+        private const int SpiritSummonChoicePromptId = -420976663;
+        private const int SpiritMausoleumEffectOptionId = 1;
+        private const int SpiritTributeEffectOptionId = 2;
+        private const int SpiritMausoleumToHandOptionId = 1;
+        private const int SpiritMausoleumToGraveOptionId = 2;
+        private const int LuaDestroyTargetChoicePromptId = -3001;
+        private const int QuickEffectChoicePromptId = -3002;
+        private const int QuickEffectPassOptionId = -1;
+        private const int QuickEffectChoiceHandSource = 1;
+        private const int QuickEffectChoiceMonsterSource = 2;
+        private const int ExtraSpiritZoneOffset = 100;
+        private const int PendulumSummonChoicePromptId = -5001;
+        private const int PendulumFinishOptionId = -1;
+        private const int PendulumHandOptionOffset = 1000;
+        private const int PendulumExtraDeckOptionOffset = 2000;
+        private const int ChoiceSourceDeck = 1;
+        private const int ChoiceSourceHand = 2;
         private const string TrueLightOnceKey = "true_light_clean";
-
+        private const string MausoleumBoostOnceKey = "mausoleum_boost_clean";
+        private const string MausoleumExtraNormalOnceKey = "mausoleum_extra_normal_clean";
+        private const string JetSummonOnceKey = "jet_summon_clean";
+        private const string JetBounceOnceKey = "jet_bounce_clean";
+        private const string WhiteStoneEndPhaseOnceKey = "stone_ancients_end_phase_clean";
+        private const string BlueEyesSpiritGraveNegateOnceKey = "spirit_dragon_grave_negate_clean";
+        private const string UltimateSpiritNegateOnceKey = "ultimate_spirit_negate_clean";
+        private const string UltimateSpiritDestroyedOnceKey = "ultimate_spirit_destroyed_clean";
+        private const string GatewayActivationOnceKey = "gateway_activation_clean";
+        private const string GatewayRitualSearchOnceKey = "gateway_ritual_search_clean";
+        private const string SpiritMausoleumOnceKey = "spirit_with_eyes_mausoleum_clean";
+        private const string SpiritTributeOnceKey = "spirit_with_eyes_tribute_clean";
+        private const string MagiaMonsterNegateOnceKey = "magia_monster_negate_clean";
+        private const string MagiaSpellNegateOnceKey = "magia_spell_negate_clean";
+        private const string MagiaTrapNegateOnceKey = "magia_trap_negate_clean";
         private enum CleanActivationSource
         {
             Hand,
@@ -25,6 +95,12 @@ namespace IcarusGame.CleanDuel
 
         private readonly System.Random random = new System.Random();
         private readonly CleanLuaEffectBridge luaBridge = new CleanLuaEffectBridge();
+        private int pendingMausoleumTargetZone = -1;
+        private int pendingSpiritZone = -1;
+        private CleanPlayerId pendingLuaDestroyTargetPlayerId = CleanPlayerId.Rival;
+        private int pendingLuaDestroyRemaining;
+        private string pendingLuaDestroySource = string.Empty;
+        private bool localQuickWindowHandledForRivalTurn;
 
         public readonly CleanDuelState State = new CleanDuelState();
 
@@ -44,22 +120,35 @@ namespace IcarusGame.CleanDuel
         {
             ResetPlayer(State.Local);
             ResetPlayer(State.Rival);
+            Array.Clear(State.ExtraMonsters, 0, State.ExtraMonsters.Length);
             State.Log.Clear();
             State.TurnPlayer = CleanPlayerId.Local;
             State.Phase = CleanDuelPhase.Draw;
             State.TurnNumber = 1;
             State.GameOver = false;
             State.PendingChoice = null;
+            ClearPendingEffectChoices();
             State.WinnerText = string.Empty;
+            localQuickWindowHandledForRivalTurn = false;
 
             FillDeck(State.Local);
             FillDeck(State.Rival);
+            Shuffle(State.Local.Deck);
+            Shuffle(State.Rival.Deck);
             luaBridge.Initialize();
             Draw(State.Local, 5);
-            Draw(State.Rival, 5);
+            if (!State.GameOver)
+            {
+                Draw(State.Rival, 5);
+            }
+
             Log("New clean duel started.");
             Log(luaBridge.Status);
-            Log("Draw phase: use Next Phase to enter Main.");
+            if (!State.GameOver)
+            {
+                State.Phase = CleanDuelPhase.Main;
+                Log("Draw phase advances automatically to Main Phase 1.");
+            }
             NotifyChanged();
         }
 
@@ -79,6 +168,10 @@ namespace IcarusGame.CleanDuel
         }
 
         
+        private static bool IsMainPhase(CleanDuelPhase phase)
+        {
+            return phase == CleanDuelPhase.Main || phase == CleanDuelPhase.Main2;
+        }
         public string DescribeLua(CleanCard card)
         {
             if (IsNormalMonster(card))
@@ -91,27 +184,27 @@ namespace IcarusGame.CleanDuel
 
         public bool CanNormalSummon(int handIndex)
         {
-            if (!CanUseLocalActions() || State.Phase != CleanDuelPhase.Main || State.Local.NormalSummonUsed)
+            if (!CanUseLocalActions() || !IsMainPhase(State.Phase))
             {
                 return false;
             }
 
-            return CanNormalPlayMonster(State.Local, CardInHand(State.Local, handIndex));
+            CleanCard card = CardInHand(State.Local, handIndex);
+            return CanNormalPlayMonster(State.Local, card) &&
+                   (!State.Local.NormalSummonUsed || CanUseMausoleumExtraNormalSummon(State.Local, card));
         }
-
         public bool CanSetMonster(int handIndex)
         {
-            if (!CanUseLocalActions() || State.Phase != CleanDuelPhase.Main || State.Local.NormalSummonUsed)
+            if (!CanUseLocalActions() || !IsMainPhase(State.Phase) || State.Local.NormalSummonUsed)
             {
                 return false;
             }
 
             return CanNormalPlayMonster(State.Local, CardInHand(State.Local, handIndex));
         }
-
         public bool CanSetSpellTrap(int handIndex)
         {
-            if (!CanUseLocalActions() || State.Phase != CleanDuelPhase.Main)
+            if (!CanUseLocalActions() || !IsMainPhase(State.Phase))
             {
                 return false;
             }
@@ -124,7 +217,7 @@ namespace IcarusGame.CleanDuel
 
         public bool CanActivateHandCard(int handIndex)
         {
-            if (!CanUseLocalActions() || State.Phase != CleanDuelPhase.Main)
+            if (!CanUseLocalActions() || !IsMainPhase(State.Phase))
             {
                 return false;
             }
@@ -135,12 +228,63 @@ namespace IcarusGame.CleanDuel
                 return false;
             }
 
+            if (CanActivatePendulumFromHand(handIndex))
+            {
+                return true;
+            }
+
             return card.Definition.Kind != CleanCardKind.Trap && CanActivateCleanCard(card, State.Local, CleanActivationSource.Hand);
+        }
+
+        public bool CanActivatePendulumFromHand(int handIndex)
+        {
+            if (!CanUseLocalActions() || !IsMainPhase(State.Phase))
+            {
+                return false;
+            }
+
+            CleanCard card = CardInHand(State.Local, handIndex);
+            return card != null && IsPendulumMonster(card) && FirstAvailablePendulumZone(State.Local) >= 0;
+        }
+
+        public void ActivatePendulumFromHand(int handIndex)
+        {
+            if (!CanActivatePendulumFromHand(handIndex))
+            {
+                return;
+            }
+
+            CleanCard card = State.Local.Hand[handIndex];
+            int zone = FirstAvailablePendulumZone(State.Local);
+            State.Local.Hand.RemoveAt(handIndex);
+            State.Local.SpellsTraps[zone] = card;
+            card.Controller = State.Local.Id;
+            card.FaceDown = false;
+            card.FaceUpExtraDeck = false;
+            Log(State.Local.Name + " activates " + card.Definition.Name + " as a Pendulum Spell in the " + (zone == 0 ? "left" : "right") + " Pendulum Zone.");
+            NotifyChanged();
+        }
+
+        public bool CanPendulumSummon()
+        {
+            return CanUseLocalActions() && IsMainPhase(State.Phase) && CanPendulumSummon(State.Local);
+        }
+
+        public void PendulumSummon()
+        {
+            if (!CanPendulumSummon())
+            {
+                return;
+            }
+
+            State.Local.PendulumSummonUsed = true;
+            OpenPendulumSummonChoice(State.Local);
+            NotifyChanged();
         }
 
         public bool CanActivateMonsterZoneCard(int zoneIndex)
         {
-            if (!CanUseLocalActions() || State.Phase != CleanDuelPhase.Main || zoneIndex < 0 || zoneIndex >= CleanPlayerState.ZoneCount)
+            if (!CanUseLocalActions() || !IsMainPhase(State.Phase) || zoneIndex < 0 || zoneIndex >= CleanPlayerState.ZoneCount)
             {
                 return false;
             }
@@ -148,15 +292,117 @@ namespace IcarusGame.CleanDuel
             CleanCard card = State.Local.Monsters[zoneIndex];
             return card != null && !card.FaceDown && CanActivateCleanCard(card, State.Local, CleanActivationSource.MonsterZone);
         }
-
-        public bool CanActivateSetCard(int zoneIndex)
+        public bool CanFlipSummonMonster(int zoneIndex)
         {
-            if (!CanUseLocalActions() || State.Phase != CleanDuelPhase.Main || zoneIndex < 0 || zoneIndex >= CleanPlayerState.ZoneCount)
+            if (!CanUseLocalActions() || !IsMainPhase(State.Phase) || zoneIndex < 0 || zoneIndex >= CleanPlayerState.ZoneCount)
             {
                 return false;
             }
 
-            CleanCard card = State.Local.SpellsTraps[zoneIndex];
+            CleanCard card = State.Local.Monsters[zoneIndex];
+            return card != null && card.FaceDown && !card.SummonedThisTurn && card.Definition.Kind == CleanCardKind.Monster;
+        }
+
+        public void FlipSummonMonster(int zoneIndex)
+        {
+            if (!CanFlipSummonMonster(zoneIndex))
+            {
+                return;
+            }
+
+            CleanCard card = State.Local.Monsters[zoneIndex];
+            card.FaceDown = false;
+            card.Stance = CleanMonsterStance.Attack;
+            card.SummonedThisTurn = true;
+            Log("Flip Summoned " + card.Definition.Name + ".");
+            ResolveFlipTrigger(State.Local, State.Rival, card, "Flip Summon");
+            NotifyChanged();
+        }
+
+        public bool CanLinkSummonFromExtra(int extraDeckIndex)
+        {
+            if (!CanUseLocalActions() || !IsMainPhase(State.Phase) || extraDeckIndex < 0 || extraDeckIndex >= State.Local.ExtraDeck.Count)
+            {
+                return false;
+            }
+
+            List<int> materialZones;
+            bool summonToExtraMonsterZone;
+            int targetMainZone;
+            return TryPlanLinkSummon(State.Local, extraDeckIndex, out materialZones, out summonToExtraMonsterZone, out targetMainZone);
+        }
+
+        public void LinkSummonFromExtra(int extraDeckIndex)
+        {
+            if (!CanLinkSummonFromExtra(extraDeckIndex))
+            {
+                return;
+            }
+
+            List<int> materialZones;
+            bool summonToExtraMonsterZone;
+            int targetMainZone;
+            if (!TryPlanLinkSummon(State.Local, extraDeckIndex, out materialZones, out summonToExtraMonsterZone, out targetMainZone))
+            {
+                return;
+            }
+
+            CleanCard linkMonster = State.Local.ExtraDeck[extraDeckIndex];
+            State.Local.ExtraDeck.RemoveAt(extraDeckIndex);
+            MoveLinkMaterialsToGrave(State.Local, materialZones);
+            PrepareExtraDeckMonsterSummon(State.Local, linkMonster);
+            if (summonToExtraMonsterZone)
+            {
+                State.ExtraMonsters[ExtraMonsterZoneIndexFor(State.Local)] = linkMonster;
+                Log("Link Summoned " + linkMonster.Definition.Name + " to the Extra Monster Zone using " + materialZones.Count + " material(s).");
+            }
+            else
+            {
+                SummonToZone(State.Local, linkMonster, targetMainZone, false, CleanMonsterStance.Attack);
+                Log("Link Summoned " + linkMonster.Definition.Name + " to a linked Main Monster Zone using " + materialZones.Count + " material(s).");
+            }
+
+            linkMonster.LinkSummoned = true;
+            ResolveLinkSummonTrigger(State.Local, linkMonster);
+            NotifyChanged();
+        }
+
+        public bool CanActivateLocalExtraMonsterZoneCard(int extraMonsterZoneIndex)
+        {
+            if (!CanUseLocalActions() || !IsMainPhase(State.Phase) || extraMonsterZoneIndex != ExtraMonsterZoneIndexFor(State.Local))
+            {
+                return false;
+            }
+
+            CleanCard card = State.ExtraMonsters[extraMonsterZoneIndex];
+            return card != null && !card.FaceDown && CanActivateCleanCard(card, State.Local, CleanActivationSource.MonsterZone);
+        }
+
+        public void ActivateLocalExtraMonsterZoneCard(int extraMonsterZoneIndex)
+        {
+            if (!CanActivateLocalExtraMonsterZoneCard(extraMonsterZoneIndex))
+            {
+                return;
+            }
+
+            CleanCard card = State.ExtraMonsters[extraMonsterZoneIndex];
+            ResolveEffect(State.Local, State.Rival, card, CleanActivationSource.MonsterZone);
+            NotifyChanged();
+        }
+
+        public bool IsLocalMainMonsterZoneLinkedForExtraDeckSummon(int zoneIndex)
+        {
+            return IsMainMonsterZoneLinkedForExtraDeckSummon(State.Local, zoneIndex);
+        }
+
+        public bool CanActivateSetCard(int zoneIndex)
+        {
+            if (!CanUseLocalActions() || !IsMainPhase(State.Phase) || zoneIndex < 0 || zoneIndex > FieldSpellZoneIndex)
+            {
+                return false;
+            }
+
+            CleanCard card = zoneIndex == FieldSpellZoneIndex ? State.Local.FieldSpell : State.Local.SpellsTraps[zoneIndex];
             if (card == null)
             {
                 return false;
@@ -169,7 +415,76 @@ namespace IcarusGame.CleanDuel
 
             return CanActivateCleanCard(card, State.Local, CleanActivationSource.SpellTrapZone);
         }
+        public bool CanActivateLocalQuickEffectHandCard(int handIndex)
+        {
+            return CanActivateLocalQuickEffectHandCardInternal(handIndex, false);
+        }
 
+        public bool CanActivateLocalQuickEffectMonsterZoneCard(int zoneIndex)
+        {
+            return CanActivateLocalQuickEffectMonsterZoneCardInternal(zoneIndex, false);
+        }
+
+        public void ActivateLocalQuickEffectHandCard(int handIndex)
+        {
+            if (!ResolveLocalQuickEffectFromHand(handIndex, false))
+            {
+                return;
+            }
+
+            NotifyChanged();
+        }
+
+        public void ActivateLocalQuickEffectMonsterZoneCard(int zoneIndex)
+        {
+            if (!ResolveLocalQuickEffectFromMonsterZone(zoneIndex, false))
+            {
+                return;
+            }
+
+            NotifyChanged();
+        }
+
+        public CleanEffectTiming GetEffectTiming(CleanCard card)
+        {
+            if (card == null || string.IsNullOrEmpty(card.Definition.EffectKey) || IsNormalMonster(card))
+            {
+                return CleanEffectTiming.None;
+            }
+
+            if (IsQuickEffect(card))
+            {
+                return CleanEffectTiming.Quick;
+            }
+
+            if (IsFlipTriggerEffect(card) || IsTriggerOnlyEffect(card))
+            {
+                return CleanEffectTiming.Trigger;
+            }
+
+            if (HasContinuousEffect(card))
+            {
+                return CleanEffectTiming.Continuous;
+            }
+
+            return CleanEffectTiming.Ignition;
+        }
+
+        public int GetSpellSpeed(CleanCard card)
+        {
+            if (card == null || string.IsNullOrEmpty(card.Definition.EffectKey) || IsNormalMonster(card))
+            {
+                return 0;
+            }
+
+            if (IsQuickEffect(card) || IsQuickPlaySpell(card) || card.Definition.Kind == CleanCardKind.Trap)
+            {
+                return 2;
+            }
+
+            CleanEffectTiming timing = GetEffectTiming(card);
+            return timing == CleanEffectTiming.Ignition || timing == CleanEffectTiming.Trigger ? 1 : 0;
+        }
         public bool CanAttackWith(int monsterZone)
         {
             if (!CanUseLocalActions() || State.Phase != CleanDuelPhase.Battle || monsterZone < 0 || monsterZone >= CleanPlayerState.ZoneCount)
@@ -180,6 +495,7 @@ namespace IcarusGame.CleanDuel
             CleanCard card = State.Local.Monsters[monsterZone];
             return card != null &&
                    !card.FaceDown &&
+                   !card.CannotAttack &&
                    card.Stance == CleanMonsterStance.Attack &&
                    !card.HasBattled;
         }
@@ -192,6 +508,7 @@ namespace IcarusGame.CleanDuel
             }
 
             CleanCard card = State.Local.Hand[handIndex];
+            bool usesMausoleumExtraNormalSummon = State.Local.NormalSummonUsed && CanUseMausoleumExtraNormalSummon(State.Local, card);
             int tributeCount = RequiredTributesForNormalPlay(card);
             if (!TributeForNormalPlay(State.Local, card))
             {
@@ -200,12 +517,20 @@ namespace IcarusGame.CleanDuel
 
             int zone = FirstEmpty(State.Local.Monsters);
             State.Local.Hand.RemoveAt(handIndex);
-            SummonToZone(State.Local, card, zone, false, CleanMonsterStance.Attack);
-            State.Local.NormalSummonUsed = true;
+            SummonToZone(State.Local, card, zone, false, CleanMonsterStance.Attack, true);
+            if (usesMausoleumExtraNormalSummon)
+            {
+                State.Local.UsedOncePerTurn.Add(MausoleumExtraNormalOnceKey);
+                Log("Mausoleum of White grants the additional Normal Summon for " + card.Definition.Name + ".");
+            }
+            else
+            {
+                State.Local.NormalSummonUsed = true;
+            }
+
             Log((tributeCount > 0 ? "Tribute summoned " : "Normal summoned ") + card.Definition.Name + ".");
             NotifyChanged();
         }
-
         public void SetMonster(int handIndex)
         {
             if (!CanSetMonster(handIndex))
@@ -251,11 +576,18 @@ namespace IcarusGame.CleanDuel
                 return;
             }
 
+            if (CanActivatePendulumFromHand(handIndex))
+            {
+                ActivatePendulumFromHand(handIndex);
+                return;
+            }
+
             CleanCard card = State.Local.Hand[handIndex];
             State.Local.Hand.RemoveAt(handIndex);
-            if (ResolveEffect(State.Local, State.Rival, card, CleanActivationSource.Hand))
+            if (ResolveEffect(State.Local, State.Rival, card, CleanActivationSource.Hand) &&
+                !object.ReferenceEquals(State.Local.FieldSpell, card))
             {
-                State.Local.Graveyard.Add(card);
+                AddToGraveyard(State.Local, card, true);
             }
 
             NotifyChanged();
@@ -269,18 +601,19 @@ namespace IcarusGame.CleanDuel
             }
 
             CleanCard card = State.Local.Monsters[zoneIndex];
-            bool sendsSelf = card.Definition.Id == MaidenOfWhiteCardId;
+            bool sendsSelf = ShouldSendSelfForActivatedMonsterEffect(card, State.Local, State.Rival);
             if (sendsSelf)
             {
                 State.Local.Monsters[zoneIndex] = null;
                 card.FaceDown = false;
                 card.AttackBonus = 0;
+                card.DefenseBonus = 0;
                 card.HasBattled = false;
             }
 
             if (ResolveEffect(State.Local, State.Rival, card, CleanActivationSource.MonsterZone) && sendsSelf)
             {
-                State.Local.Graveyard.Add(card);
+                SendFieldCardToGraveOrFaceUpExtra(State.Local, card, true);
             }
 
             NotifyChanged();
@@ -293,6 +626,19 @@ namespace IcarusGame.CleanDuel
                 return;
             }
 
+            if (zoneIndex == FieldSpellZoneIndex)
+            {
+                CleanCard fieldCard = State.Local.FieldSpell;
+                if (fieldCard != null)
+                {
+                    fieldCard.FaceDown = false;
+                    ResolveEffect(State.Local, State.Rival, fieldCard, CleanActivationSource.SpellTrapZone);
+                }
+
+                NotifyChanged();
+                return;
+            }
+
             CleanCard card = State.Local.SpellsTraps[zoneIndex];
             if (card.Definition.Id == TrueLightCardId)
             {
@@ -302,11 +648,30 @@ namespace IcarusGame.CleanDuel
                 return;
             }
 
+            if (card.Definition.Id == MausoleumOfWhiteCardId)
+            {
+                bool wasFaceDown = card.FaceDown;
+                card.FaceDown = false;
+                if (wasFaceDown)
+                {
+                    State.Local.SpellsTraps[zoneIndex] = null;
+                    PlaceFieldSpell(State.Local, card);
+                    Log("Mausoleum of White is activated in the Field Spell Zone.");
+                }
+                else
+                {
+                    ResolveEffect(State.Local, State.Rival, card, CleanActivationSource.SpellTrapZone);
+                }
+
+                NotifyChanged();
+                return;
+            }
+
             State.Local.SpellsTraps[zoneIndex] = null;
             card.FaceDown = false;
             if (ResolveEffect(State.Local, State.Rival, card, CleanActivationSource.SpellTrapZone))
             {
-                State.Local.Graveyard.Add(card);
+                SendFieldCardToGraveOrFaceUpExtra(State.Local, card, true);
             }
 
             NotifyChanged();
@@ -327,12 +692,95 @@ namespace IcarusGame.CleanDuel
                 return;
             }
 
-            if (State.PendingChoice.SourceCardId == TrueLightCardId)
+            CleanChoicePrompt currentPrompt = State.PendingChoice;
+            if (currentPrompt.SourceCardId == TrueLightCardId)
             {
                 ResolveTrueLightChoice(State.Local, option.Id);
             }
+            else if (currentPrompt.SourceCardId == TrueLightSetCardChoicePromptId)
+            {
+                if (ResolveTrueLightSetSpellTrap(State.Local, option.Id))
+                {
+                    State.Local.UsedOncePerTurn.Add(TrueLightOnceKey);
+                }
+            }
+            else if (currentPrompt.SourceCardId == BattlePhaseChoicePromptId)
+            {
+                ResolveBattlePhaseChoice(option.Id);
+            }
+            else if (currentPrompt.SourceCardId == DragonShrineFirstChoicePromptId)
+            {
+                ResolveDragonShrineFirstChoice(State.Local, option.Id);
+            }
+            else if (currentPrompt.SourceCardId == DragonShrineSecondChoicePromptId)
+            {
+                ResolveDragonShrineSecondChoice(State.Local, option.Id);
+            }
+            else if (currentPrompt.SourceCardId == WishesDiscardChoicePromptId)
+            {
+                ResolveWishesDiscardChoice(State.Local, option.Id);
+            }
+            else if (currentPrompt.SourceCardId == WishesTunerChoicePromptId)
+            {
+                ResolveWishesTunerChoice(State.Local, option.Id);
+            }
+            else if (currentPrompt.SourceCardId == WishesSupportChoicePromptId)
+            {
+                ResolveWishesSupportChoice(State.Local, option.Id);
+            }
+            else if (currentPrompt.SourceCardId == SageSearchChoicePromptId)
+            {
+                ResolveSageSearchChoice(State.Local, option.Id);
+            }
+            else if (currentPrompt.SourceCardId == SageTargetChoicePromptId)
+            {
+                ResolveSageTargetChoice(State.Local, option.Id);
+            }
+            else if (currentPrompt.SourceCardId == SageBlueEyesChoicePromptId)
+            {
+                ResolveSageBlueEyesChoice(State.Local, option.Id);
+            }
+            else if (currentPrompt.SourceCardId == MausoleumTargetChoicePromptId)
+            {
+                ResolveMausoleumTargetChoice(State.Local, option.Id);
+            }
+            else if (currentPrompt.SourceCardId == MausoleumNormalChoicePromptId)
+            {
+                ResolveMausoleumNormalChoice(State.Local, option.Id);
+            }
+            else if (currentPrompt.SourceCardId == GatewaySearchChoicePromptId)
+            {
+                ResolveGatewaySearchChoice(State.Local, option.Id);
+            }
+            else if (currentPrompt.SourceCardId == SpiritEffectChoicePromptId)
+            {
+                ResolveSpiritEffectChoice(State.Local, option.Id);
+            }
+            else if (currentPrompt.SourceCardId == SpiritMausoleumDestinationChoicePromptId)
+            {
+                ResolveSpiritMausoleumDestinationChoice(State.Local, option.Id);
+            }
+            else if (currentPrompt.SourceCardId == SpiritSummonChoicePromptId)
+            {
+                ResolveSpiritSummonChoice(State.Local, option.Id);
+            }
+            else if (currentPrompt.SourceCardId == LuaDestroyTargetChoicePromptId)
+            {
+                ResolveLuaDestroyTargetChoice(option.Id);
+            }
+            else if (currentPrompt.SourceCardId == QuickEffectChoicePromptId)
+            {
+                ResolveQuickEffectChoice(option.Id);
+            }
+            else if (currentPrompt.SourceCardId == PendulumSummonChoicePromptId)
+            {
+                ResolvePendulumSummonChoice(State.Local, option.Id);
+            }
 
-            State.PendingChoice = null;
+            if (object.ReferenceEquals(State.PendingChoice, currentPrompt))
+            {
+                State.PendingChoice = null;
+            }
             CheckWin();
             NotifyChanged();
         }
@@ -345,20 +793,27 @@ namespace IcarusGame.CleanDuel
             }
 
             Log("Choice cancelled.");
+            ClearPendingEffectChoices();
             State.PendingChoice = null;
             NotifyChanged();
         }
 
         public void ToggleLocalMonsterStance(int zoneIndex)
         {
-            if (!CanUseLocalActions() || State.Phase != CleanDuelPhase.Main || zoneIndex < 0 || zoneIndex >= CleanPlayerState.ZoneCount)
+            if (!CanUseLocalActions() || !IsMainPhase(State.Phase) || zoneIndex < 0 || zoneIndex >= CleanPlayerState.ZoneCount)
             {
                 return;
             }
 
             CleanCard card = State.Local.Monsters[zoneIndex];
-            if (card == null || card.SummonedThisTurn || card.FaceDown)
+            if (card == null || card.SummonedThisTurn)
             {
+                return;
+            }
+
+            if (card.FaceDown)
+            {
+                FlipSummonMonster(zoneIndex);
                 return;
             }
 
@@ -410,7 +865,7 @@ namespace IcarusGame.CleanDuel
 
         public void AdvancePhase()
         {
-            if (State.GameOver)
+            if (State.GameOver || State.PendingChoice != null)
             {
                 return;
             }
@@ -418,26 +873,75 @@ namespace IcarusGame.CleanDuel
             switch (State.Phase)
             {
                 case CleanDuelPhase.Draw:
-                    State.Phase = CleanDuelPhase.Main;
+                    EnterMainPhase1();
                     break;
                 case CleanDuelPhase.Main:
                     State.Phase = CleanDuelPhase.Battle;
+                    Log("Phase: Battle.");
                     break;
                 case CleanDuelPhase.Battle:
-                    State.Phase = CleanDuelPhase.End;
-                    break;
+                    OpenBattlePhaseChoice();
+                    NotifyChanged();
+                    return;
+                case CleanDuelPhase.Main2:
+                case CleanDuelPhase.End:
+                    EnterEndPhaseAndEndTurn();
+                    return;
                 default:
-                    EndTurn();
+                    EnterMainPhase1();
                     break;
             }
 
-            Log("Phase: " + State.Phase + ".");
             NotifyChanged();
 
             if (!State.GameOver && State.TurnPlayer == CleanPlayerId.Rival)
             {
                 RunRivalTurn();
             }
+        }
+
+        private void EnterMainPhase1()
+        {
+            State.Phase = CleanDuelPhase.Main;
+            Log("Phase: Main Phase 1.");
+        }
+
+        private void OpenBattlePhaseChoice()
+        {
+            List<CleanChoiceOption> options = new List<CleanChoiceOption>
+            {
+                new CleanChoiceOption(BattlePhaseMain2OptionId, "Main Phase 2", "Continue with Main Phase 2.", true, string.Empty),
+                new CleanChoiceOption(BattlePhaseEndOptionId, "End Turn", "Go to End Phase and pass the turn.", true, string.Empty)
+            };
+
+            State.PendingChoice = new CleanChoicePrompt(
+                BattlePhaseChoicePromptId,
+                "Battle Phase",
+                "Choose where to go after Battle Phase.",
+                options);
+            Log("Battle Phase awaits your next phase choice.");
+        }
+
+        private void ResolveBattlePhaseChoice(int optionId)
+        {
+            if (optionId == BattlePhaseMain2OptionId)
+            {
+                State.Phase = CleanDuelPhase.Main2;
+                Log("Phase: Main Phase 2.");
+                return;
+            }
+
+            if (optionId == BattlePhaseEndOptionId)
+            {
+                EnterEndPhaseAndEndTurn();
+            }
+        }
+
+        private void EnterEndPhaseAndEndTurn()
+        {
+            State.Phase = CleanDuelPhase.End;
+            Log("Phase: End. Turn ends automatically.");
+            EndTurn();
         }
 
         public void EndTurn()
@@ -448,6 +952,7 @@ namespace IcarusGame.CleanDuel
             }
 
             CleanPlayerState ending = CurrentPlayer;
+            ResolveEndPhaseTriggers(ending);
             for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
             {
                 CleanCard monster = ending.Monsters[i];
@@ -455,17 +960,30 @@ namespace IcarusGame.CleanDuel
                 {
                     monster.HasBattled = false;
                     monster.SummonedThisTurn = false;
+                    monster.AttackBonus = 0;
+                    monster.DefenseBonus = 0;
                 }
             }
 
             ending.NormalSummonUsed = false;
+            ending.PendulumSummonUsed = false;
+            ending.ExtraDeckDragonOnlyThisTurn = false;
+            ClearSentToGraveFlags(ending);
             ending.UsedOncePerTurn.Clear();
             State.PendingChoice = null;
             State.TurnPlayer = State.TurnPlayer == CleanPlayerId.Local ? CleanPlayerId.Rival : CleanPlayerId.Local;
+            localQuickWindowHandledForRivalTurn = State.TurnPlayer != CleanPlayerId.Rival;
             State.TurnNumber++;
             State.Phase = CleanDuelPhase.Draw;
-            Draw(CurrentPlayer, 1);
-            Log(CurrentPlayer.Name + " draws for turn.");
+            int drawn = Draw(CurrentPlayer, 1);
+            if (State.GameOver)
+            {
+                NotifyChanged();
+                return;
+            }
+
+            Log(CurrentPlayer.Name + " draws " + drawn + " card for turn.");
+            EnterMainPhase1();
             NotifyChanged();
 
             if (!State.GameOver && State.TurnPlayer == CleanPlayerId.Rival)
@@ -474,6 +992,97 @@ namespace IcarusGame.CleanDuel
             }
         }
 
+        private void ResolveEndPhaseTriggers(CleanPlayerState player)
+        {
+            ResolveSpiritDragonEndPhaseDestruction(player);
+            ResolveWhiteStoneEndPhaseTrigger(player);
+        }
+
+        private void ResolveSpiritDragonEndPhaseDestruction(CleanPlayerState player)
+        {
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard card = player.Monsters[i];
+                if (card == null || !card.DestroyDuringEndPhase)
+                {
+                    continue;
+                }
+
+                string name = card.PublicName;
+                MoveMonsterToGrave(player, i);
+                Log(name + " is destroyed during the End Phase by Blue-Eyes Spirit Dragon.");
+            }
+        }
+
+        private bool ResolveWhiteStoneEndPhaseTrigger(CleanPlayerState player)
+        {
+            if (player.UsedOncePerTurn.Contains(WhiteStoneEndPhaseOnceKey) || FirstEmpty(player.Monsters) < 0)
+            {
+                return false;
+            }
+
+            bool stoneWasSentThisTurn = false;
+            for (int i = 0; i < player.Graveyard.Count; i++)
+            {
+                CleanCard card = player.Graveyard[i];
+                if (card.Definition.Id == WhiteStoneOfAncientsCardId && card.SentToGraveThisTurn)
+                {
+                    stoneWasSentThisTurn = true;
+                    break;
+                }
+            }
+
+            if (!stoneWasSentThisTurn)
+            {
+                return false;
+            }
+
+            CleanCard target;
+            if (!TryTakeBestMonster(player.Deck, IsBlueEyesMonster, out target))
+            {
+                Log("The White Stone of Ancients found no Blue-Eyes monster in Deck for the End Phase.");
+                return false;
+            }
+
+            SummonToZone(player, target, FirstEmpty(player.Monsters), false, CleanMonsterStance.Attack);
+            player.UsedOncePerTurn.Add(WhiteStoneEndPhaseOnceKey);
+            Log("The White Stone of Ancients special summons " + target.Definition.Name + " from Deck during the End Phase.");
+            return true;
+        }
+
+        private void ClearSentToGraveFlags(CleanPlayerState player)
+        {
+            ClearSentToGraveFlags(player.Deck);
+            ClearSentToGraveFlags(player.ExtraDeck);
+            ClearSentToGraveFlags(player.Hand);
+            ClearSentToGraveFlags(player.Graveyard);
+            ClearSentToGraveFlags(player.Banished);
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                if (player.Monsters[i] != null)
+                {
+                    player.Monsters[i].SentToGraveThisTurn = false;
+                }
+
+                if (player.SpellsTraps[i] != null)
+                {
+                    player.SpellsTraps[i].SentToGraveThisTurn = false;
+                }
+            }
+
+            if (player.FieldSpell != null)
+            {
+                player.FieldSpell.SentToGraveThisTurn = false;
+            }
+        }
+
+        private void ClearSentToGraveFlags(List<CleanCard> cards)
+        {
+            for (int i = 0; i < cards.Count; i++)
+            {
+                cards[i].SentToGraveThisTurn = false;
+            }
+        }
         private void RunRivalTurn()
         {
             if (State.GameOver)
@@ -482,9 +1091,38 @@ namespace IcarusGame.CleanDuel
             }
 
             State.Phase = CleanDuelPhase.Main;
+            if (!localQuickWindowHandledForRivalTurn && OpenLocalQuickEffectWindowForRivalTurn())
+            {
+                localQuickWindowHandledForRivalTurn = true;
+                NotifyChanged();
+                return;
+            }
+
+            localQuickWindowHandledForRivalTurn = true;
+            ContinueRivalTurnAfterQuickWindow();
+        }
+
+        private void ContinueRivalTurnAfterQuickWindow()
+        {
+            if (State.GameOver || State.TurnPlayer != CleanPlayerId.Rival)
+            {
+                return;
+            }
+
+            State.Phase = CleanDuelPhase.Main;
             RivalPlayMain();
+            if (State.GameOver || State.PendingChoice != null)
+            {
+                return;
+            }
+
             State.Phase = CleanDuelPhase.Battle;
             RivalBattle();
+            if (State.GameOver || State.PendingChoice != null)
+            {
+                return;
+            }
+
             EndTurn();
         }
 
@@ -500,7 +1138,7 @@ namespace IcarusGame.CleanDuel
                 rival.Hand.RemoveAt(spellIndex);
                 if (ResolveEffect(rival, local, spell, CleanActivationSource.Hand))
                 {
-                    rival.Graveyard.Add(spell);
+                    AddToGraveyard(rival, spell);
                 }
             }
 
@@ -520,7 +1158,7 @@ namespace IcarusGame.CleanDuel
                 }
 
                 rival.Hand.RemoveAt(bestMonster);
-                SummonToZone(rival, card, FirstEmpty(rival.Monsters), false, CleanMonsterStance.Attack);
+                SummonToZone(rival, card, FirstEmpty(rival.Monsters), false, CleanMonsterStance.Attack, true);
                 rival.NormalSummonUsed = true;
                 Log((tributeCount > 0 ? "Rival tribute summons " : "Rival summons ") + card.Definition.Name + ".");
             }
@@ -556,6 +1194,22 @@ namespace IcarusGame.CleanDuel
             }
         }
 
+        private int StrongestFaceUpMonsterZone(CleanPlayerState player)
+        {
+            int strongestZone = -1;
+            int strongestAttack = -1;
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard monster = player.Monsters[i];
+                if (monster != null && !monster.FaceDown && monster.CurrentAttack > strongestAttack)
+                {
+                    strongestAttack = monster.CurrentAttack;
+                    strongestZone = i;
+                }
+            }
+
+            return strongestZone;
+        }
         private int StrongestMonsterZone(CleanPlayerState player)
         {
             int strongestZone = -1;
@@ -586,7 +1240,7 @@ namespace IcarusGame.CleanDuel
                     continue;
                 }
 
-                if (IsProtectedByTrueLightFromTargeting(player, monster))
+                if (IsProtectedFromCleanTargeting(player, monster))
                 {
                     protectedBlueEyesSkipped = true;
                     continue;
@@ -607,6 +1261,11 @@ namespace IcarusGame.CleanDuel
             return strongestZone;
         }
 
+        private bool IsProtectedFromCleanTargeting(CleanPlayerState player, CleanCard monster)
+        {
+            return IsProtectedByTrueLightFromTargeting(player, monster) || IsChaosRitualProtected(monster);
+        }
+
         private bool IsProtectedByTrueLightFromTargeting(CleanPlayerState player, CleanCard monster)
         {
             return monster != null &&
@@ -615,12 +1274,279 @@ namespace IcarusGame.CleanDuel
                    HasFaceUpTrueLight(player);
         }
 
+        private bool IsChaosRitualProtected(CleanCard monster)
+        {
+            return monster != null &&
+                   !monster.FaceDown &&
+                   (monster.Definition.Id == BlueEyesChaosMaxDragonCardId || monster.Definition.Id == BlueEyesChaosDragonCardId);
+        }
+
+        private bool ActivateJetFromHand(CleanPlayerState player, CleanCard jet)
+        {
+            if (!HasBlueEyesWhiteDragonOnFieldOrGrave(player) || FirstEmpty(player.Monsters) < 0)
+            {
+                Log("Blue-Eyes Jet Dragon failed: Blue-Eyes White Dragon is not on field/GY or no Monster Zone is open.");
+                return false;
+            }
+
+            SummonToZone(player, jet, FirstEmpty(player.Monsters), false, CleanMonsterStance.Attack);
+            player.UsedOncePerTurn.Add(JetSummonOnceKey);
+            Log("Blue-Eyes Jet Dragon special summons itself from hand.");
+            return true;
+        }
+
+        private void TriggerJetSummonAfterFieldCardDestroyed(CleanCard destroyedCard)
+        {
+            TryTriggerJetSummon(State.Local, destroyedCard);
+            TryTriggerJetSummon(State.Rival, destroyedCard);
+        }
+
+        private bool TryTriggerJetSummon(CleanPlayerState player, CleanCard destroyedCard)
+        {
+            if (player.UsedOncePerTurn.Contains(JetSummonOnceKey) || FirstEmpty(player.Monsters) < 0 || !HasBlueEyesWhiteDragonOnFieldOrGrave(player))
+            {
+                return false;
+            }
+
+            CleanCard jet;
+            if (!TryTakeEligibleJet(player.Graveyard, destroyedCard, out jet) && !TryTakeEligibleJet(player.Hand, destroyedCard, out jet))
+            {
+                return false;
+            }
+
+            SummonToZone(player, jet, FirstEmpty(player.Monsters), false, CleanMonsterStance.Attack);
+            player.UsedOncePerTurn.Add(JetSummonOnceKey);
+            Log("Blue-Eyes Jet Dragon special summons itself after a field card was destroyed.");
+            return true;
+        }
+
+        private bool TryTakeEligibleJet(List<CleanCard> cards, CleanCard destroyedCard, out CleanCard jet)
+        {
+            for (int i = 0; i < cards.Count; i++)
+            {
+                CleanCard candidate = cards[i];
+                if (candidate.Definition.Id == BlueEyesJetDragonCardId && !object.ReferenceEquals(candidate, destroyedCard))
+                {
+                    cards.RemoveAt(i);
+                    jet = candidate;
+                    return true;
+                }
+            }
+
+            jet = null;
+            return false;
+        }
+
+        private void ApplyJetBattleBounce(CleanPlayerState jetPlayer, CleanPlayerState opponent, CleanCard jet)
+        {
+            if (jet == null || jet.FaceDown || jet.Definition.Id != BlueEyesJetDragonCardId || jetPlayer.UsedOncePerTurn.Contains(JetBounceOnceKey))
+            {
+                return;
+            }
+
+            if (BounceBestOpponentCardToHand(opponent))
+            {
+                jetPlayer.UsedOncePerTurn.Add(JetBounceOnceKey);
+                Log("Blue-Eyes Jet Dragon returns 1 opponent card to the hand at the start of the Damage Step.");
+            }
+        }
+
+        private bool BounceBestOpponentCardToHand(CleanPlayerState opponent)
+        {
+            int monsterZone = StrongestMonsterZone(opponent);
+            if (monsterZone >= 0)
+            {
+                CleanCard card = opponent.Monsters[monsterZone];
+                opponent.Monsters[monsterZone] = null;
+                ResetCardForHiddenZone(card);
+                ReturnFieldCardToPrivateZone(opponent, card);
+                return true;
+            }
+
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard card = opponent.SpellsTraps[i];
+                if (card == null)
+                {
+                    continue;
+                }
+
+                opponent.SpellsTraps[i] = null;
+                ResetCardForHiddenZone(card);
+                opponent.Hand.Add(card);
+                return true;
+            }
+
+            return false;
+        }
+
+        private void ReturnFieldCardToPrivateZone(CleanPlayerState player, CleanCard card)
+        {
+            if (IsExtraDeckMonsterDefinition(card.Definition))
+            {
+                player.ExtraDeck.Add(card);
+            }
+            else
+            {
+                player.Hand.Add(card);
+            }
+        }
+
+        private bool IsExtraDeckMonsterDefinition(CleanCardDefinition definition)
+        {
+            if (definition == null)
+            {
+                return false;
+            }
+
+            string typeLine = definition.TypeLine ?? string.Empty;
+            return IsFusionMonsterDefinition(definition) ||
+                   IsSynchroMonsterDefinition(definition) ||
+                   typeLine.IndexOf("Xyz", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   typeLine.IndexOf("Link", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private int StrongestDestructibleEffectTargetZone(CleanPlayerState player)
+        {
+            int strongestZone = -1;
+            int strongestAttack = -1;
+            bool protectedByJet = false;
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard monster = player.Monsters[i];
+                if (monster == null)
+                {
+                    continue;
+                }
+
+                if (IsProtectedFromCleanTargeting(player, monster))
+                {
+                    continue;
+                }
+
+                if (IsProtectedByJetFromCardEffect(player, monster))
+                {
+                    protectedByJet = true;
+                    continue;
+                }
+
+                if (monster.CurrentAttack > strongestAttack)
+                {
+                    strongestAttack = monster.CurrentAttack;
+                    strongestZone = i;
+                }
+            }
+
+            if (protectedByJet)
+            {
+                Log("Blue-Eyes Jet Dragon protects other controlled cards from card-effect destruction.");
+            }
+
+            return strongestZone;
+        }
+
+        private int FirstDestructibleSpellTrapZone(CleanPlayerState player)
+        {
+            bool protectedByJet = false;
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard card = player.SpellsTraps[i];
+                if (card == null || card.FaceDown)
+                {
+                    continue;
+                }
+
+                if (IsProtectedByJetFromCardEffect(player, card))
+                {
+                    protectedByJet = true;
+                    continue;
+                }
+
+                return i;
+            }
+
+            if (protectedByJet)
+            {
+                Log("Blue-Eyes Jet Dragon protects other controlled cards from card-effect destruction.");
+            }
+
+            return -1;
+        }
+
+        private bool IsProtectedByJetFromCardEffect(CleanPlayerState player, CleanCard card)
+        {
+            return card != null && card.Definition.Id != BlueEyesJetDragonCardId && HasFaceUpJetDragon(player);
+        }
+
+        private bool HasFaceUpJetDragon(CleanPlayerState player)
+        {
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard monster = player.Monsters[i];
+                if (monster != null && !monster.FaceDown && !monster.EffectsNegated && monster.Definition.Id == BlueEyesJetDragonCardId)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        private bool CanUseMausoleumExtraNormalSummon(CleanPlayerState player, CleanCard card)
+        {
+            return card != null &&
+                   !player.UsedOncePerTurn.Contains(MausoleumExtraNormalOnceKey) &&
+                   HasFaceUpMausoleum(player) &&
+                   IsMausoleumExtraNormalTuner(card);
+        }
+
+        private bool IsMausoleumExtraNormalTuner(CleanCard card)
+        {
+            return card != null && card.Definition.Kind == CleanCardKind.Monster && IsLevelOneLightTuner(card);
+        }
+
+        private bool HasFaceUpMausoleum(CleanPlayerState player)
+        {
+            if (player.FieldSpell != null && player.FieldSpell.Definition.Id == MausoleumOfWhiteCardId && !player.FieldSpell.FaceDown && !player.FieldSpell.EffectsNegated)
+            {
+                return true;
+            }
+
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard card = player.SpellsTraps[i];
+                if (card != null && card.Definition.Id == MausoleumOfWhiteCardId && !card.FaceDown && !card.EffectsNegated)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool HasFaceUpGatewayToChaos(CleanPlayerState player)
+        {
+            if (player.FieldSpell != null && player.FieldSpell.Definition.Id == GatewayToChaosCardId && !player.FieldSpell.FaceDown && !player.FieldSpell.EffectsNegated)
+            {
+                return true;
+            }
+
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard card = player.SpellsTraps[i];
+                if (card != null && card.Definition.Id == GatewayToChaosCardId && !card.FaceDown && !card.EffectsNegated)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
         private bool HasFaceUpTrueLight(CleanPlayerState player)
         {
             for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
             {
                 CleanCard card = player.SpellsTraps[i];
-                if (card != null && card.Definition.Id == TrueLightCardId && !card.FaceDown)
+                if (card != null && card.Definition.Id == TrueLightCardId && !card.FaceDown && !card.EffectsNegated)
                 {
                     return true;
                 }
@@ -679,7 +1605,39 @@ namespace IcarusGame.CleanDuel
             }
 
             attacker.HasBattled = true;
+            ApplyChaosDragonAttackDeclaration(attacker, defendingPlayer);
+            defender = defendingPlayer.Monsters[defenderZone];
+            if (defender == null)
+            {
+                return;
+            }
+
+            if (ResolveAttackTargetTrigger(attackingPlayer, defendingPlayer, attacker, defender))
+            {
+                return;
+            }
+
+            ApplyJetBattleBounce(attackingPlayer, defendingPlayer, attacker);
+            ApplyJetBattleBounce(defendingPlayer, attackingPlayer, defender);
+            attacker = attackingPlayer.Monsters[attackerZone];
+            defender = defendingPlayer.Monsters[defenderZone];
+            if (attacker == null || defender == null)
+            {
+                return;
+            }
+
+            bool defenderWasFaceDown = defender.FaceDown;
             defender.FaceDown = false;
+            if (defenderWasFaceDown)
+            {
+                ResolveFlipTrigger(defendingPlayer, attackingPlayer, defender, "attacked while face-down");
+                attacker = attackingPlayer.Monsters[attackerZone];
+                defender = defendingPlayer.Monsters[defenderZone];
+                if (attacker == null || defender == null)
+                {
+                    return;
+                }
+            }
 
             int defenderPower = defender.Stance == CleanMonsterStance.Attack ? defender.CurrentAttack : defender.CurrentDefense;
             int difference = attacker.CurrentAttack - defenderPower;
@@ -689,26 +1647,49 @@ namespace IcarusGame.CleanDuel
                 if (difference > 0)
                 {
                     defendingPlayer.LifePoints -= difference;
+                    CleanCard destroyed = defendingPlayer.Monsters[defenderZone];
                     MoveMonsterToGrave(defendingPlayer, defenderZone);
+                    TriggerJetSummonAfterFieldCardDestroyed(destroyed);
                     Log(attacker.Definition.Name + " destroys " + defender.Definition.Name + " for " + difference + " damage.");
+                    TriggerBlueEyesUltimateSpiritDestroyed(defendingPlayer, destroyed);
                 }
                 else if (difference < 0)
                 {
                     attackingPlayer.LifePoints += difference;
+                    CleanCard destroyed = attackingPlayer.Monsters[attackerZone];
                     MoveMonsterToGrave(attackingPlayer, attackerZone);
+                    TriggerJetSummonAfterFieldCardDestroyed(destroyed);
                     Log(attacker.Definition.Name + " is destroyed. " + attackingPlayer.Name + " takes " + (-difference) + " damage.");
+                    TriggerBlueEyesUltimateSpiritDestroyed(attackingPlayer, destroyed);
                 }
                 else
                 {
+                    CleanCard destroyedAttacker = attackingPlayer.Monsters[attackerZone];
+                    CleanCard destroyedDefender = defendingPlayer.Monsters[defenderZone];
                     MoveMonsterToGrave(attackingPlayer, attackerZone);
                     MoveMonsterToGrave(defendingPlayer, defenderZone);
+                    TriggerJetSummonAfterFieldCardDestroyed(destroyedAttacker);
+                    TriggerJetSummonAfterFieldCardDestroyed(destroyedDefender);
                     Log("Both monsters are destroyed.");
+                    TriggerBlueEyesUltimateSpiritDestroyed(attackingPlayer, destroyedAttacker);
+                    TriggerBlueEyesUltimateSpiritDestroyed(defendingPlayer, destroyedDefender);
                 }
             }
             else if (difference > 0)
             {
+                int piercingDamage = PiercingBattleDamage(attacker, difference);
+                if (piercingDamage > 0)
+                {
+                    defendingPlayer.LifePoints -= piercingDamage;
+                }
+
+                CleanCard destroyed = defendingPlayer.Monsters[defenderZone];
                 MoveMonsterToGrave(defendingPlayer, defenderZone);
-                Log(attacker.Definition.Name + " destroys a defense monster.");
+                TriggerJetSummonAfterFieldCardDestroyed(destroyed);
+                Log(piercingDamage > 0
+                    ? attacker.Definition.Name + " destroys a defense monster and deals " + piercingDamage + " piercing damage."
+                    : attacker.Definition.Name + " destroys a defense monster.");
+                TriggerBlueEyesUltimateSpiritDestroyed(defendingPlayer, destroyed);
             }
             else if (difference < 0)
             {
@@ -721,6 +1702,104 @@ namespace IcarusGame.CleanDuel
             }
         }
 
+        private bool ResolveAttackTargetTrigger(CleanPlayerState attackingPlayer, CleanPlayerState defendingPlayer, CleanCard attacker, CleanCard defender)
+        {
+            if (attacker == null || defender == null || defender.FaceDown)
+            {
+                return false;
+            }
+
+            if (defender.Definition.Id == MaidenWithEyesOfBlueCardId &&
+                FirstEmpty(defendingPlayer.Monsters) >= 0 &&
+                HasBlueEyesWhiteDragonInHandDeckOrGrave(defendingPlayer))
+            {
+                defender.Stance = CleanMonsterStance.Defense;
+                LuaSpecialSummonBlueEyesWhiteDragon(defendingPlayer, CleanMonsterStance.Attack);
+                Log("Maiden with Eyes of Blue negates the attack and Special Summons Blue-Eyes White Dragon.");
+                return true;
+            }
+
+            if (defender.Definition.Id == MaidenOfWhiteCardId &&
+                FirstEmpty(defendingPlayer.Monsters) >= 0 &&
+                HasMatchingCard(defendingPlayer.Graveyard, IsMaidenOfWhiteAttackReviveTarget))
+            {
+                SpecialSummonBestFromGraveyard(defendingPlayer, IsMaidenOfWhiteAttackReviveTarget, CleanMonsterStance.Attack, "Maiden of White");
+                Log("Maiden of White negates the attack.");
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool IsMaidenOfWhiteAttackReviveTarget(CleanCard card)
+        {
+            return IsBlueEyesWhiteDragonCard(card) || IsLevelOneLightTuner(card);
+        }
+
+        private bool SpecialSummonBestFromGraveyard(CleanPlayerState player, Predicate<CleanCard> predicate, CleanMonsterStance stance, string sourceName)
+        {
+            CleanCard card;
+            if (!TryTakeBestMonster(player.Graveyard, predicate, out card))
+            {
+                return false;
+            }
+
+            int zone = FirstEmpty(player.Monsters);
+            if (zone < 0)
+            {
+                player.Graveyard.Add(card);
+                return false;
+            }
+
+            SummonToZone(player, card, zone, false, stance);
+            Log(sourceName + " special summons " + card.Definition.Name + " from the GY.");
+            return true;
+        }
+
+        private void ApplyChaosDragonAttackDeclaration(CleanCard attacker, CleanPlayerState defendingPlayer)
+        {
+            if (attacker == null || attacker.Definition.Id != BlueEyesChaosDragonCardId || !attacker.RitualSummonedUsingBlueEyesWhiteDragon)
+            {
+                return;
+            }
+
+            int changed = 0;
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard monster = defendingPlayer.Monsters[i];
+                if (monster == null)
+                {
+                    continue;
+                }
+
+                monster.FaceDown = false;
+                monster.Stance = monster.Stance == CleanMonsterStance.Attack ? CleanMonsterStance.Defense : CleanMonsterStance.Attack;
+                monster.AttackOverride = 0;
+                monster.DefenseOverride = 0;
+                changed++;
+            }
+
+            if (changed > 0)
+            {
+                attacker.PiercingThisTurn = true;
+                Log("Blue-Eyes Chaos Dragon changes " + changed + " rival monster(s) to 0 ATK/DEF.");
+            }
+        }
+
+        private int PiercingBattleDamage(CleanCard attacker, int difference)
+        {
+            if (attacker == null || difference <= 0)
+            {
+                return 0;
+            }
+
+            if (attacker.Definition.Id == BlueEyesChaosMaxDragonCardId)
+            {
+                return difference * 2;
+            }
+
+            return attacker.PiercingThisTurn ? difference : 0;
+        }
         internal void LuaLog(string message)
         {
             Log(message);
@@ -729,8 +1808,11 @@ namespace IcarusGame.CleanDuel
         internal void LuaDraw(CleanPlayerState player, int count)
         {
             int safeCount = Mathf.Clamp(count, 1, 5);
-            Draw(player, safeCount);
-            Log(player.Name + " draws " + safeCount + " card(s) by Lua.");
+            int drawn = Draw(player, safeCount);
+            if (!State.GameOver)
+            {
+                Log(player.Name + " draws " + drawn + " card(s) by Lua.");
+            }
         }
 
         internal void LuaBoostTeam(CleanPlayerState player, int amount)
@@ -755,17 +1837,140 @@ namespace IcarusGame.CleanDuel
 
         internal int LuaDestroyStrongest(CleanPlayerState player)
         {
-            int strongestZone = StrongestEffectTargetZone(player);
-            if (strongestZone < 0)
+            return LuaDestroyTargets(player, 1, "Lua");
+        }
+
+        private int LuaDestroyTargets(CleanPlayerState player, int requestedCount, string sourceName)
+        {
+            int availableTargets = CountDestructibleEffectTargets(player);
+            if (availableTargets == 0 || requestedCount <= 0)
             {
-                Log("Lua found no valid monster to target.");
+                Log(sourceName + " found no valid monster to target.");
                 return 0;
             }
 
-            string name = player.Monsters[strongestZone].PublicName;
-            MoveMonsterToGrave(player, strongestZone);
-            Log("Lua destroys " + name + ".");
-            return 1;
+            int destroyCount = Mathf.Min(requestedCount, availableTargets);
+            if (ShouldOpenLuaDestroyChoice(player))
+            {
+                OpenLuaDestroyTargetChoice(player, destroyCount, sourceName);
+                return destroyCount;
+            }
+
+            int destroyedCount = 0;
+            for (int i = 0; i < destroyCount; i++)
+            {
+                int strongestZone = StrongestDestructibleEffectTargetZone(player);
+                if (strongestZone < 0 || !DestroyLuaTargetAtZone(player, strongestZone, sourceName))
+                {
+                    break;
+                }
+
+                destroyedCount++;
+            }
+
+            return destroyedCount;
+        }
+
+        private bool ShouldOpenLuaDestroyChoice(CleanPlayerState targetPlayer)
+        {
+            return targetPlayer.Id == CleanPlayerId.Rival &&
+                   State.TurnPlayer == CleanPlayerId.Local &&
+                   State.PendingChoice == null &&
+                   !State.GameOver;
+        }
+
+        private void OpenLuaDestroyTargetChoice(CleanPlayerState targetPlayer, int remainingCount, string sourceName)
+        {
+            pendingLuaDestroyTargetPlayerId = targetPlayer.Id;
+            pendingLuaDestroyRemaining = Mathf.Max(1, remainingCount);
+            pendingLuaDestroySource = string.IsNullOrEmpty(sourceName) ? "Lua" : sourceName;
+            State.PendingChoice = new CleanChoicePrompt(
+                LuaDestroyTargetChoicePromptId,
+                pendingLuaDestroySource,
+                pendingLuaDestroyRemaining > 1
+                    ? "Choose a monster to destroy. " + pendingLuaDestroyRemaining + " destroy choices remain."
+                    : "Choose a monster to destroy.",
+                BuildLuaDestroyTargetOptions(targetPlayer));
+            Log(pendingLuaDestroySource + " awaits your destroy target.");
+        }
+
+        private List<CleanChoiceOption> BuildLuaDestroyTargetOptions(CleanPlayerState targetPlayer)
+        {
+            List<CleanChoiceOption> options = new List<CleanChoiceOption>();
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard monster = targetPlayer.Monsters[i];
+                if (!IsDestructibleEffectMonsterTarget(targetPlayer, monster))
+                {
+                    continue;
+                }
+
+                options.Add(new CleanChoiceOption(
+                    i,
+                    monster.PublicName,
+                    "Destroy this monster.",
+                    true,
+                    string.Empty));
+            }
+
+            return options;
+        }
+
+        private void ResolveLuaDestroyTargetChoice(int zone)
+        {
+            CleanPlayerState targetPlayer = Player(pendingLuaDestroyTargetPlayerId);
+            if (!DestroyLuaTargetAtZone(targetPlayer, zone, pendingLuaDestroySource))
+            {
+                ClearPendingEffectChoices();
+                return;
+            }
+
+            pendingLuaDestroyRemaining--;
+            if (pendingLuaDestroyRemaining > 0 && CountDestructibleEffectTargets(targetPlayer) > 0)
+            {
+                OpenLuaDestroyTargetChoice(targetPlayer, pendingLuaDestroyRemaining, pendingLuaDestroySource);
+                return;
+            }
+
+            ClearPendingEffectChoices();
+        }
+
+        private bool DestroyLuaTargetAtZone(CleanPlayerState player, int zone, string sourceName)
+        {
+            if (zone < 0 || zone >= CleanPlayerState.ZoneCount || !IsDestructibleEffectMonsterTarget(player, player.Monsters[zone]))
+            {
+                Log(sourceName + " failed: selected monster is no longer a valid target.");
+                return false;
+            }
+
+            CleanCard destroyed = player.Monsters[zone];
+            string name = destroyed.PublicName;
+            MoveMonsterToGrave(player, zone);
+            TriggerJetSummonAfterFieldCardDestroyed(destroyed);
+            Log(sourceName + " destroys " + name + ".");
+            TriggerBlueEyesUltimateSpiritDestroyed(player, destroyed);
+            return true;
+        }
+
+        private int CountDestructibleEffectTargets(CleanPlayerState player)
+        {
+            int count = 0;
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                if (IsDestructibleEffectMonsterTarget(player, player.Monsters[i]))
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        private bool IsDestructibleEffectMonsterTarget(CleanPlayerState player, CleanCard monster)
+        {
+            return monster != null &&
+                   !IsProtectedFromCleanTargeting(player, monster) &&
+                   !IsProtectedByJetFromCardEffect(player, monster);
         }
 
         internal int LuaDestroyAllMonsters(CleanPlayerState player)
@@ -791,10 +1996,15 @@ namespace IcarusGame.CleanDuel
                 return false;
             }
 
-            int bestIndex = BestMonsterInList(player.Graveyard);
+            int bestIndex = BestCardIndex(player.Graveyard, card => card.Definition.Kind == CleanCardKind.Monster && CanSpecialSummonUnderSpiritRestriction(player, card));
             if (bestIndex < 0)
             {
                 Log("Lua revive failed: no monster in graveyard.");
+                return false;
+            }
+
+            if (TryNegateRivalGraveyardEffect(player, "a graveyard Special Summon effect"))
+            {
                 return false;
             }
 
@@ -814,7 +2024,7 @@ namespace IcarusGame.CleanDuel
                 return false;
             }
 
-            int handIndex = BestMonsterInList(player.Hand);
+            int handIndex = BestCardIndex(player.Hand, card => card.Definition.Kind == CleanCardKind.Monster && CanSpecialSummonUnderSpiritRestriction(player, card));
             if (handIndex >= 0)
             {
                 CleanCard card = player.Hand[handIndex];
@@ -824,9 +2034,14 @@ namespace IcarusGame.CleanDuel
                 return true;
             }
 
-            int graveIndex = BestMonsterInList(player.Graveyard);
+            int graveIndex = BestCardIndex(player.Graveyard, card => card.Definition.Kind == CleanCardKind.Monster && CanSpecialSummonUnderSpiritRestriction(player, card));
             if (graveIndex >= 0)
             {
+                if (TryNegateRivalGraveyardEffect(player, "a graveyard Special Summon effect"))
+                {
+                    return false;
+                }
+
                 CleanCard card = player.Graveyard[graveIndex];
                 player.Graveyard.RemoveAt(graveIndex);
                 SummonToZone(player, card, zone, false, CleanMonsterStance.Attack);
@@ -867,7 +2082,7 @@ namespace IcarusGame.CleanDuel
             CleanCard card = player.Deck[bestIndex];
             player.Deck.RemoveAt(bestIndex);
             card.FaceDown = false;
-            player.Graveyard.Add(card);
+            AddToGraveyard(player, card);
             Log("Lua sends " + card.Definition.Name + " from deck to graveyard.");
             return true;
         }
@@ -892,6 +2107,7 @@ namespace IcarusGame.CleanDuel
             trueLight.Controller = player.Id;
             trueLight.FaceDown = false;
             trueLight.AttackBonus = 0;
+            trueLight.DefenseBonus = 0;
             trueLight.HasBattled = false;
             player.SpellsTraps[zone] = trueLight;
             Log("Maiden of White places True Light face-up from " + source + ".");
@@ -1010,14 +2226,15 @@ namespace IcarusGame.CleanDuel
         {
             if (optionId == TrueLightSummonOptionId)
             {
-                ResolveTrueLightSummonBlueEyes(player);
+                if (ResolveTrueLightSummonBlueEyes(player))
+                {
+                    player.UsedOncePerTurn.Add(TrueLightOnceKey);
+                }
             }
             else if (optionId == TrueLightSetOptionId)
             {
-                ResolveTrueLightSetSpellTrap(player);
+                OpenTrueLightSetCardChoice(player);
             }
-
-            player.UsedOncePerTurn.Add(TrueLightOnceKey);
         }
 
         private bool ResolveTrueLightSummonBlueEyes(CleanPlayerState player)
@@ -1041,7 +2258,42 @@ namespace IcarusGame.CleanDuel
             return true;
         }
 
-        private bool ResolveTrueLightSetSpellTrap(CleanPlayerState player)
+        private void OpenTrueLightSetCardChoice(CleanPlayerState player)
+        {
+            List<CleanChoiceOption> options = new List<CleanChoiceOption>();
+            HashSet<int> seenIds = new HashSet<int>();
+            for (int i = 0; i < player.Deck.Count; i++)
+            {
+                CleanCard card = player.Deck[i];
+                if (!IsTrueLightSetCandidate(card) || NameExistsOnFieldOrGraveyard(player, card.Definition.Name) || seenIds.Contains(card.Definition.Id))
+                {
+                    continue;
+                }
+
+                seenIds.Add(card.Definition.Id);
+                options.Add(new CleanChoiceOption(
+                    card.Definition.Id,
+                    card.Definition.Name,
+                    card.Definition.Kind + " from Deck",
+                    true,
+                    string.Empty));
+            }
+
+            if (options.Count == 0)
+            {
+                Log("True Light cannot set a Spell/Trap: no valid listed Spell/Trap in deck.");
+                return;
+            }
+
+            State.PendingChoice = new CleanChoicePrompt(
+                TrueLightSetCardChoicePromptId,
+                "True Light",
+                "Choose the Spell/Trap to Set from your Deck.",
+                options);
+            Log("True Light awaits a Spell/Trap choice.");
+        }
+
+        private bool ResolveTrueLightSetSpellTrap(CleanPlayerState player, int selectedCardId)
         {
             string reason;
             if (!ValidateTrueLightSetSpellTrap(player, out reason))
@@ -1050,7 +2302,13 @@ namespace IcarusGame.CleanDuel
                 return false;
             }
 
-            int deckIndex = BestTrueLightSetCandidateIndex(player);
+            int deckIndex = IndexOfTrueLightSetCandidate(player, selectedCardId);
+            if (deckIndex < 0)
+            {
+                Log("True Light cannot set that Spell/Trap anymore.");
+                return false;
+            }
+
             int zone = FirstEmpty(player.SpellsTraps);
             CleanCard card = player.Deck[deckIndex];
             player.Deck.RemoveAt(deckIndex);
@@ -1059,6 +2317,20 @@ namespace IcarusGame.CleanDuel
             player.SpellsTraps[zone] = card;
             Log("True Light sets " + card.Definition.Name + " from the deck.");
             return true;
+        }
+
+        private int IndexOfTrueLightSetCandidate(CleanPlayerState player, int selectedCardId)
+        {
+            for (int i = 0; i < player.Deck.Count; i++)
+            {
+                CleanCard card = player.Deck[i];
+                if (card.Definition.Id == selectedCardId && IsTrueLightSetCandidate(card) && !NameExistsOnFieldOrGraveyard(player, card.Definition.Name))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
         }
 
         private int BestTrueLightSetCandidateIndex(CleanPlayerState player)
@@ -1099,11 +2371,13 @@ namespace IcarusGame.CleanDuel
 
             switch (card.Definition.Id)
             {
-                case 69145169:
+                case 24382602:
                 case 93437091:
                 case 80326401:
                 case 17725109:
+                case 2783661:
                 case 21082832:
+                case 41620959:
                 case 71143015:
                 case 62089826:
                     return true;
@@ -1122,12 +2396,16 @@ namespace IcarusGame.CleanDuel
                     return 90;
                 case 80326401:
                     return 80;
+                case 2783661:
+                    return 75;
                 case 93437091:
                     return 70;
-                case 69145169:
-                    return 60;
+                case 24382602:
+                    return 65;
                 case 21082832:
-                    return 50;
+                    return 60;
+                case 41620959:
+                    return 55;
                 default:
                     return 10;
             }
@@ -1148,6 +2426,11 @@ namespace IcarusGame.CleanDuel
                 }
             }
 
+            if (player.FieldSpell != null && string.Equals(player.FieldSpell.Definition.Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
             for (int i = 0; i < player.Graveyard.Count; i++)
             {
                 if (string.Equals(player.Graveyard[i].Definition.Name, name, StringComparison.OrdinalIgnoreCase))
@@ -1165,7 +2448,7 @@ namespace IcarusGame.CleanDuel
                 return false;
             }
 
-            if (IsRitualMonster(card))
+            if (IsRitualMonster(card) || IsFlipTriggerEffect(card) || IsTriggerOnlyEffect(card))
             {
                 return false;
             }
@@ -1174,22 +2457,61 @@ namespace IcarusGame.CleanDuel
             {
                 case "maiden_white":
                     return CanPlaceTrueLight(player);
+                case "maiden_with_eyes_clean":
+                    return false;
+                case "sage_clean":
+                    return source == CleanActivationSource.Hand && FirstEmpty(player.Monsters) >= 0 && HasOwnEffectMonsterOnField(player) && HasMatchingCard(player.Deck, IsBlueEyesMonster);
+                case "stone_ancients_clean":
+                    return false;
+                case "maxx_c_clean":
+                    return source == CleanActivationSource.Hand && player.Deck.Count > 0;
+                case "veiler_clean":
+                case "ash_clean":
+                    return source == CleanActivationSource.Hand && StrongestEffectTargetZone(OpponentOf(player.Id)) >= 0;
+                case "ghost_ogre_clean":
+                    return (source == CleanActivationSource.Hand || source == CleanActivationSource.MonsterZone) && HasFaceUpCard(OpponentOf(player.Id));
+                case "dragon_spirit_white_clean":
+                    return source == CleanActivationSource.MonsterZone && (HasSpellTrap(OpponentOf(player.Id)) || CanDragonSpiritTributeForBlueEyes(player, OpponentOf(player.Id)));
+                case "dictator_clean":
+                    return source == CleanActivationSource.Hand
+                        ? FirstEmpty(player.Monsters) >= 0 && CanSpecialSummonUnderSpiritRestriction(player, card) && HasBlueEyesWhiteDragonInHandOrDeck(player)
+                        : FirstEmpty(player.Monsters) >= 0 && HasBlueEyesDiscardCost(player) && HasMatchingCard(player.Graveyard, IsBlueEyesMonster);
                 case "blue_eyes_clean":
-                case "jet_clean":
-                case "bystial_clean":
-                case "bystial_search_clean":
                     return source != CleanActivationSource.Hand || FirstEmpty(player.Monsters) >= 0;
-                case "one_for_one_clean":
+                case "jet_clean":
+                    return source == CleanActivationSource.Hand && FirstEmpty(player.Monsters) >= 0 && HasBlueEyesWhiteDragonOnFieldOrGrave(player);
                 case "mausoleum_clean":
-                    return FirstEmpty(player.Monsters) >= 0 && HasMatchingCard(player.Deck, IsLevelOneMonster);
+                    return source == CleanActivationSource.Hand
+                        ? true
+                        : card.FaceDown || CanActivateMausoleumBoost(player);
+                case "bingo_clean":
+                    return HasMatchingCard(player.Deck, IsBingoSearchCandidate);
+                case "wishes_clean":
+                    return source == CleanActivationSource.Hand && CanActivateWishesForEyesOfBlue(player);
+                case "roar_clean":
+                    return CanRoarSummonBlueEyes(player);
+                case "gateway_chaos_clean":
+                    return source == CleanActivationSource.Hand || card.FaceDown
+                        ? !player.UsedOncePerTurn.Contains(GatewayActivationOnceKey) && HasMatchingCard(player.Deck, IsGatewayToChaosSearchCandidate)
+                        : CanUseGatewayToChaosRitualSearch(player);
+                case "majesty_blue_clean":
+                    return HasMatchingCard(player.Deck, IsBlueEyesMonster) && (StrongestEffectTargetZone(player) >= 0 || StrongestEffectTargetZone(OpponentOf(player.Id)) >= 0);
                 case "chaos_form_clean":
                     return CanRitualSummonWithChaosForm(player);
+                case "dragon_shrine_clean":
+                    return HasMatchingCard(player.Deck, IsDragonMonster);
                 case "ultimate_fusion_clean":
                     return CanFusionSummonFromExtra(player, DragonMasterMagiaCardId);
+                case "azure_eyes_clean":
+                    return false;
+                case "ultimate_spirit_clean":
+                    return source == CleanActivationSource.MonsterZone && CanActivateBlueEyesUltimateSpiritDragon(player, card, OpponentOf(player.Id));
                 case "spirit_dragon_clean":
-                    return source == CleanActivationSource.MonsterZone;
+                    return source == CleanActivationSource.MonsterZone && CanActivateBlueEyesSpiritDragon(player, card);
+                case "spirit_with_eyes_clean":
+                    return source == CleanActivationSource.MonsterZone && CanActivateSpiritWithEyesOfBlue(player, card);
                 default:
-                    return true;
+                    return luaBridge.CanResolve(this, player, OpponentOf(player.Id), card);
             }
         }
 
@@ -1211,86 +2533,85 @@ namespace IcarusGame.CleanDuel
                 case "maiden_white":
                     LuaPlaceTrueLight(controller);
                     return true;
-                case "sage_clean":
-                    LuaSearchBestBlueEyes(controller);
-                    return source != CleanActivationSource.MonsterZone;
-                case "stone_ancients_clean":
-                    LuaSpecialSummonBestBlueEyes(controller);
-                    return source != CleanActivationSource.MonsterZone;
                 case "maiden_with_eyes_clean":
-                    LuaSpecialSummonBestBlueEyes(controller);
+                    LuaSpecialSummonBlueEyesWhiteDragon(controller, CleanMonsterStance.Attack);
                     return source != CleanActivationSource.MonsterZone;
-                case "veiler_clean":
-                    LuaChangeStrongestMonsterToDefense(rival);
+                case "sage_clean":
+                    if (source == CleanActivationSource.Hand)
+                    {
+                        ActivateSageHandEffect(controller, card);
+                        return false;
+                    }
+
+                    LuaSearchLevelOneLightTuner(controller, card.Definition.Id);
+                    return false;
+                case "stone_ancients_clean":
+                    if (!RecoverBlueEyesFromGraveyard(controller, card.Definition.Id))
+                    {
+                        LuaSpecialSummonBestBlueEyes(controller, CleanMonsterStance.Attack);
+                    }
                     return source != CleanActivationSource.MonsterZone;
-                case "ash_clean":
-                    DestroyOrPressure(rival, 500);
-                    return source != CleanActivationSource.MonsterZone;
-                case "droll_clean":
+                case "maxx_c_clean":
                     LuaDraw(controller, 1);
-                    LuaDamage(rival, 500);
-                    return source != CleanActivationSource.MonsterZone;
+                    Log("Maxx \"C\" is armed as a simplified draw listener for this turn.");
+                    return true;
+                case "veiler_clean":
+                    NegateStrongestRivalMonster(rival);
+                    return true;
+                case "ash_clean":
+                    Log("Ash Blossom negates the rival's next deck-search, deck-summon, or deck-to-GY effect in this clean model.");
+                    LuaChangeStrongestMonsterToDefense(rival);
+                    return true;
+                case "ghost_ogre_clean":
+                    DestroyStrongestFaceUpCard(rival);
+                    return true;
                 case "dictator_clean":
-                    LuaSendDeckMonsterToGrave(controller);
-                    LuaSpecialSummonBestBlueEyes(controller);
-                    return source != CleanActivationSource.MonsterZone;
-                case "abyss_clean":
-                    LuaSearchBestBlueEyes(controller);
+                    if (source == CleanActivationSource.Hand)
+                    {
+                        SendBlueEyesWhiteDragonToGraveFromHandOrDeck(controller);
+                        if (LuaSpecialSummonSpecific(controller, card))
+                        {
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        ActivateDictatorRevive(controller);
+                    }
                     return source != CleanActivationSource.MonsterZone;
                 case "jet_clean":
-                    return ActivateSelfSummonOrBoost(controller, card, source, 400);
-                case "bystial_clean":
-                    if (source == CleanActivationSource.Hand && LuaSpecialSummonSpecific(controller, card))
+                    if (source == CleanActivationSource.Hand)
                     {
-                        return false;
+                        ActivateJetFromHand(controller, card);
                     }
 
-                    DestroyOrPressure(rival, 700);
-                    return source != CleanActivationSource.MonsterZone;
-                case "bystial_search_clean":
-                    if (source == CleanActivationSource.Hand && LuaSpecialSummonSpecific(controller, card))
-                    {
-                        LuaSearchBestBlueEyes(controller);
-                        return false;
-                    }
-
-                    LuaSearchBestBlueEyes(controller);
-                    return source != CleanActivationSource.MonsterZone;
-                case "one_for_one_clean":
-                    LuaSpecialSummonBestLevelOne(controller);
-                    return true;
-                case "successor_soul_clean":
-                    DestroyOrPressure(rival, 800);
-                    LuaSpecialSummonBestBlueEyes(controller);
+                    return false;
+                case "dragon_spirit_white_clean":
+                    ActivateDragonSpiritOfWhite(controller, rival);
                     return true;
                 case "bingo_clean":
-                    LuaSearchBestBlueEyes(controller);
+                    ActivateBingoMachine(controller);
                     return true;
                 case "wishes_clean":
-                    LuaSearchBestBlueEyes(controller);
-                    LuaSendDeckMonsterToGrave(controller);
+                    ActivateWishesForEyesOfBlue(controller, card);
                     return true;
                 case "roar_clean":
-                    LuaSpecialSummonBestBlueEyes(controller);
+                    LuaRoarSummonBlueEyes(controller);
                     return true;
-                case "dark_piercing_clean":
-                    if (LuaDestroyAllMonsters(rival) == 0)
-                    {
-                        LuaDraw(controller, 1);
-                    }
+                case "gateway_chaos_clean":
+                    ActivateGatewayToChaos(controller, card, source);
+                    return false;
+                case "majesty_blue_clean":
+                    ActivateMajestyWithEyesOfBlue(controller, rival);
                     return true;
                 case "mausoleum_clean":
-                    if (!LuaSpecialSummonBestLevelOne(controller))
-                    {
-                        LuaBoostTeam(controller, 500);
-                    }
-                    return true;
+                    ActivateMausoleumOfWhite(controller, card, source);
+                    return false;
                 case "chaos_form_clean":
                     LuaRitualSummonWithChaosForm(controller);
                     return true;
                 case "dragon_shrine_clean":
-                    LuaSendDeckMonsterToGrave(controller);
-                    return true;
+                    return ActivateDragonShrine(controller);
                 case "ultimate_fusion_clean":
                     int fieldBlueEyesMaterialCount;
                     if (!LuaFusionSummonBestAvailable(controller, DragonMasterMagiaCardId, true, out fieldBlueEyesMaterialCount))
@@ -1298,10 +2619,7 @@ namespace IcarusGame.CleanDuel
                         return true;
                     }
 
-                    for (int i = 0; i < fieldBlueEyesMaterialCount; i++)
-                    {
-                        LuaDestroyStrongest(rival);
-                    }
+                    LuaDestroyTargets(rival, fieldBlueEyesMaterialCount, "Ultimate Fusion");
 
                     return true;
                 case "true_light_clean":
@@ -1315,25 +2633,20 @@ namespace IcarusGame.CleanDuel
                     LuaDraw(controller, 1);
                     LuaBoostTeam(controller, 500);
                     return false;
-                case "spirit_dragon_clean":
-                    if (!LuaSpecialSummonFromExtra(controller, 89604813))
-                    {
-                        LuaChangeStrongestMonsterToDefense(rival);
-                    }
-                    return false;
                 case "ultimate_spirit_clean":
-                    LuaBoostTeam(controller, 800);
-                    DestroyOrPressure(rival, 1000);
+                    ActivateBlueEyesUltimateSpiritDragon(controller, rival, card);
+                    return false;
+                case "spirit_dragon_clean":
+                    ActivateBlueEyesSpiritDragon(controller, card);
                     return false;
                 case "spirit_with_eyes_clean":
-                    LuaSearchBestBlueEyes(controller);
+                    ActivateSpiritWithEyesOfBlue(controller, card);
                     return false;
                 default:
                     resolved = false;
                     return true;
             }
         }
-
         private bool ActivateSelfSummonOrBoost(CleanPlayerState controller, CleanCard card, CleanActivationSource source, int boostAmount)
         {
             if (source == CleanActivationSource.Hand && LuaSpecialSummonSpecific(controller, card))
@@ -1353,6 +2666,2553 @@ namespace IcarusGame.CleanDuel
             }
         }
 
+        private void ActivateSageHandEffect(CleanPlayerState player, CleanCard sage)
+        {
+            ResetCardForHiddenZone(sage);
+            AddToGraveyard(player, sage, true);
+
+            if (player.Id == CleanPlayerId.Local)
+            {
+                OpenSageTargetChoice(player);
+                return;
+            }
+
+            int targetZone = FirstOwnEffectMonsterZone(player, sage.Definition.Id);
+            if (targetZone >= 0)
+            {
+                string targetName = player.Monsters[targetZone].Definition.Name;
+                MoveMonsterToGrave(player, targetZone);
+                Log("Sage sends " + targetName + " to the GY.");
+                LuaSpecialSummonBestBlueEyesFromDeck(player);
+            }
+        }
+
+        private void OpenSageTargetChoice(CleanPlayerState player)
+        {
+            List<CleanChoiceOption> options = new List<CleanChoiceOption>();
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard monster = player.Monsters[i];
+                if (monster != null && !monster.FaceDown && !IsNormalMonster(monster))
+                {
+                    options.Add(new CleanChoiceOption(i, monster.Definition.Name, "Send this Effect Monster to the GY.", true, string.Empty));
+                }
+            }
+
+            State.PendingChoice = new CleanChoicePrompt(
+                SageTargetChoicePromptId,
+                "Sage with Eyes of Blue",
+                "Choose 1 Effect Monster you control to send to the GY.",
+                options);
+            Log("Sage awaits an Effect Monster target.");
+        }
+
+        private void ResolveSageTargetChoice(CleanPlayerState player, int zone)
+        {
+            if (zone < 0 || zone >= CleanPlayerState.ZoneCount || player.Monsters[zone] == null || player.Monsters[zone].FaceDown || IsNormalMonster(player.Monsters[zone]))
+            {
+                Log("Sage failed: selected target is no longer a face-up Effect Monster.");
+                return;
+            }
+
+            string targetName = player.Monsters[zone].Definition.Name;
+            MoveMonsterToGrave(player, zone);
+            Log("Sage sends " + targetName + " to the GY.");
+            OpenSageBlueEyesChoice(player);
+        }
+
+        private void OpenSageBlueEyesChoice(CleanPlayerState player)
+        {
+            List<CleanChoiceOption> options = BuildUniqueDeckChoiceOptions(player, IsBlueEyesMonster, "Special Summon from Deck");
+            if (options.Count == 0)
+            {
+                Log("Sage failed: no Blue-Eyes monster in Deck.");
+                return;
+            }
+
+            State.PendingChoice = new CleanChoicePrompt(
+                SageBlueEyesChoicePromptId,
+                "Sage with Eyes of Blue",
+                "Choose 1 Blue-Eyes monster from your Deck to Special Summon.",
+                options);
+            Log("Sage awaits a Blue-Eyes summon choice.");
+        }
+
+        private void ResolveSageBlueEyesChoice(CleanPlayerState player, int selectedCardId)
+        {
+            CleanCard card;
+            if (!TryTakeDeckChoice(player, selectedCardId, IsBlueEyesMonster, out card))
+            {
+                Log("Sage failed: chosen Blue-Eyes monster is no longer in Deck.");
+                return;
+            }
+
+            int zone = FirstEmpty(player.Monsters);
+            if (zone < 0)
+            {
+                player.Deck.Add(card);
+                Log("Sage failed: no open Monster Zone.");
+                return;
+            }
+
+            SummonToZone(player, card, zone, false, CleanMonsterStance.Attack);
+            Log("Sage special summons " + card.Definition.Name + " from Deck.");
+        }
+
+        private void OpenSageNormalSummonSearchChoice(CleanPlayerState player)
+        {
+            List<CleanChoiceOption> options = BuildUniqueDeckChoiceOptions(player, card => card.Definition.Id != SageWithEyesOfBlueCardId && IsLevelOneLightTuner(card), "Add to hand");
+            if (options.Count == 0)
+            {
+                Log("Sage search failed: no Level 1 LIGHT Tuner in Deck.");
+                return;
+            }
+
+            State.PendingChoice = new CleanChoicePrompt(
+                SageSearchChoicePromptId,
+                "Sage with Eyes of Blue",
+                "Choose 1 Level 1 LIGHT Tuner from your Deck to add to your hand, except Sage.",
+                options);
+            Log("Sage awaits a Level 1 LIGHT Tuner choice.");
+        }
+
+        private void ResolveSageSearchChoice(CleanPlayerState player, int selectedCardId)
+        {
+            CleanCard card;
+            if (!TryTakeDeckChoice(player, selectedCardId, candidate => candidate.Definition.Id != SageWithEyesOfBlueCardId && IsLevelOneLightTuner(candidate), out card))
+            {
+                Log("Sage search failed: chosen Tuner is no longer in Deck.");
+                return;
+            }
+
+            ResetCardForHiddenZone(card);
+            player.Hand.Add(card);
+            Log("Sage adds " + card.Definition.Name + " from Deck to hand.");
+        }
+
+        private bool CanActivateWishesForEyesOfBlue(CleanPlayerState player)
+        {
+            return player.Hand.Count > 1 &&
+                   HasMatchingCard(player.Deck, IsWishesLevelOneLightTunerTarget) &&
+                   HasMatchingCard(player.Deck, IsWishesSpellTrapTarget);
+        }
+
+        private bool ActivateWishesForEyesOfBlue(CleanPlayerState player, CleanCard source)
+        {
+            if (player.Id == CleanPlayerId.Local)
+            {
+                OpenWishesDiscardChoice(player);
+                return true;
+            }
+
+            CleanCard discarded;
+            if (!TryTakeFirstDiscard(player, out discarded))
+            {
+                Log("Wishes for Eyes of Blue failed: no card to discard.");
+                return false;
+            }
+
+            ResetCardForHiddenZone(discarded);
+            AddToGraveyard(player, discarded, true);
+            Log("Discarded " + discarded.Definition.Name + " for Wishes.");
+            AddFromDeckToHand(player, IsWishesLevelOneLightTunerTarget, "Level 1 LIGHT Tuner");
+            AddFromDeckToHand(player, IsWishesSpellTrapTarget, "Spell/Trap that mentions Blue-Eyes White Dragon");
+            return true;
+        }
+
+        private void OpenWishesDiscardChoice(CleanPlayerState player)
+        {
+            List<CleanChoiceOption> options = new List<CleanChoiceOption>();
+            HashSet<int> seenIds = new HashSet<int>();
+            for (int i = 0; i < player.Hand.Count; i++)
+            {
+                CleanCard card = player.Hand[i];
+                if (seenIds.Contains(card.Definition.Id))
+                {
+                    continue;
+                }
+
+                seenIds.Add(card.Definition.Id);
+                options.Add(new CleanChoiceOption(card.Definition.Id, card.Definition.Name, "Discard for cost", true, string.Empty));
+            }
+
+            State.PendingChoice = new CleanChoicePrompt(
+                WishesDiscardChoicePromptId,
+                "Wishes for Eyes of Blue",
+                "Choose 1 card to discard.",
+                options);
+            Log("Wishes awaits a discard choice.");
+        }
+
+        private void ResolveWishesDiscardChoice(CleanPlayerState player, int selectedCardId)
+        {
+            CleanCard discarded;
+            if (!TryTakeCard(player.Hand, selectedCardId, out discarded))
+            {
+                Log("Wishes failed: chosen discard is no longer in hand.");
+                return;
+            }
+
+            ResetCardForHiddenZone(discarded);
+            AddToGraveyard(player, discarded, true);
+            Log("Discarded " + discarded.Definition.Name + " for Wishes.");
+            OpenWishesTunerChoice(player);
+        }
+
+        private void OpenWishesTunerChoice(CleanPlayerState player)
+        {
+            List<CleanChoiceOption> options = BuildUniqueDeckChoiceOptions(player, IsWishesLevelOneLightTunerTarget, "Add to hand");
+            State.PendingChoice = new CleanChoicePrompt(
+                WishesTunerChoicePromptId,
+                "Wishes for Eyes of Blue",
+                "Choose 1 Level 1 LIGHT Tuner from your Deck.",
+                options);
+            Log("Wishes awaits a Tuner choice.");
+        }
+
+        private void ResolveWishesTunerChoice(CleanPlayerState player, int selectedCardId)
+        {
+            CleanCard card;
+            if (!TryTakeDeckChoice(player, selectedCardId, IsWishesLevelOneLightTunerTarget, out card))
+            {
+                Log("Wishes failed: chosen Tuner is no longer in Deck.");
+                return;
+            }
+
+            ResetCardForHiddenZone(card);
+            player.Hand.Add(card);
+            Log("Wishes adds " + card.Definition.Name + " from Deck to hand.");
+            OpenWishesSupportChoice(player);
+        }
+
+        private void OpenWishesSupportChoice(CleanPlayerState player)
+        {
+            List<CleanChoiceOption> options = BuildUniqueDeckChoiceOptions(player, IsWishesSpellTrapTarget, "Add to hand");
+            State.PendingChoice = new CleanChoicePrompt(
+                WishesSupportChoicePromptId,
+                "Wishes for Eyes of Blue",
+                "Choose 1 Spell/Trap that mentions Blue-Eyes White Dragon, except Wishes.",
+                options);
+            Log("Wishes awaits a Spell/Trap choice.");
+        }
+
+        private void ResolveWishesSupportChoice(CleanPlayerState player, int selectedCardId)
+        {
+            CleanCard card;
+            if (!TryTakeDeckChoice(player, selectedCardId, IsWishesSpellTrapTarget, out card))
+            {
+                Log("Wishes failed: chosen Spell/Trap is no longer in Deck.");
+                return;
+            }
+
+            ResetCardForHiddenZone(card);
+            player.Hand.Add(card);
+            Log("Wishes adds " + card.Definition.Name + " from Deck to hand.");
+        }
+
+        private bool ActivateMausoleumOfWhite(CleanPlayerState player, CleanCard source, CleanActivationSource activationSource)
+        {
+            if (activationSource == CleanActivationSource.Hand)
+            {
+                source.FaceDown = false;
+                source.Controller = player.Id;
+                PlaceFieldSpell(player, source);
+                Log("Mausoleum of White is activated in the Field Spell Zone.");
+                return true;
+            }
+
+            if (source.FaceDown)
+            {
+                source.FaceDown = false;
+                Log("Mausoleum of White is activated face-up.");
+            }
+
+            if (!CanActivateMausoleumBoost(player))
+            {
+                Log("Mausoleum failed: no valid target and Normal Monster to send.");
+                return false;
+            }
+
+            if (player.Id == CleanPlayerId.Local)
+            {
+                OpenMausoleumTargetChoice(player);
+                return true;
+            }
+
+            int targetZone = StrongestFaceUpMonsterZone(player);
+            CleanCard sent;
+            bool sentFromHand = false;
+            if (!TryTakeBestMonster(player.Deck, IsNormalMonsterCard, out sent))
+            {
+                if (!TryTakeBestMonster(player.Hand, IsNormalMonsterCard, out sent))
+                {
+                    return false;
+                }
+
+                sentFromHand = true;
+            }
+
+            ResolveMausoleumBoost(player, targetZone, sent, sentFromHand);
+            return true;
+        }
+
+        private bool CanActivateMausoleumBoost(CleanPlayerState player)
+        {
+            return !player.UsedOncePerTurn.Contains(MausoleumBoostOnceKey) &&
+                   StrongestFaceUpMonsterZone(player) >= 0 &&
+                   (HasMatchingCard(player.Deck, IsNormalMonsterCard) || HasMatchingCard(player.Hand, IsNormalMonsterCard));
+        }
+
+        private void OpenMausoleumTargetChoice(CleanPlayerState player)
+        {
+            List<CleanChoiceOption> options = new List<CleanChoiceOption>();
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard monster = player.Monsters[i];
+                if (monster != null && !monster.FaceDown)
+                {
+                    options.Add(new CleanChoiceOption(i, monster.Definition.Name, "Target this face-up monster.", true, string.Empty));
+                }
+            }
+
+            State.PendingChoice = new CleanChoicePrompt(
+                MausoleumTargetChoicePromptId,
+                "Mausoleum of White",
+                "Choose 1 face-up monster you control.",
+                options);
+            Log("Mausoleum awaits a monster target.");
+        }
+
+        private void ResolveMausoleumTargetChoice(CleanPlayerState player, int zone)
+        {
+            if (zone < 0 || zone >= CleanPlayerState.ZoneCount || player.Monsters[zone] == null || player.Monsters[zone].FaceDown)
+            {
+                Log("Mausoleum failed: target is no longer face-up.");
+                return;
+            }
+
+            pendingMausoleumTargetZone = zone;
+            OpenMausoleumNormalChoice(player);
+        }
+
+        private void OpenMausoleumNormalChoice(CleanPlayerState player)
+        {
+            List<CleanChoiceOption> options = new List<CleanChoiceOption>();
+            AddMausoleumNormalOptions(options, player.Hand, ChoiceSourceHand, "Send from hand to GY");
+            AddMausoleumNormalOptions(options, player.Deck, ChoiceSourceDeck, "Send from Deck to GY");
+            State.PendingChoice = new CleanChoicePrompt(
+                MausoleumNormalChoicePromptId,
+                "Mausoleum of White",
+                "Choose 1 Normal Monster from your hand or Deck to send to the GY.",
+                options);
+            Log("Mausoleum awaits a Normal Monster choice.");
+        }
+
+        private void ResolveMausoleumNormalChoice(CleanPlayerState player, int encodedChoice)
+        {
+            if (pendingMausoleumTargetZone < 0 || pendingMausoleumTargetZone >= CleanPlayerState.ZoneCount || player.Monsters[pendingMausoleumTargetZone] == null)
+            {
+                Log("Mausoleum failed: target is gone.");
+                ClearPendingEffectChoices();
+                return;
+            }
+
+            CleanCard sent;
+            if (!TryTakeMausoleumNormalChoice(player, encodedChoice, out sent))
+            {
+                Log("Mausoleum failed: chosen Normal Monster is no longer available.");
+                ClearPendingEffectChoices();
+                return;
+            }
+
+            ResolveMausoleumBoost(player, pendingMausoleumTargetZone, sent, encodedChoice < 0);
+            ClearPendingEffectChoices();
+        }
+
+        private void ResolveMausoleumBoost(CleanPlayerState player, int targetZone, CleanCard sent, bool sentFromHand)
+        {
+            ResetCardForHiddenZone(sent);
+            AddToGraveyard(player, sent, sentFromHand);
+            int boost = Mathf.Max(0, sent.Definition.Level) * 100;
+            player.Monsters[targetZone].AttackBonus += boost;
+            player.Monsters[targetZone].DefenseBonus += boost;
+            player.UsedOncePerTurn.Add(MausoleumBoostOnceKey);
+            Log("Mausoleum sends " + sent.Definition.Name + " and boosts " + player.Monsters[targetZone].Definition.Name + " by " + boost + " ATK/DEF until end of turn.");
+        }
+        private List<CleanChoiceOption> BuildUniqueDeckChoiceOptions(CleanPlayerState player, Predicate<CleanCard> predicate, string detail)
+        {
+            List<CleanChoiceOption> options = new List<CleanChoiceOption>();
+            HashSet<int> seenIds = new HashSet<int>();
+            for (int i = 0; i < player.Deck.Count; i++)
+            {
+                CleanCard card = player.Deck[i];
+                if (!predicate(card) || seenIds.Contains(card.Definition.Id))
+                {
+                    continue;
+                }
+
+                seenIds.Add(card.Definition.Id);
+                options.Add(new CleanChoiceOption(card.Definition.Id, card.Definition.Name, detail, true, string.Empty));
+            }
+
+            return options;
+        }
+
+        private bool TryTakeDeckChoice(CleanPlayerState player, int selectedCardId, Predicate<CleanCard> predicate, out CleanCard card)
+        {
+            for (int i = 0; i < player.Deck.Count; i++)
+            {
+                CleanCard candidate = player.Deck[i];
+                if (candidate.Definition.Id == selectedCardId && predicate(candidate))
+                {
+                    player.Deck.RemoveAt(i);
+                    card = candidate;
+                    return true;
+                }
+            }
+
+            card = null;
+            return false;
+        }
+
+        private bool TryTakeFirstDiscard(CleanPlayerState player, out CleanCard card)
+        {
+            if (player.Hand.Count == 0)
+            {
+                card = null;
+                return false;
+            }
+
+            card = player.Hand[0];
+            player.Hand.RemoveAt(0);
+            return true;
+        }
+
+        private bool LuaSpecialSummonBestBlueEyesFromDeck(CleanPlayerState player)
+        {
+            CleanCard card;
+            if (!TryTakeBestMonster(player.Deck, IsBlueEyesMonster, out card))
+            {
+                Log("Clean Blue-Eyes summon failed: no Blue-Eyes monster in Deck.");
+                return false;
+            }
+
+            int zone = FirstEmpty(player.Monsters);
+            if (zone < 0)
+            {
+                player.Deck.Add(card);
+                Log("Clean Blue-Eyes summon failed: no open Monster Zone.");
+                return false;
+            }
+
+            SummonToZone(player, card, zone, false, CleanMonsterStance.Attack);
+            Log("Clean special summons " + card.Definition.Name + " from Deck.");
+            return true;
+        }
+
+        private bool IsWishesLevelOneLightTunerTarget(CleanCard card)
+        {
+            return card != null && IsLevelOneLightTuner(card);
+        }
+
+        private bool IsWishesSpellTrapTarget(CleanCard card)
+        {
+            if (card == null || card.Definition.Kind == CleanCardKind.Monster || card.Definition.Id == WishesForEyesOfBlueCardId)
+            {
+                return false;
+            }
+
+            string text = card.Definition.Text ?? string.Empty;
+            return text.IndexOf("Blue-Eyes White Dragon", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   card.Definition.Id == 17725109 ||
+                   card.Definition.Id == 2783661 ||
+                   card.Definition.Id == 71143015 ||
+                   card.Definition.Id == 62089826;
+        }
+
+        private void AddMausoleumNormalOptions(List<CleanChoiceOption> options, List<CleanCard> cards, int source, string detail)
+        {
+            HashSet<int> seenIds = new HashSet<int>();
+            for (int i = 0; i < cards.Count; i++)
+            {
+                CleanCard card = cards[i];
+                if (!IsNormalMonsterCard(card) || seenIds.Contains(card.Definition.Id))
+                {
+                    continue;
+                }
+
+                seenIds.Add(card.Definition.Id);
+                options.Add(new CleanChoiceOption(EncodeCardChoice(source, card.Definition.Id), card.Definition.Name, detail, true, string.Empty));
+            }
+        }
+
+        private bool TryTakeMausoleumNormalChoice(CleanPlayerState player, int encodedChoice, out CleanCard card)
+        {
+            int source;
+            int cardId;
+            DecodeCardChoice(encodedChoice, out source, out cardId);
+            List<CleanCard> list = source == ChoiceSourceHand ? player.Hand : player.Deck;
+            for (int i = 0; i < list.Count; i++)
+            {
+                CleanCard candidate = list[i];
+                if (candidate.Definition.Id == cardId && IsNormalMonsterCard(candidate))
+                {
+                    list.RemoveAt(i);
+                    card = candidate;
+                    return true;
+                }
+            }
+
+            card = null;
+            return false;
+        }
+
+        private int EncodeCardChoice(int source, int cardId)
+        {
+            return source == ChoiceSourceHand ? -cardId : cardId;
+        }
+
+        private void DecodeCardChoice(int encodedChoice, out int source, out int cardId)
+        {
+            if (encodedChoice < 0)
+            {
+                source = ChoiceSourceHand;
+                cardId = -encodedChoice;
+                return;
+            }
+
+            source = ChoiceSourceDeck;
+            cardId = encodedChoice;
+        }
+
+        private void ClearPendingEffectChoices()
+        {
+            pendingMausoleumTargetZone = -1;
+            pendingSpiritZone = -1;
+            pendingLuaDestroyTargetPlayerId = CleanPlayerId.Rival;
+            pendingLuaDestroyRemaining = 0;
+            pendingLuaDestroySource = string.Empty;
+        }
+        private bool OpenLocalQuickEffectWindowForRivalTurn()
+        {
+            List<CleanChoiceOption> options = BuildLocalQuickEffectOptions();
+            if (options.Count == 0)
+            {
+                return false;
+            }
+
+            options.Add(new CleanChoiceOption(
+                QuickEffectPassOptionId,
+                "Pass",
+                "Do not activate a Spell Speed 2 monster effect now.",
+                true,
+                string.Empty));
+
+            State.PendingChoice = new CleanChoicePrompt(
+                QuickEffectChoicePromptId,
+                "Quick Effect",
+                "You can activate a Spell Speed 2 monster effect during the opponent's turn, or pass.",
+                options);
+            Log("Quick Effect response window opened for the opponent's turn.");
+            return true;
+        }
+
+        private List<CleanChoiceOption> BuildLocalQuickEffectOptions()
+        {
+            List<CleanChoiceOption> options = new List<CleanChoiceOption>();
+            for (int i = 0; i < State.Local.Hand.Count; i++)
+            {
+                CleanCard card = State.Local.Hand[i];
+                if (!CanActivateLocalQuickEffectHandCardInternal(i, true))
+                {
+                    continue;
+                }
+
+                options.Add(new CleanChoiceOption(
+                    EncodeQuickEffectChoice(QuickEffectChoiceHandSource, i),
+                    card.Definition.Name,
+                    "Activate from hand. Spell Speed 2.",
+                    true,
+                    string.Empty));
+            }
+
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard card = State.Local.Monsters[i];
+                if (!CanActivateLocalQuickEffectMonsterZoneCardInternal(i, true))
+                {
+                    continue;
+                }
+
+                options.Add(new CleanChoiceOption(
+                    EncodeQuickEffectChoice(QuickEffectChoiceMonsterSource, i),
+                    card.Definition.Name,
+                    "Activate from field. Spell Speed 2.",
+                    true,
+                    string.Empty));
+            }
+
+            return options;
+        }
+
+        private void ResolveQuickEffectChoice(int optionId)
+        {
+            State.PendingChoice = null;
+            if (optionId == QuickEffectPassOptionId)
+            {
+                Log("Quick Effect response passed.");
+                ContinueRivalTurnAfterQuickWindow();
+                return;
+            }
+
+            int source;
+            int index;
+            DecodeQuickEffectChoice(optionId, out source, out index);
+            bool resolved = source == QuickEffectChoiceHandSource
+                ? ResolveLocalQuickEffectFromHand(index, true)
+                : ResolveLocalQuickEffectFromMonsterZone(index, true);
+            if (!resolved)
+            {
+                Log("Quick Effect could not resolve from the selected card.");
+            }
+
+            if (!State.GameOver && State.PendingChoice == null)
+            {
+                ContinueRivalTurnAfterQuickWindow();
+            }
+        }
+
+        private int EncodeQuickEffectChoice(int source, int index)
+        {
+            return source * 100 + index;
+        }
+
+        private void DecodeQuickEffectChoice(int encodedChoice, out int source, out int index)
+        {
+            source = encodedChoice / 100;
+            index = encodedChoice % 100;
+        }
+
+        private bool CanActivateLocalQuickEffectHandCardInternal(int handIndex, bool allowPending)
+        {
+            if (State.GameOver || (!allowPending && State.PendingChoice != null) || handIndex < 0 || handIndex >= State.Local.Hand.Count)
+            {
+                return false;
+            }
+
+            CleanCard card = State.Local.Hand[handIndex];
+            return IsQuickEffect(card) && CanActivateCleanCard(card, State.Local, CleanActivationSource.Hand);
+        }
+
+        private bool CanActivateLocalQuickEffectMonsterZoneCardInternal(int zoneIndex, bool allowPending)
+        {
+            if (State.GameOver || (!allowPending && State.PendingChoice != null) || zoneIndex < 0 || zoneIndex >= CleanPlayerState.ZoneCount)
+            {
+                return false;
+            }
+
+            CleanCard card = State.Local.Monsters[zoneIndex];
+            return card != null && !card.FaceDown && IsQuickEffect(card) && CanActivateCleanCard(card, State.Local, CleanActivationSource.MonsterZone);
+        }
+
+        private bool ResolveLocalQuickEffectFromHand(int handIndex, bool allowPending)
+        {
+            if (!CanActivateLocalQuickEffectHandCardInternal(handIndex, allowPending))
+            {
+                return false;
+            }
+
+            CleanCard card = State.Local.Hand[handIndex];
+            State.Local.Hand.RemoveAt(handIndex);
+            if (ResolveEffect(State.Local, State.Rival, card, CleanActivationSource.Hand) && !object.ReferenceEquals(State.Local.FieldSpell, card))
+            {
+                AddToGraveyard(State.Local, card, true);
+            }
+
+            CheckWin();
+            return true;
+        }
+
+        private bool ResolveLocalQuickEffectFromMonsterZone(int zoneIndex, bool allowPending)
+        {
+            if (!CanActivateLocalQuickEffectMonsterZoneCardInternal(zoneIndex, allowPending))
+            {
+                return false;
+            }
+
+            CleanCard card = State.Local.Monsters[zoneIndex];
+            bool sendsSelf = ShouldSendSelfForActivatedMonsterEffect(card, State.Local, State.Rival);
+            if (sendsSelf)
+            {
+                State.Local.Monsters[zoneIndex] = null;
+                card.FaceDown = false;
+                card.AttackBonus = 0;
+                card.DefenseBonus = 0;
+                card.HasBattled = false;
+            }
+
+            if (ResolveEffect(State.Local, State.Rival, card, CleanActivationSource.MonsterZone) && sendsSelf)
+            {
+                AddToGraveyard(State.Local, card, true);
+            }
+
+            CheckWin();
+            return true;
+        }
+
+        private bool ShouldSendSelfForActivatedMonsterEffect(CleanCard card, CleanPlayerState player, CleanPlayerState rival)
+        {
+            return card != null &&
+                   (card.Definition.Id == MaidenOfWhiteCardId ||
+                    card.Definition.Id == GhostOgreSnowRabbitCardId ||
+                    (card.Definition.Id == DragonSpiritOfWhiteCardId && CanDragonSpiritTributeForBlueEyes(player, rival)));
+        }
+
+        public bool IsQuickEffect(CleanCard card)
+        {
+            if (card == null || card.Definition.Kind != CleanCardKind.Monster || string.IsNullOrEmpty(card.Definition.EffectKey) || IsNormalMonster(card))
+            {
+                return false;
+            }
+
+            switch (card.Definition.EffectKey)
+            {
+                case "maxx_c_clean":
+                case "veiler_clean":
+                case "ash_clean":
+                case "ghost_ogre_clean":
+                case "ultimate_spirit_clean":
+                case "spirit_dragon_clean":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        public bool HasContinuousEffect(CleanCard card)
+        {
+            if (card == null || string.IsNullOrEmpty(card.Definition.EffectKey) || IsNormalMonster(card))
+            {
+                return false;
+            }
+
+            switch (card.Definition.EffectKey)
+            {
+                case "jet_clean":
+                case "true_light_clean":
+                case "mausoleum_clean":
+                case "gateway_chaos_clean":
+                case "spirit_with_eyes_clean":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private bool IsTriggerOnlyEffect(CleanCard card)
+        {
+            if (card == null || string.IsNullOrEmpty(card.Definition.EffectKey))
+            {
+                return false;
+            }
+
+            switch (card.Definition.EffectKey)
+            {
+                case "maiden_with_eyes_clean":
+                case "stone_ancients_clean":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private bool IsQuickPlaySpell(CleanCard card)
+        {
+            return card != null &&
+                   card.Definition.Kind == CleanCardKind.Spell &&
+                   (card.Definition.TypeLine ?? string.Empty).IndexOf("Quick-Play", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+        private void ResolveFlipTrigger(CleanPlayerState player, CleanPlayerState rival, CleanCard card, string reason)
+        {
+            if (!IsFlipTriggerEffect(card) || card.EffectsNegated)
+            {
+                return;
+            }
+
+            Log(card.Definition.Name + " activates its FLIP Trigger Effect after it was " + reason + ".");
+            string text = card.Definition.Text ?? string.Empty;
+            if (string.Equals(card.Definition.EffectKey, "flip_draw_clean", StringComparison.OrdinalIgnoreCase) || text.IndexOf("draw", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                int before = player.Hand.Count;
+                Draw(player, 1);
+                Log(card.Definition.Name + " resolves its FLIP effect and draws " + (player.Hand.Count - before) + " card.");
+                return;
+            }
+
+            if (text.IndexOf("destroy", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                DestroyStrongestMonster(rival);
+                Log(card.Definition.Name + " resolves its FLIP effect and destroys a monster.");
+            }
+        }
+
+        private void ResolveLinkSummonTrigger(CleanPlayerState player, CleanCard linkMonster)
+        {
+            if (linkMonster == null || linkMonster.Definition.Id != SpiritWithEyesOfBlueCardId || !CanUseSpiritMausoleumEffect(player, linkMonster))
+            {
+                return;
+            }
+
+            pendingSpiritZone = FindSpiritZone(player, linkMonster);
+            OpenSpiritMausoleumDestinationChoice();
+            Log("Spirit with Eyes of Blue triggers after being Link Summoned.");
+        }
+
+        private bool TryPlanLinkSummon(CleanPlayerState player, int extraDeckIndex, out List<int> materialZones, out bool summonToExtraMonsterZone, out int targetMainZone)
+        {
+            materialZones = null;
+            summonToExtraMonsterZone = false;
+            targetMainZone = -1;
+            if (extraDeckIndex < 0 || extraDeckIndex >= player.ExtraDeck.Count || !IsLinkMonsterDefinition(player.ExtraDeck[extraDeckIndex].Definition))
+            {
+                return false;
+            }
+
+            CleanCard linkMonster = player.ExtraDeck[extraDeckIndex];
+            if (!TrySelectLinkMaterials(player, linkMonster, out materialZones))
+            {
+                return false;
+            }
+
+            int extraZone = ExtraMonsterZoneIndexFor(player);
+            if (State.ExtraMonsters[extraZone] == null)
+            {
+                summonToExtraMonsterZone = true;
+                return true;
+            }
+
+            targetMainZone = FirstLinkedExtraDeckMainMonsterZone(player);
+            return targetMainZone >= 0;
+        }
+
+        private bool TrySelectLinkMaterials(CleanPlayerState player, CleanCard linkMonster, out List<int> materialZones)
+        {
+            materialZones = new List<int>();
+            int requiredMaterials = LinkRating(linkMonster);
+            if (requiredMaterials <= 0)
+            {
+                return false;
+            }
+
+            if (linkMonster.Definition.Id == SpiritWithEyesOfBlueCardId)
+            {
+                for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+                {
+                    CleanCard material = player.Monsters[i];
+                    if (IsSpiritWithEyesLinkMaterial(material))
+                    {
+                        materialZones.Add(i);
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            for (int i = 0; i < CleanPlayerState.ZoneCount && materialZones.Count < requiredMaterials; i++)
+            {
+                CleanCard material = player.Monsters[i];
+                if (material != null && !material.FaceDown && material.Definition.Kind == CleanCardKind.Monster)
+                {
+                    materialZones.Add(i);
+                }
+            }
+
+            return materialZones.Count == requiredMaterials;
+        }
+
+        private bool IsSpiritWithEyesLinkMaterial(CleanCard material)
+        {
+            if (material == null || material.FaceDown || material.Definition.Kind != CleanCardKind.Monster || material.Definition.Level > 4)
+            {
+                return false;
+            }
+
+            string typeLine = material.Definition.TypeLine ?? string.Empty;
+            return IsDragonMonster(material) || typeLine.IndexOf("Spellcaster", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private int LinkRating(CleanCard linkMonster)
+        {
+            if (!IsLinkMonsterDefinition(linkMonster != null ? linkMonster.Definition : null))
+            {
+                return 0;
+            }
+
+            if (linkMonster.Definition.Id == SpiritWithEyesOfBlueCardId)
+            {
+                return 1;
+            }
+
+            return Mathf.Max(1, linkMonster.Definition.Level);
+        }
+
+        private void MoveLinkMaterialsToGrave(CleanPlayerState player, List<int> materialZones)
+        {
+            for (int i = 0; i < materialZones.Count; i++)
+            {
+                int zone = materialZones[i];
+                if (zone >= 0 && zone < CleanPlayerState.ZoneCount)
+                {
+                    MoveMonsterToGrave(player, zone);
+                }
+            }
+        }
+
+        private void PrepareExtraDeckMonsterSummon(CleanPlayerState player, CleanCard card)
+        {
+            card.Controller = player.Id;
+            card.FaceDown = false;
+            card.Stance = CleanMonsterStance.Attack;
+            card.HasBattled = false;
+            card.SummonedThisTurn = true;
+        }
+
+        private int ExtraMonsterZoneIndexFor(CleanPlayerState player)
+        {
+            return player.Id == CleanPlayerId.Local ? 0 : 1;
+        }
+
+        private int FirstLinkedExtraDeckMainMonsterZone(CleanPlayerState player)
+        {
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                if (player.Monsters[i] == null && IsMainMonsterZoneLinkedForExtraDeckSummon(player, i))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private bool IsMainMonsterZoneLinkedForExtraDeckSummon(CleanPlayerState player, int zoneIndex)
+        {
+            if (zoneIndex < 0 || zoneIndex >= CleanPlayerState.ZoneCount)
+            {
+                return false;
+            }
+
+            CleanCard extraLink = State.ExtraMonsters[ExtraMonsterZoneIndexFor(player)];
+            if (extraLink == null || extraLink.FaceDown || extraLink.EffectsNegated || !IsLinkMonsterDefinition(extraLink.Definition))
+            {
+                return false;
+            }
+
+            return zoneIndex == 2;
+        }
+
+        private bool IsLinkMonsterDefinition(CleanCardDefinition definition)
+        {
+            return definition != null && (definition.TypeLine ?? string.Empty).IndexOf("Link", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private bool IsFlipTriggerEffect(CleanCard card)
+        {
+            if (card == null || card.Definition.Kind != CleanCardKind.Monster)
+            {
+                return false;
+            }
+
+            string text = card.Definition.Text ?? string.Empty;
+            string typeLine = card.Definition.TypeLine ?? string.Empty;
+            return text.TrimStart().StartsWith("FLIP:", StringComparison.OrdinalIgnoreCase) ||
+                   typeLine.IndexOf("Flip", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   string.Equals(card.Definition.EffectKey, "flip_draw_clean", StringComparison.OrdinalIgnoreCase);
+        }
+        private bool CanPendulumSummon(CleanPlayerState player)
+        {
+            return player != null &&
+                   !player.PendulumSummonUsed &&
+                   HasPendulumScales(player) &&
+                   HasPendulumSummonTarget(player);
+        }
+
+        private bool HasPendulumScales(CleanPlayerState player)
+        {
+            int left;
+            int right;
+            return TryGetPendulumScales(player, out left, out right);
+        }
+
+        private bool TryGetPendulumScales(CleanPlayerState player, out int leftScale, out int rightScale)
+        {
+            leftScale = -1;
+            rightScale = -1;
+            if (player == null || !IsPendulumMonster(player.SpellsTraps[0]) || !IsPendulumMonster(player.SpellsTraps[CleanPlayerState.ZoneCount - 1]))
+            {
+                return false;
+            }
+
+            leftScale = PendulumScale(player.SpellsTraps[0]);
+            rightScale = PendulumScale(player.SpellsTraps[CleanPlayerState.ZoneCount - 1]);
+            return leftScale >= 0 && rightScale >= 0 && leftScale != rightScale;
+        }
+
+        private int FirstAvailablePendulumZone(CleanPlayerState player)
+        {
+            if (player == null)
+            {
+                return -1;
+            }
+
+            if (player.SpellsTraps[0] == null)
+            {
+                return 0;
+            }
+
+            int right = CleanPlayerState.ZoneCount - 1;
+            return player.SpellsTraps[right] == null ? right : -1;
+        }
+
+        private bool HasPendulumSummonTarget(CleanPlayerState player)
+        {
+            List<CleanChoiceOption> options = BuildPendulumSummonOptions(player);
+            for (int i = 0; i < options.Count; i++)
+            {
+                if (options[i].Id != PendulumFinishOptionId && options[i].IsAvailable)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void OpenPendulumSummonChoice(CleanPlayerState player)
+        {
+            List<CleanChoiceOption> options = BuildPendulumSummonOptions(player);
+            options.Add(new CleanChoiceOption(PendulumFinishOptionId, "Finish", "Stop choosing Pendulum Summon targets.", true, string.Empty));
+            State.PendingChoice = new CleanChoicePrompt(
+                PendulumSummonChoicePromptId,
+                "Pendulum Summon",
+                "Choose monsters with Levels between your Pendulum Scales.",
+                options);
+            Log(player.Name + " declares a Pendulum Summon.");
+        }
+
+        private List<CleanChoiceOption> BuildPendulumSummonOptions(CleanPlayerState player)
+        {
+            List<CleanChoiceOption> options = new List<CleanChoiceOption>();
+            int leftScale;
+            int rightScale;
+            if (!TryGetPendulumScales(player, out leftScale, out rightScale))
+            {
+                return options;
+            }
+
+            int mainZone = FirstEmpty(player.Monsters);
+            for (int i = 0; i < player.Hand.Count; i++)
+            {
+                CleanCard card = player.Hand[i];
+                bool available = mainZone >= 0 && CanPendulumSummonFromHand(player, card, leftScale, rightScale);
+                options.Add(new CleanChoiceOption(
+                    PendulumHandOptionOffset + i,
+                    card.Definition.Name,
+                    "Special Summon from hand.",
+                    available,
+                    available ? string.Empty : "No open Main Monster Zone or Level outside the Pendulum Scales."));
+            }
+
+            int extraTargetZone = FirstPendulumExtraDeckTargetZone(player);
+            for (int i = 0; i < player.ExtraDeck.Count; i++)
+            {
+                CleanCard card = player.ExtraDeck[i];
+                if (!card.FaceUpExtraDeck || !IsPendulumMonster(card))
+                {
+                    continue;
+                }
+
+                bool available = extraTargetZone >= 0 && CanPendulumSummonFromFaceUpExtraDeck(player, card, leftScale, rightScale);
+                options.Add(new CleanChoiceOption(
+                    PendulumExtraDeckOptionOffset + i,
+                    card.Definition.Name,
+                    "Special Summon face-up from Extra Deck.",
+                    available,
+                    available ? string.Empty : "No Extra Monster Zone/linked zone or Level outside the Pendulum Scales."));
+            }
+
+            return options;
+        }
+
+        private void ResolvePendulumSummonChoice(CleanPlayerState player, int optionId)
+        {
+            if (optionId == PendulumFinishOptionId)
+            {
+                State.PendingChoice = null;
+                Log("Pendulum Summon selection finished.");
+                return;
+            }
+
+            int leftScale;
+            int rightScale;
+            if (!TryGetPendulumScales(player, out leftScale, out rightScale))
+            {
+                State.PendingChoice = null;
+                return;
+            }
+
+            if (optionId >= PendulumExtraDeckOptionOffset)
+            {
+                ResolvePendulumSummonFromExtraDeck(player, optionId - PendulumExtraDeckOptionOffset, leftScale, rightScale);
+            }
+            else if (optionId >= PendulumHandOptionOffset)
+            {
+                ResolvePendulumSummonFromHand(player, optionId - PendulumHandOptionOffset, leftScale, rightScale);
+            }
+
+            if (HasPendulumSummonTarget(player))
+            {
+                OpenPendulumSummonChoice(player);
+            }
+            else
+            {
+                State.PendingChoice = null;
+            }
+        }
+
+        private void ResolvePendulumSummonFromHand(CleanPlayerState player, int handIndex, int leftScale, int rightScale)
+        {
+            if (handIndex < 0 || handIndex >= player.Hand.Count)
+            {
+                return;
+            }
+
+            CleanCard card = player.Hand[handIndex];
+            if (!CanPendulumSummonFromHand(player, card, leftScale, rightScale))
+            {
+                return;
+            }
+
+            int zone = FirstEmpty(player.Monsters);
+            if (zone < 0)
+            {
+                return;
+            }
+
+            player.Hand.RemoveAt(handIndex);
+            SummonToZone(player, card, zone, false, CleanMonsterStance.Attack);
+            Log(player.Name + " Pendulum Summons " + card.Definition.Name + " from the hand.");
+        }
+
+        private void ResolvePendulumSummonFromExtraDeck(CleanPlayerState player, int extraDeckIndex, int leftScale, int rightScale)
+        {
+            if (extraDeckIndex < 0 || extraDeckIndex >= player.ExtraDeck.Count)
+            {
+                return;
+            }
+
+            CleanCard card = player.ExtraDeck[extraDeckIndex];
+            if (!CanPendulumSummonFromFaceUpExtraDeck(player, card, leftScale, rightScale))
+            {
+                return;
+            }
+
+            int targetZone = FirstPendulumExtraDeckTargetZone(player);
+            if (targetZone < 0)
+            {
+                return;
+            }
+
+            player.ExtraDeck.RemoveAt(extraDeckIndex);
+            PrepareExtraDeckMonsterSummon(player, card);
+            card.FaceUpExtraDeck = false;
+            int extraMonsterZone = ExtraMonsterZoneIndexFor(player);
+            if (targetZone == ExtraSpiritZoneOffset + extraMonsterZone)
+            {
+                State.ExtraMonsters[extraMonsterZone] = card;
+                Log(player.Name + " Pendulum Summons " + card.Definition.Name + " face-up from the Extra Deck to the Extra Monster Zone.");
+            }
+            else
+            {
+                SummonToZone(player, card, targetZone, false, CleanMonsterStance.Attack);
+                Log(player.Name + " Pendulum Summons " + card.Definition.Name + " face-up from the Extra Deck to a linked Main Monster Zone.");
+            }
+        }
+
+        private bool CanPendulumSummonFromHand(CleanPlayerState player, CleanCard card, int leftScale, int rightScale)
+        {
+            return card != null &&
+                   card.Definition.Kind == CleanCardKind.Monster &&
+                   CardLevelWithinPendulumScales(card, leftScale, rightScale) &&
+                   !IsLinkMonsterDefinition(card.Definition) &&
+                   CanSpecialSummonUnderSpiritRestriction(player, card);
+        }
+
+        private bool CanPendulumSummonFromFaceUpExtraDeck(CleanPlayerState player, CleanCard card, int leftScale, int rightScale)
+        {
+            return card != null &&
+                   card.FaceUpExtraDeck &&
+                   IsPendulumMonster(card) &&
+                   CardLevelWithinPendulumScales(card, leftScale, rightScale) &&
+                   CanSpecialSummonUnderSpiritRestriction(player, card);
+        }
+
+        private int FirstPendulumExtraDeckTargetZone(CleanPlayerState player)
+        {
+            int extraZone = ExtraMonsterZoneIndexFor(player);
+            if (State.ExtraMonsters[extraZone] == null)
+            {
+                return ExtraSpiritZoneOffset + extraZone;
+            }
+
+            return FirstLinkedExtraDeckMainMonsterZone(player);
+        }
+
+        private bool CardLevelWithinPendulumScales(CleanCard card, int leftScale, int rightScale)
+        {
+            int low = Mathf.Min(leftScale, rightScale);
+            int high = Mathf.Max(leftScale, rightScale);
+            return card != null && card.Definition.Level > low && card.Definition.Level < high;
+        }
+
+        private bool IsPendulumMonster(CleanCard card)
+        {
+            return card != null && IsPendulumMonsterDefinition(card.Definition);
+        }
+
+        private bool IsPendulumMonsterDefinition(CleanCardDefinition definition)
+        {
+            return definition != null && (definition.TypeLine ?? string.Empty).IndexOf("Pendulum", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private int PendulumScale(CleanCard card)
+        {
+            if (card == null)
+            {
+                return -1;
+            }
+
+            int scale = ParsePendulumScale(card.Definition.TypeLine);
+            return scale >= 0 ? scale : ParsePendulumScale(card.Definition.Text);
+        }
+
+        private int ParsePendulumScale(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return -1;
+            }
+
+            int index = text.IndexOf("Scale", StringComparison.OrdinalIgnoreCase);
+            if (index < 0)
+            {
+                return -1;
+            }
+
+            for (int i = index + 5; i < text.Length; i++)
+            {
+                if (!char.IsDigit(text[i]))
+                {
+                    continue;
+                }
+
+                int value = 0;
+                while (i < text.Length && char.IsDigit(text[i]))
+                {
+                    value = value * 10 + (text[i] - '0');
+                    i++;
+                }
+
+                return value;
+            }
+
+            return -1;
+        }
+        private bool ActivateBingoMachine(CleanPlayerState player)
+        {
+            return AddFromDeckToHand(player, IsBingoSearchCandidate, "Bingo Machine target");
+        }
+
+        private bool CanUseGatewayToChaosRitualSearch(CleanPlayerState player)
+        {
+            return !player.UsedOncePerTurn.Contains(GatewayRitualSearchOnceKey) &&
+                   player.GatewayToChaosCounters >= 3 &&
+                   HasMatchingCard(player.Deck, IsRitualSpellCard);
+        }
+
+        private bool ActivateGatewayToChaos(CleanPlayerState player, CleanCard source, CleanActivationSource activationSource)
+        {
+            bool alreadyFieldSpell = object.ReferenceEquals(player.FieldSpell, source);
+            if (activationSource == CleanActivationSource.Hand || !alreadyFieldSpell)
+            {
+                if (player.UsedOncePerTurn.Contains(GatewayActivationOnceKey) || !HasMatchingCard(player.Deck, IsGatewayToChaosSearchCandidate))
+                {
+                    Log("Gateway to Chaos cannot be activated without a Black Luster Soldier Ritual Monster or Gaia the Fierce Knight monster to search.");
+                    return false;
+                }
+
+                source.FaceDown = false;
+                source.Controller = player.Id;
+                PlaceFieldSpell(player, source);
+                player.UsedOncePerTurn.Add(GatewayActivationOnceKey);
+                Log("Gateway to Chaos is activated in the Field Spell Zone.");
+                if (player.Id == CleanPlayerId.Local)
+                {
+                    OpenGatewaySearchChoice(player);
+                    return true;
+                }
+
+                return AddFromDeckToHand(player, IsGatewayToChaosSearchCandidate, "Black Luster Soldier Ritual Monster or Gaia the Fierce Knight monster");
+            }
+
+            if (!CanUseGatewayToChaosRitualSearch(player))
+            {
+                Log("Gateway to Chaos needs 3 Spell Counters and an available Ritual Spell, and this effect is once per turn.");
+                return false;
+            }
+
+            player.GatewayToChaosCounters -= 3;
+            player.UsedOncePerTurn.Add(GatewayRitualSearchOnceKey);
+            Log("Gateway to Chaos removes 3 Spell Counters.");
+            return AddFromDeckToHand(player, IsRitualSpellCard, "Ritual Spell");
+        }
+
+        private void OpenGatewaySearchChoice(CleanPlayerState player)
+        {
+            List<CleanChoiceOption> options = BuildUniqueDeckChoiceOptions(player, IsGatewayToChaosSearchCandidate, "Add to hand");
+            State.PendingChoice = new CleanChoicePrompt(
+                GatewaySearchChoicePromptId,
+                "Gateway to Chaos",
+                "Choose 1 \"Black Luster Soldier\" Ritual Monster or \"Gaia The Fierce Knight\" monster from your Deck.",
+                options);
+            Log("Gateway to Chaos awaits a search choice.");
+        }
+
+        private void ResolveGatewaySearchChoice(CleanPlayerState player, int selectedCardId)
+        {
+            CleanCard card;
+            if (!TryTakeDeckChoice(player, selectedCardId, IsGatewayToChaosSearchCandidate, out card))
+            {
+                Log("Gateway to Chaos failed: chosen monster is no longer in Deck.");
+                return;
+            }
+
+            ResetCardForHiddenZone(card);
+            player.Hand.Add(card);
+            Log("Gateway to Chaos adds " + card.Definition.Name + " from Deck to hand.");
+        }
+
+        private bool ActivateMajestyWithEyesOfBlue(CleanPlayerState player, CleanPlayerState rival)
+        {
+            CleanCard sent;
+            bool sentFromHand = false;
+            if (!TryTakeBestMonster(player.Deck, IsBlueEyesMonster, out sent))
+            {
+                if (!TryTakeBestMonster(player.Hand, IsBlueEyesMonster, out sent))
+                {
+                    Log("Majesty failed: no Blue-Eyes monster in hand or deck to send.");
+                    return false;
+                }
+
+                sentFromHand = true;
+            }
+
+            ResetCardForHiddenZone(sent);
+            AddToGraveyard(player, sent, sentFromHand);
+            Log("Majesty sends " + sent.Definition.Name + " to the GY.");
+
+            int targetZone = StrongestEffectTargetZone(rival);
+            CleanPlayerState targetPlayer = rival;
+            if (targetZone < 0)
+            {
+                targetPlayer = player;
+                targetZone = StrongestEffectTargetZone(player);
+            }
+
+            if (targetZone < 0)
+            {
+                Log("Majesty found no face-up monster to restrict.");
+                return false;
+            }
+
+            CleanCard target = targetPlayer.Monsters[targetZone];
+            target.CannotAttack = true;
+            Log("Majesty prevents " + target.Definition.Name + " from attacking while it remains face-up.");
+            return true;
+        }
+
+        private bool ActivateDragonShrine(CleanPlayerState player)
+        {
+            if (!HasMatchingCard(player.Deck, IsDragonMonster))
+            {
+                Log("Dragon Shrine failed: no Dragon monster in deck.");
+                return false;
+            }
+
+            OpenDragonShrineFirstChoice(player);
+            return true;
+        }
+
+        private void OpenDragonShrineFirstChoice(CleanPlayerState player)
+        {
+            State.PendingChoice = new CleanChoicePrompt(
+                DragonShrineFirstChoicePromptId,
+                "Dragon Shrine",
+                "Choose 1 Dragon monster from your Deck to send to the GY.",
+                BuildDragonShrineOptions(player, false));
+            Log("Dragon Shrine awaits your Dragon choice.");
+        }
+
+        private void OpenDragonShrineSecondChoice(CleanPlayerState player)
+        {
+            State.PendingChoice = new CleanChoicePrompt(
+                DragonShrineSecondChoicePromptId,
+                "Dragon Shrine",
+                "You sent a Normal Dragon. Choose 1 more Dragon to send, or skip.",
+                BuildDragonShrineOptions(player, true));
+            Log("Dragon Shrine can send one extra Dragon.");
+        }
+
+        private List<CleanChoiceOption> BuildDragonShrineOptions(CleanPlayerState player, bool includeSkip)
+        {
+            List<CleanChoiceOption> options = new List<CleanChoiceOption>();
+            HashSet<int> seenIds = new HashSet<int>();
+            for (int i = 0; i < player.Deck.Count; i++)
+            {
+                CleanCard card = player.Deck[i];
+                if (!IsDragonMonster(card) || seenIds.Contains(card.Definition.Id))
+                {
+                    continue;
+                }
+
+                seenIds.Add(card.Definition.Id);
+                options.Add(new CleanChoiceOption(
+                    card.Definition.Id,
+                    card.Definition.Name,
+                    "Send from Deck to GY",
+                    true,
+                    string.Empty));
+            }
+
+            if (includeSkip)
+            {
+                options.Add(new CleanChoiceOption(
+                    DragonShrineSkipSecondOptionId,
+                    "No extra Dragon",
+                    "Resolve without sending another Dragon.",
+                    true,
+                    string.Empty));
+            }
+
+            return options;
+        }
+
+        private void ResolveDragonShrineFirstChoice(CleanPlayerState player, int selectedCardId)
+        {
+            CleanCard first;
+            if (!TryTakeDragonShrineChoice(player, selectedCardId, out first))
+            {
+                Log("Dragon Shrine failed: selected Dragon is no longer in the deck.");
+                return;
+            }
+
+            bool firstWasNormalDragon = IsNormalMonsterCard(first) && IsDragonMonster(first);
+            SendDragonShrineCardToGrave(player, first, "Dragon Shrine sends " + first.Definition.Name + " from deck to the GY.");
+            if (firstWasNormalDragon && HasMatchingCard(player.Deck, IsDragonMonster))
+            {
+                OpenDragonShrineSecondChoice(player);
+            }
+        }
+
+        private void ResolveDragonShrineSecondChoice(CleanPlayerState player, int selectedCardId)
+        {
+            if (selectedCardId == DragonShrineSkipSecondOptionId)
+            {
+                Log("Dragon Shrine resolves without sending an extra Dragon.");
+                return;
+            }
+
+            CleanCard second;
+            if (!TryTakeDragonShrineChoice(player, selectedCardId, out second))
+            {
+                Log("Dragon Shrine failed: selected extra Dragon is no longer in the deck.");
+                return;
+            }
+
+            SendDragonShrineCardToGrave(player, second, "Dragon Shrine sends an extra Dragon, " + second.Definition.Name + ", to the GY.");
+        }
+
+        private bool TryTakeDragonShrineChoice(CleanPlayerState player, int selectedCardId, out CleanCard card)
+        {
+            for (int i = 0; i < player.Deck.Count; i++)
+            {
+                CleanCard candidate = player.Deck[i];
+                if (candidate.Definition.Id == selectedCardId && IsDragonMonster(candidate))
+                {
+                    player.Deck.RemoveAt(i);
+                    card = candidate;
+                    return true;
+                }
+            }
+
+            card = null;
+            return false;
+        }
+
+        private void SendDragonShrineCardToGrave(CleanPlayerState player, CleanCard card, string log)
+        {
+            ResetCardForHiddenZone(card);
+            AddToGraveyard(player, card);
+            Log(log);
+        }
+
+        private bool ActivateDictatorRevive(CleanPlayerState player)
+        {
+            CleanCard cost;
+            if (!TryTakeDiscardCost(player.Hand, IsBlueEyesWhiteDragonOrMention, out cost))
+            {
+                Log("Dictator of D. failed: no Blue-Eyes White Dragon or card that mentions it to discard.");
+                return false;
+            }
+
+            ResetCardForHiddenZone(cost);
+            AddToGraveyard(player, cost, true);
+            CleanCard target;
+            if (!TryTakeBestMonster(player.Graveyard, IsBlueEyesMonster, out target))
+            {
+                Log("Dictator of D. failed: no Blue-Eyes monster in GY to summon.");
+                return false;
+            }
+
+            int zone = FirstEmpty(player.Monsters);
+            if (zone < 0)
+            {
+                player.Graveyard.Add(target);
+                Log("Dictator of D. failed: no open Monster Zone.");
+                return false;
+            }
+
+            SummonToZone(player, target, zone, false, CleanMonsterStance.Attack);
+            Log("Dictator of D. special summons " + target.Definition.Name + " from the GY.");
+            return true;
+        }
+
+        private bool ActivateDragonSpiritOfWhite(CleanPlayerState player, CleanPlayerState rival)
+        {
+            bool didSomething = BanishBestSpellTrap(rival);
+            if (CanDragonSpiritTributeForBlueEyes(player, rival))
+            {
+                CleanCard blueEyes;
+                if (TryTakeCard(player.Hand, BlueEyesWhiteDragonCardId, out blueEyes))
+                {
+                    SummonToZone(player, blueEyes, FirstEmpty(player.Monsters), false, CleanMonsterStance.Attack);
+                    Log("Dragon Spirit of White tributes itself to special summon Blue-Eyes White Dragon from hand.");
+                    didSomething = true;
+                }
+            }
+
+            return didSomething;
+        }
+
+        private bool CanActivateBlueEyesUltimateSpiritDragon(CleanPlayerState player, CleanCard spirit, CleanPlayerState rival)
+        {
+            return spirit != null &&
+                   spirit.Definition.Id == BlueEyesUltimateSpiritDragonCardId &&
+                   !spirit.FaceDown &&
+                   !spirit.EffectsNegated &&
+                   !player.UsedOncePerTurn.Contains(UltimateSpiritNegateOnceKey) &&
+                   HasNegatableFaceUpFieldEffect(rival);
+        }
+
+        private bool ActivateBlueEyesUltimateSpiritDragon(CleanPlayerState player, CleanPlayerState rival, CleanCard spirit)
+        {
+            if (!CanActivateBlueEyesUltimateSpiritDragon(player, spirit, rival))
+            {
+                Log("Blue-Eyes Ultimate Spirit Dragon cannot negate a field effect right now.");
+                return false;
+            }
+
+            CleanCard negated;
+            if (!TryNegateStrongestFaceUpFieldEffect(rival, out negated))
+            {
+                Log("Blue-Eyes Ultimate Spirit Dragon found no face-up field effect to negate.");
+                return false;
+            }
+
+            spirit.AttackBonus += 1000;
+            player.UsedOncePerTurn.Add(UltimateSpiritNegateOnceKey);
+            Log("Blue-Eyes Ultimate Spirit Dragon negates " + negated.Definition.Name + " and gains 1000 ATK until the End Phase.");
+            return true;
+        }
+
+        private bool HasNegatableFaceUpFieldEffect(CleanPlayerState player)
+        {
+            CleanCard ignored;
+            return TryFindStrongestFaceUpFieldEffect(player, out ignored);
+        }
+
+        private bool TryNegateStrongestFaceUpFieldEffect(CleanPlayerState player, out CleanCard target)
+        {
+            if (!TryFindStrongestFaceUpFieldEffect(player, out target))
+            {
+                return false;
+            }
+
+            target.EffectsNegated = true;
+            target.AttackBonus = 0;
+            return true;
+        }
+
+        private bool TryFindStrongestFaceUpFieldEffect(CleanPlayerState player, out CleanCard target)
+        {
+            target = null;
+            int bestScore = -1;
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard monster = player.Monsters[i];
+                if (monster != null && !monster.FaceDown && !monster.EffectsNegated && monster.Definition.Kind == CleanCardKind.Monster && !IsNormalMonster(monster))
+                {
+                    int score = Mathf.Max(monster.CurrentAttack, monster.CurrentDefense);
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        target = monster;
+                    }
+                }
+
+                CleanCard spellTrap = player.SpellsTraps[i];
+                if (spellTrap != null && !spellTrap.FaceDown && !spellTrap.EffectsNegated)
+                {
+                    int score = spellTrap.Definition.Kind == CleanCardKind.Trap ? 800 : 700;
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        target = spellTrap;
+                    }
+                }
+            }
+
+            if (player.FieldSpell != null && !player.FieldSpell.FaceDown && !player.FieldSpell.EffectsNegated && 900 > bestScore)
+            {
+                target = player.FieldSpell;
+            }
+
+            return target != null;
+        }
+
+        private bool TriggerBlueEyesUltimateSpiritDestroyed(CleanPlayerState player, CleanCard destroyed)
+        {
+            if (destroyed == null ||
+                destroyed.Definition.Id != BlueEyesUltimateSpiritDragonCardId ||
+                player.UsedOncePerTurn.Contains(UltimateSpiritDestroyedOnceKey))
+            {
+                return false;
+            }
+
+            int zone = FirstEmpty(player.Monsters);
+            if (zone < 0)
+            {
+                Log("Blue-Eyes Ultimate Spirit Dragon found no open Monster Zone for its destroyed trigger.");
+                return false;
+            }
+
+            CleanCard target;
+            if (!TryTakeBestMonster(player.Graveyard, IsUltimateSpiritReviveTarget, out target))
+            {
+                Log("Blue-Eyes Ultimate Spirit Dragon found no LIGHT Dragon in the GY to Special Summon.");
+                return false;
+            }
+
+            SummonToZone(player, target, zone, false, CleanMonsterStance.Attack);
+            player.UsedOncePerTurn.Add(UltimateSpiritDestroyedOnceKey);
+            Log("Blue-Eyes Ultimate Spirit Dragon Special Summons " + target.Definition.Name + " from the GY after being destroyed.");
+            return true;
+        }
+
+        private bool IsUltimateSpiritReviveTarget(CleanCard card)
+        {
+            return card != null &&
+                   card.Definition.Id != BlueEyesUltimateSpiritDragonCardId &&
+                   card.Definition.Kind == CleanCardKind.Monster &&
+                   IsDragonMonster(card) &&
+                   IsLightMonster(card);
+        }
+
+        private bool CanActivateBlueEyesSpiritDragon(CleanPlayerState player, CleanCard spirit)
+        {
+            return spirit != null &&
+                   spirit.Definition.Id == BlueEyesSpiritDragonCardId &&
+                   !spirit.FaceDown &&
+                   !spirit.EffectsNegated &&
+                   spirit.SynchroSummoned &&
+                   IndexOfMonsterZone(player, spirit) >= 0 &&
+                   HasMatchingCard(player.ExtraDeck, IsBlueEyesSpiritDragonTagOutTarget);
+        }
+
+        private bool ActivateBlueEyesSpiritDragon(CleanPlayerState player, CleanCard spirit)
+        {
+            int zone = IndexOfMonsterZone(player, spirit);
+            if (zone < 0 || !CanActivateBlueEyesSpiritDragon(player, spirit))
+            {
+                Log("Blue-Eyes Spirit Dragon cannot activate its tag-out effect right now.");
+                return false;
+            }
+
+            CleanCard target;
+            if (!TryTakeBestMonster(player.ExtraDeck, IsBlueEyesSpiritDragonTagOutTarget, out target))
+            {
+                Log("Blue-Eyes Spirit Dragon found no LIGHT Dragon Synchro monster in the Extra Deck.");
+                return false;
+            }
+
+            player.Monsters[zone] = null;
+            ResetCardForHiddenZone(spirit);
+            AddToGraveyard(player, spirit, true);
+            SummonToZone(player, target, zone, false, CleanMonsterStance.Defense);
+            target.DestroyDuringEndPhase = true;
+            Log("Blue-Eyes Spirit Dragon tributes itself to Special Summon " + target.Definition.Name + " from the Extra Deck in Defense Position.");
+            return true;
+        }
+
+        private int IndexOfMonsterZone(CleanPlayerState player, CleanCard target)
+        {
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                if (object.ReferenceEquals(player.Monsters[i], target))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private bool IsBlueEyesSpiritDragonTagOutTarget(CleanCard card)
+        {
+            return card != null &&
+                   card.Definition.Id != BlueEyesSpiritDragonCardId &&
+                   card.Definition.Kind == CleanCardKind.Monster &&
+                   IsSynchroMonsterDefinition(card.Definition) &&
+                   IsDragonMonster(card) &&
+                   IsLightMonster(card);
+        }
+
+        private bool IsLightMonster(CleanCard card)
+        {
+            if (card == null || card.Definition.Kind != CleanCardKind.Monster)
+            {
+                return false;
+            }
+
+            string typeLine = card.Definition.TypeLine ?? string.Empty;
+            return typeLine.IndexOf("LIGHT", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   card.Definition.Id == AzureEyesSilverDragonCardId ||
+                   card.Definition.Id == BlueEyesSpiritDragonCardId ||
+                   card.Definition.Id == WhiteStoneOfAncientsCardId ||
+                   IsBlueEyesCard(card);
+        }
+
+        private bool TryNegateRivalGraveyardEffect(CleanPlayerState effectPlayer, string effectName)
+        {
+            CleanPlayerState opponent = OpponentOf(effectPlayer.Id);
+            int spiritZone = FirstFaceUpBlueEyesSpiritDragonZone(opponent);
+            if (spiritZone < 0 || opponent.UsedOncePerTurn.Contains(BlueEyesSpiritGraveNegateOnceKey))
+            {
+                return false;
+            }
+
+            opponent.UsedOncePerTurn.Add(BlueEyesSpiritGraveNegateOnceKey);
+            Log("Blue-Eyes Spirit Dragon negates " + effectName + " from the GY.");
+            return true;
+        }
+
+        private int FirstFaceUpBlueEyesSpiritDragonZone(CleanPlayerState player)
+        {
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard card = player.Monsters[i];
+                if (card != null && card.Definition.Id == BlueEyesSpiritDragonCardId && !card.FaceDown && !card.EffectsNegated)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private bool CanActivateSpiritWithEyesOfBlue(CleanPlayerState player, CleanCard spirit)
+        {
+            return CanUseSpiritMausoleumEffect(player, spirit) || CanUseSpiritTributeEffect(player, spirit);
+        }
+
+        private bool CanUseSpiritMausoleumEffect(CleanPlayerState player, CleanCard spirit)
+        {
+            return spirit != null && spirit.LinkSummoned && !spirit.FaceDown && !spirit.EffectsNegated &&
+                   !player.UsedOncePerTurn.Contains(SpiritMausoleumOnceKey) &&
+                   HasMatchingCard(player.Deck, IsMausoleumOfWhite);
+        }
+
+        private bool CanUseSpiritTributeEffect(CleanPlayerState player, CleanCard spirit)
+        {
+            return spirit != null && !spirit.FaceDown && !spirit.EffectsNegated &&
+                   !player.UsedOncePerTurn.Contains(SpiritTributeOnceKey) &&
+                   (HasMatchingCard(player.Hand, IsBlueEyesMonster) || HasMatchingCard(player.Graveyard, IsBlueEyesMonster));
+        }
+
+        private bool ActivateSpiritWithEyesOfBlue(CleanPlayerState player, CleanCard spirit)
+        {
+            pendingSpiritZone = FindSpiritZone(player, spirit);
+            if (pendingSpiritZone < 0)
+            {
+                return false;
+            }
+
+            bool canUseMausoleum = CanUseSpiritMausoleumEffect(player, spirit);
+            bool canUseTribute = CanUseSpiritTributeEffect(player, spirit);
+            if (canUseMausoleum && canUseTribute)
+            {
+                State.PendingChoice = new CleanChoicePrompt(
+                    SpiritEffectChoicePromptId,
+                    "Spirit with Eyes of Blue",
+                    "Choose which once-per-turn effect to activate.",
+                    new List<CleanChoiceOption>
+                    {
+                        new CleanChoiceOption(SpiritMausoleumEffectOptionId, "Mausoleum of White", "Take Mausoleum from the Deck.", true, string.Empty),
+                        new CleanChoiceOption(SpiritTributeEffectOptionId, "Tribute and Summon", "Tribute Spirit to Special Summon a Blue-Eyes monster.", true, string.Empty)
+                    });
+                Log("Spirit with Eyes of Blue awaits an effect choice.");
+                return false;
+            }
+
+            if (canUseMausoleum)
+            {
+                OpenSpiritMausoleumDestinationChoice();
+                return false;
+            }
+
+            if (canUseTribute)
+            {
+                OpenSpiritSummonChoice(player);
+                return false;
+            }
+
+            pendingSpiritZone = -1;
+            return false;
+        }
+
+        private void ResolveSpiritEffectChoice(CleanPlayerState player, int optionId)
+        {
+            if (optionId == SpiritMausoleumEffectOptionId)
+            {
+                OpenSpiritMausoleumDestinationChoice();
+            }
+            else if (optionId == SpiritTributeEffectOptionId)
+            {
+                OpenSpiritSummonChoice(player);
+            }
+        }
+
+        private void OpenSpiritMausoleumDestinationChoice()
+        {
+            State.PendingChoice = new CleanChoicePrompt(
+                SpiritMausoleumDestinationChoicePromptId,
+                "Spirit with Eyes of Blue",
+                "Choose where to place Mausoleum of White.",
+                new List<CleanChoiceOption>
+                {
+                    new CleanChoiceOption(SpiritMausoleumToHandOptionId, "Add to hand", "Add Mausoleum of White to your hand.", true, string.Empty),
+                    new CleanChoiceOption(SpiritMausoleumToGraveOptionId, "Send to GY", "Send Mausoleum of White to the GY.", true, string.Empty)
+                });
+            Log("Choose whether Mausoleum of White goes to the hand or GY.");
+        }
+
+        private void ResolveSpiritMausoleumDestinationChoice(CleanPlayerState player, int optionId)
+        {
+            CleanCard mausoleum;
+            if (!TryTakeCard(player.Deck, MausoleumOfWhiteCardId, out mausoleum))
+            {
+                pendingSpiritZone = -1;
+                return;
+            }
+
+            player.UsedOncePerTurn.Add(SpiritMausoleumOnceKey);
+            if (optionId == SpiritMausoleumToGraveOptionId)
+            {
+                AddToGraveyard(player, mausoleum);
+                Log("Spirit with Eyes of Blue sends Mausoleum of White from the Deck to the GY.");
+            }
+            else
+            {
+                ResetCardForHiddenZone(mausoleum);
+                player.Hand.Add(mausoleum);
+                Log("Spirit with Eyes of Blue adds Mausoleum of White from the Deck to the hand.");
+            }
+
+            pendingSpiritZone = -1;
+        }
+
+        private void OpenSpiritSummonChoice(CleanPlayerState player)
+        {
+            List<CleanChoiceOption> options = new List<CleanChoiceOption>();
+            AddSpiritSummonOptions(options, player.Hand, true);
+            AddSpiritSummonOptions(options, player.Graveyard, false);
+            State.PendingChoice = new CleanChoicePrompt(
+                SpiritSummonChoicePromptId,
+                "Spirit with Eyes of Blue",
+                "Choose 1 Blue-Eyes monster from your hand or GY to Special Summon.",
+                options);
+            Log("Spirit with Eyes of Blue awaits a Blue-Eyes summon choice.");
+        }
+
+        private void AddSpiritSummonOptions(List<CleanChoiceOption> options, List<CleanCard> cards, bool fromHand)
+        {
+            HashSet<int> seenIds = new HashSet<int>();
+            for (int i = 0; i < cards.Count; i++)
+            {
+                CleanCard card = cards[i];
+                if (!IsBlueEyesMonster(card) || seenIds.Contains(card.Definition.Id))
+                {
+                    continue;
+                }
+
+                seenIds.Add(card.Definition.Id);
+                int optionId = fromHand ? -card.Definition.Id : card.Definition.Id;
+                string detail = fromHand ? "Special Summon from hand" : "Special Summon from GY";
+                options.Add(new CleanChoiceOption(optionId, card.Definition.Name, detail, true, string.Empty));
+            }
+        }
+
+        private void ResolveSpiritSummonChoice(CleanPlayerState player, int optionId)
+        {
+            bool fromHand = optionId < 0;
+            int cardId = Math.Abs(optionId);
+            List<CleanCard> source = fromHand ? player.Hand : player.Graveyard;
+            CleanCard target;
+            if (!PendingSpiritIsValid(player) || !TryTakeCard(source, cardId, out target) || !IsBlueEyesMonster(target))
+            {
+                pendingSpiritZone = -1;
+                return;
+            }
+
+            MovePendingSpiritToGrave(player);
+            player.UsedOncePerTurn.Add(SpiritTributeOnceKey);
+            int zone = FirstEmpty(player.Monsters);
+            SummonToZone(player, target, zone, false, CleanMonsterStance.Attack);
+            if (!fromHand && !IsNormalMonsterCard(target))
+            {
+                target.EffectsNegated = true;
+                target.CannotAttack = true;
+                Log("Spirit with Eyes of Blue Special Summons " + target.Definition.Name + " from the GY with its effects negated and it cannot attack.");
+            }
+            else
+            {
+                Log("Spirit with Eyes of Blue Special Summons " + target.Definition.Name + " from " + (fromHand ? "the hand" : "the GY") + ".");
+            }
+
+            pendingSpiritZone = -1;
+        }
+
+        private int FindMonsterZone(CleanPlayerState player, CleanCard target)
+        {
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                if (object.ReferenceEquals(player.Monsters[i], target))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private int FindSpiritZone(CleanPlayerState player, CleanCard target)
+        {
+            int mainZone = FindMonsterZone(player, target);
+            if (mainZone >= 0)
+            {
+                return mainZone;
+            }
+
+            int extraZone = ExtraMonsterZoneIndexFor(player);
+            return object.ReferenceEquals(State.ExtraMonsters[extraZone], target) ? ExtraSpiritZoneOffset + extraZone : -1;
+        }
+
+        private bool PendingSpiritIsValid(CleanPlayerState player)
+        {
+            if (pendingSpiritZone >= 0 && pendingSpiritZone < CleanPlayerState.ZoneCount)
+            {
+                CleanCard spirit = player.Monsters[pendingSpiritZone];
+                return spirit != null && spirit.Definition.Id == SpiritWithEyesOfBlueCardId;
+            }
+
+            int extraZone = pendingSpiritZone - ExtraSpiritZoneOffset;
+            return extraZone == ExtraMonsterZoneIndexFor(player) &&
+                   State.ExtraMonsters[extraZone] != null &&
+                   State.ExtraMonsters[extraZone].Definition.Id == SpiritWithEyesOfBlueCardId;
+        }
+
+        private void MovePendingSpiritToGrave(CleanPlayerState player)
+        {
+            if (pendingSpiritZone >= 0 && pendingSpiritZone < CleanPlayerState.ZoneCount)
+            {
+                MoveMonsterToGrave(player, pendingSpiritZone);
+                return;
+            }
+
+            int extraZone = pendingSpiritZone - ExtraSpiritZoneOffset;
+            if (extraZone == ExtraMonsterZoneIndexFor(player) && State.ExtraMonsters[extraZone] != null)
+            {
+                CleanCard spirit = State.ExtraMonsters[extraZone];
+                State.ExtraMonsters[extraZone] = null;
+                ResetCardForHiddenZone(spirit);
+                AddToGraveyard(player, spirit, true);
+            }
+        }
+
+        private bool CanRoarSummonBlueEyes(CleanPlayerState player)
+        {
+            Predicate<CleanCard> predicate = HasFaceUpBlueEyesWhiteDragon(player) ? new Predicate<CleanCard>(IsBlueEyesMonster) : new Predicate<CleanCard>(IsBlueEyesWhiteDragonCard);
+            return FirstEmpty(player.Monsters) >= 0 &&
+                   (HasMatchingCard(player.Deck, predicate) || HasMatchingCard(player.Graveyard, predicate) || HasMatchingCard(player.Banished, predicate));
+        }
+
+        private bool LuaRoarSummonBlueEyes(CleanPlayerState player)
+        {
+            Predicate<CleanCard> predicate = HasFaceUpBlueEyesWhiteDragon(player) ? new Predicate<CleanCard>(IsBlueEyesMonster) : new Predicate<CleanCard>(IsBlueEyesWhiteDragonCard);
+            CleanCard card;
+            string source;
+            if (!TryTakeBestMonsterFromZones(player, predicate, out card, out source, true, false))
+            {
+                Log("Roar failed: no valid Blue-Eyes summon target.");
+                return false;
+            }
+
+            int zone = FirstEmpty(player.Monsters);
+            if (zone < 0)
+            {
+                ReturnCardToSource(player, card, source);
+                Log("Roar failed: no open Monster Zone.");
+                return false;
+            }
+
+            SummonToZone(player, card, zone, false, CleanMonsterStance.Defense);
+            Log("Roar special summons " + card.Definition.Name + " from " + source + " in Defense Position.");
+            return true;
+        }
+
+        private bool LuaSpecialSummonBlueEyesWhiteDragon(CleanPlayerState player, CleanMonsterStance stance)
+        {
+            CleanCard card;
+            string source;
+            if (!TryTakeBestMonsterFromZones(player, IsBlueEyesWhiteDragonCard, out card, out source))
+            {
+                Log("Blue-Eyes White Dragon summon failed: no copy found in hand, deck, or GY.");
+                return false;
+            }
+
+            int zone = FirstEmpty(player.Monsters);
+            if (zone < 0)
+            {
+                ReturnCardToSource(player, card, source);
+                Log("Blue-Eyes White Dragon summon failed: no open Monster Zone.");
+                return false;
+            }
+
+            SummonToZone(player, card, zone, false, stance);
+            Log("Clean special summons Blue-Eyes White Dragon from " + source + ".");
+            return true;
+        }
+
+        private bool LuaSearchLevelOneLightTuner(CleanPlayerState player, int excludeId)
+        {
+            int index = BestCardInDeckForSearch(player, card => card.Definition.Id != excludeId && IsLevelOneLightTuner(card));
+            if (index < 0)
+            {
+                Log("Sage search failed: no Level 1 LIGHT Tuner in deck.");
+                return false;
+            }
+
+            CleanCard card = player.Deck[index];
+            player.Deck.RemoveAt(index);
+            ResetCardForHiddenZone(card);
+            player.Hand.Add(card);
+            Log("Sage adds " + card.Definition.Name + " from deck to hand.");
+            return true;
+        }
+
+        private bool RecoverBlueEyesFromGraveyard(CleanPlayerState player, int selfId)
+        {
+            int selfIndex = IndexOfCard(player.Graveyard, selfId);
+            int targetIndex = BestCardIndex(player.Graveyard, card => card.Definition.Id != selfId && IsBlueEyesCard(card));
+            if (selfIndex < 0 || targetIndex < 0)
+            {
+                return false;
+            }
+
+            if (TryNegateRivalGraveyardEffect(player, "a graveyard recovery effect"))
+            {
+                return false;
+            }
+
+            CleanCard self = player.Graveyard[selfIndex];
+            player.Graveyard.RemoveAt(selfIndex);
+            if (targetIndex > selfIndex)
+            {
+                targetIndex--;
+            }
+
+            CleanCard target = player.Graveyard[targetIndex];
+            player.Graveyard.RemoveAt(targetIndex);
+            ResetCardForHiddenZone(self);
+            player.Banished.Add(self);
+            ResetCardForHiddenZone(target);
+            player.Hand.Add(target);
+            Log(self.Definition.Name + " is banished from the GY to recover " + target.Definition.Name + ".");
+            return true;
+        }
+
+        private bool SendBlueEyesWhiteDragonToGraveFromHandOrDeck(CleanPlayerState player)
+        {
+            CleanCard card;
+            bool fromHand = false;
+            if (!TryTakeCard(player.Deck, BlueEyesWhiteDragonCardId, out card))
+            {
+                if (!TryTakeCard(player.Hand, BlueEyesWhiteDragonCardId, out card))
+                {
+                    Log("Could not send Blue-Eyes White Dragon for cost.");
+                    return false;
+                }
+
+                fromHand = true;
+            }
+
+            ResetCardForHiddenZone(card);
+            AddToGraveyard(player, card, fromHand);
+            Log("Sent Blue-Eyes White Dragon to the GY for cost.");
+            return true;
+        }
+
+        private bool DiscardFirstCard(CleanPlayerState player, CleanCard source)
+        {
+            for (int i = 0; i < player.Hand.Count; i++)
+            {
+                CleanCard candidate = player.Hand[i];
+                if (object.ReferenceEquals(candidate, source))
+                {
+                    continue;
+                }
+
+                player.Hand.RemoveAt(i);
+                ResetCardForHiddenZone(candidate);
+                AddToGraveyard(player, candidate, true);
+                Log("Discarded " + candidate.Definition.Name + " for cost.");
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool AddFromDeckToHand(CleanPlayerState player, Predicate<CleanCard> predicate, string label)
+        {
+            int index = BestCardInDeckForSearch(player, predicate);
+            if (index < 0)
+            {
+                Log("Search failed: no " + label + " in deck.");
+                return false;
+            }
+
+            CleanCard card = player.Deck[index];
+            player.Deck.RemoveAt(index);
+            ResetCardForHiddenZone(card);
+            player.Hand.Add(card);
+            Log("Added " + card.Definition.Name + " from deck to hand.");
+            return true;
+        }
+
+        private bool NegateStrongestRivalMonster(CleanPlayerState rival)
+        {
+            int zone = StrongestEffectTargetZone(rival);
+            if (zone < 0)
+            {
+                Log("No valid monster to negate.");
+                return false;
+            }
+
+            CleanCard target = rival.Monsters[zone];
+            target.EffectsNegated = true;
+            target.AttackBonus = 0;
+            Log("Negated " + target.Definition.Name + " until the end of the turn in the clean model.");
+            return true;
+        }
+
+        private bool DestroyStrongestFaceUpCard(CleanPlayerState player)
+        {
+            int spellTrapZone = FirstDestructibleSpellTrapZone(player);
+            int monsterZone = StrongestDestructibleEffectTargetZone(player);
+            if (spellTrapZone >= 0)
+            {
+                CleanCard destroyed = player.SpellsTraps[spellTrapZone];
+                string name = destroyed.Definition.Name;
+                MoveSpellTrapToGrave(player, spellTrapZone);
+                TriggerJetSummonAfterFieldCardDestroyed(destroyed);
+                Log("Ghost Ogre destroys " + name + ".");
+                TriggerBlueEyesUltimateSpiritDestroyed(player, destroyed);
+                return true;
+            }
+
+            if (player.FieldSpell != null && !player.FieldSpell.FaceDown && !IsProtectedByJetFromCardEffect(player, player.FieldSpell))
+            {
+                CleanCard destroyed = player.FieldSpell;
+                string name = destroyed.Definition.Name;
+                MoveFieldSpellToGrave(player);
+                TriggerJetSummonAfterFieldCardDestroyed(destroyed);
+                Log("Ghost Ogre destroys " + name + ".");
+                TriggerBlueEyesUltimateSpiritDestroyed(player, destroyed);
+                return true;
+            }
+
+            if (monsterZone >= 0)
+            {
+                CleanCard destroyed = player.Monsters[monsterZone];
+                string name = destroyed.Definition.Name;
+                MoveMonsterToGrave(player, monsterZone);
+                TriggerJetSummonAfterFieldCardDestroyed(destroyed);
+                Log("Ghost Ogre destroys " + name + ".");
+                TriggerBlueEyesUltimateSpiritDestroyed(player, destroyed);
+                return true;
+            }
+
+            Log("Ghost Ogre found no face-up card to destroy.");
+            return false;
+        }
+
+        private bool BanishBestSpellTrap(CleanPlayerState player)
+        {
+            int zone = StrongestSpellTrapZone(player);
+            if (zone >= 0)
+            {
+                CleanCard card = player.SpellsTraps[zone];
+                string name = card.Definition.Name;
+                player.SpellsTraps[zone] = null;
+                ResetCardForHiddenZone(card);
+                player.Banished.Add(card);
+                Log("Dragon Spirit of White banishes " + name + ".");
+                return true;
+            }
+
+            if (player.FieldSpell != null)
+            {
+                CleanCard card = player.FieldSpell;
+                string name = card.Definition.Name;
+                player.FieldSpell = null;
+                ResetCardForHiddenZone(card);
+                player.Banished.Add(card);
+                Log("Dragon Spirit of White banishes " + name + ".");
+                return true;
+            }
+
+            return false;
+        }
+        private int StrongestSpellTrapZone(CleanPlayerState player)
+        {
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard card = player.SpellsTraps[i];
+                if (card != null && !card.FaceDown)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private bool CanDragonSpiritTributeForBlueEyes(CleanPlayerState player, CleanPlayerState rival)
+        {
+            return rival != null && MonsterCount(rival) > 0 && IndexOfCard(player.Hand, BlueEyesWhiteDragonCardId) >= 0;
+        }
+
+        private bool HasFaceUpCard(CleanPlayerState player)
+        {
+            return StrongestEffectTargetZone(player) >= 0 || StrongestSpellTrapZone(player) >= 0 || HasFaceUpFieldSpell(player);
+        }
+
+        private bool HasSpellTrap(CleanPlayerState player)
+        {
+            return StrongestSpellTrapZone(player) >= 0 || player.FieldSpell != null;
+        }
+
+        private bool HasFaceUpFieldSpell(CleanPlayerState player)
+        {
+            return player.FieldSpell != null && !player.FieldSpell.FaceDown;
+        }
+        private bool HasOwnEffectMonsterOnField(CleanPlayerState player)
+        {
+            return FirstOwnEffectMonsterZone(player, -1) >= 0;
+        }
+
+        private int FirstOwnEffectMonsterZone(CleanPlayerState player, int excludeId)
+        {
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard monster = player.Monsters[i];
+                if (monster != null && !monster.FaceDown && monster.Definition.Id != excludeId && !IsNormalMonster(monster))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private bool HasBlueEyesWhiteDragonInHandDeckOrGrave(CleanPlayerState player)
+        {
+            return IndexOfCard(player.Hand, BlueEyesWhiteDragonCardId) >= 0 || IndexOfCard(player.Deck, BlueEyesWhiteDragonCardId) >= 0 || IndexOfCard(player.Graveyard, BlueEyesWhiteDragonCardId) >= 0;
+        }
+
+        private bool HasBlueEyesWhiteDragonInHandOrDeck(CleanPlayerState player)
+        {
+            return IndexOfCard(player.Hand, BlueEyesWhiteDragonCardId) >= 0 || IndexOfCard(player.Deck, BlueEyesWhiteDragonCardId) >= 0;
+        }
+
+        private bool HasBlueEyesWhiteDragonOnFieldOrGrave(CleanPlayerState player)
+        {
+            return HasFaceUpBlueEyesWhiteDragon(player) || IndexOfCard(player.Graveyard, BlueEyesWhiteDragonCardId) >= 0;
+        }
+
+        private bool HasFaceUpBlueEyesWhiteDragon(CleanPlayerState player)
+        {
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard monster = player.Monsters[i];
+                if (monster != null && !monster.FaceDown && monster.Definition.Id == BlueEyesWhiteDragonCardId)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool HasBlueEyesDiscardCost(CleanPlayerState player)
+        {
+            return HasMatchingCard(player.Hand, IsBlueEyesWhiteDragonOrMention);
+        }
+
+        private bool TryTakeDiscardCost(List<CleanCard> cards, Predicate<CleanCard> predicate, out CleanCard card)
+        {
+            int index = BestCardIndex(cards, predicate);
+            if (index < 0)
+            {
+                card = null;
+                return false;
+            }
+
+            card = cards[index];
+            cards.RemoveAt(index);
+            return true;
+        }
+
+        private int BestCardIndex(List<CleanCard> cards, Predicate<CleanCard> predicate)
+        {
+            int bestIndex = -1;
+            int bestScore = -1;
+            for (int i = 0; i < cards.Count; i++)
+            {
+                CleanCard card = cards[i];
+                if (!predicate(card))
+                {
+                    continue;
+                }
+
+                int score = card.Definition.Attack + card.Definition.Level * 100;
+                if (IsBlueEyesCard(card))
+                {
+                    score += 100000;
+                }
+
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestIndex = i;
+                }
+            }
+
+            return bestIndex;
+        }
+
+        private void ResolveSummonTrigger(CleanPlayerState player, CleanPlayerState rival, CleanCard card, bool normalSummon)
+        {
+            if (card == null || card.FaceDown)
+            {
+                return;
+            }
+
+            if (normalSummon && card.Definition.Id == SageWithEyesOfBlueCardId)
+            {
+                OpenSageNormalSummonSearchChoice(player);
+            }
+
+            if (card.Definition.Id == DragonSpiritOfWhiteCardId)
+            {
+                BanishBestSpellTrap(rival);
+            }
+
+            if (!normalSummon && card.Definition.Id == BlueEyesWhiteDragonCardId)
+            {
+                ReviveMaidenOfWhiteFromGrave(player);
+            }
+        }
+
+        private bool ReviveMaidenOfWhiteFromGrave(CleanPlayerState player)
+        {
+            int zone = FirstEmpty(player.Monsters);
+            if (zone < 0)
+            {
+                return false;
+            }
+
+            int maidenIndex = IndexOfCard(player.Graveyard, MaidenOfWhiteCardId);
+            if (maidenIndex < 0 || !CanSpecialSummonUnderSpiritRestriction(player, player.Graveyard[maidenIndex]))
+            {
+                return false;
+            }
+
+            CleanCard maiden = player.Graveyard[maidenIndex];
+            player.Graveyard.RemoveAt(maidenIndex);
+            SummonToZone(player, maiden, zone, false, CleanMonsterStance.Attack);
+            Log("Maiden of White special summons itself from the GY after Blue-Eyes White Dragon was Special Summoned.");
+            return true;
+        }
+
+        private bool IsBlueEyesWhiteDragonCard(CleanCard card)
+        {
+            return card != null && card.Definition.Id == BlueEyesWhiteDragonCardId;
+        }
+
+        private bool IsBlueEyesWhiteDragonOrMention(CleanCard card)
+        {
+            if (card == null)
+            {
+                return false;
+            }
+
+            string text = card.Definition.Text ?? string.Empty;
+            return card.Definition.Id == BlueEyesWhiteDragonCardId ||
+                   text.IndexOf("Blue-Eyes White Dragon", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   IsBlueEyesSpellTrapSupport(card);
+        }
+
+        private bool IsLevelOneLightTuner(CleanCard card)
+        {
+            if (card == null || card.Definition.Kind != CleanCardKind.Monster || card.Definition.Level != 1)
+            {
+                return false;
+            }
+
+            string typeLine = card.Definition.TypeLine ?? string.Empty;
+            return typeLine.IndexOf("Tuner", StringComparison.OrdinalIgnoreCase) >= 0 || card.Definition.Name.IndexOf("with Eyes of Blue", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private bool IsBlueEyesSpellTrapSupport(CleanCard card)
+        {
+            if (card == null || card.Definition.Kind == CleanCardKind.Monster)
+            {
+                return false;
+            }
+
+            string text = card.Definition.Text ?? string.Empty;
+            if (text.IndexOf("Blue-Eyes White Dragon", StringComparison.OrdinalIgnoreCase) >= 0 || text.IndexOf("Blue-Eyes Ultimate Dragon", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            switch (card.Definition.Id)
+            {
+                case 24382602:
+                case 93437091:
+                case 80326401:
+                case 17725109:
+                case 2783661:
+                case 21082832:
+                case 41620959:
+                case 71143015:
+                case 62089826:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private bool IsBingoSearchCandidate(CleanCard card)
+        {
+            return card != null && (IsBlueEyesMonster(card) || IsBlueEyesSpellTrapSupport(card));
+        }
+
+        private bool IsGatewayToChaosSearchCandidate(CleanCard card)
+        {
+            if (card == null || card.Definition.Kind != CleanCardKind.Monster)
+            {
+                return false;
+            }
+
+            string name = card.Definition.Name ?? string.Empty;
+            bool blackLusterSoldierRitual = IsRitualMonster(card) && name.IndexOf("Black Luster Soldier", StringComparison.OrdinalIgnoreCase) >= 0;
+            bool gaiaTheFierceKnight = name.IndexOf("Gaia The Fierce Knight", StringComparison.OrdinalIgnoreCase) >= 0;
+            return blackLusterSoldierRitual || gaiaTheFierceKnight;
+        }
+
+        private bool IsRitualSpellCard(CleanCard card)
+        {
+            if (card == null || card.Definition.Kind != CleanCardKind.Spell)
+            {
+                return false;
+            }
+
+            return card.Definition.Id == ChaosFormCardId || (card.Definition.TypeLine ?? string.Empty).IndexOf("Ritual", StringComparison.OrdinalIgnoreCase) >= 0 || (card.Definition.Name ?? string.Empty).IndexOf("Ritual", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private bool IsMausoleumOfWhite(CleanCard card)
+        {
+            return card != null && card.Definition.Id == 24382602;
+        }
+
+        private bool IsDragonMonster(CleanCard card)
+        {
+            if (card == null || card.Definition.Kind != CleanCardKind.Monster)
+            {
+                return false;
+            }
+
+            string typeLine = card.Definition.TypeLine ?? string.Empty;
+            return typeLine.IndexOf("Dragon", StringComparison.OrdinalIgnoreCase) >= 0 || IsBlueEyesCard(card);
+        }
+
+        private bool CanSpecialSummonUnderSpiritRestriction(CleanPlayerState player, CleanCard card)
+        {
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard monster = player.Monsters[i];
+                if (monster != null && monster.Definition.Id == SpiritWithEyesOfBlueCardId && !monster.FaceDown && !monster.EffectsNegated)
+                {
+                    return IsDragonMonster(card);
+                }
+            }
+
+            CleanCard extraMonster = State.ExtraMonsters[ExtraMonsterZoneIndexFor(player)];
+            if (extraMonster != null && extraMonster.Definition.Id == SpiritWithEyesOfBlueCardId && !extraMonster.FaceDown && !extraMonster.EffectsNegated)
+            {
+                return IsDragonMonster(card);
+            }
+
+            return true;
+        }
+
+        private bool IsNormalMonsterCard(CleanCard card)
+        {
+            return card != null && IsNormalMonsterDefinition(card.Definition);
+        }
         internal bool LuaSpecialSummonSpecific(CleanPlayerState player, CleanCard card)
         {
             int zone = FirstEmpty(player.Monsters);
@@ -1362,12 +5222,23 @@ namespace IcarusGame.CleanDuel
                 return false;
             }
 
+            if (!CanSpecialSummonUnderSpiritRestriction(player, card))
+            {
+                Log("Spirit with Eyes of Blue prevents the Special Summon of non-Dragon monsters.");
+                return false;
+            }
+
             SummonToZone(player, card, zone, false, CleanMonsterStance.Attack);
             Log("Clean special summons " + card.Definition.Name + ".");
             return true;
         }
 
         internal bool LuaSpecialSummonBestBlueEyes(CleanPlayerState player)
+        {
+            return LuaSpecialSummonBestBlueEyes(player, CleanMonsterStance.Attack);
+        }
+
+        internal bool LuaSpecialSummonBestBlueEyes(CleanPlayerState player, CleanMonsterStance stance)
         {
             CleanCard card;
             string source;
@@ -1385,39 +5256,18 @@ namespace IcarusGame.CleanDuel
                 return false;
             }
 
-            SummonToZone(player, card, zone, false, CleanMonsterStance.Attack);
+            SummonToZone(player, card, zone, false, stance);
             Log("Clean special summons " + card.Definition.Name + " from " + source + ".");
             return true;
         }
 
-        internal bool LuaSpecialSummonBestLevelOne(CleanPlayerState player)
-        {
-            CleanCard card;
-            string source;
-            if (!TryTakeBestMonsterFromZones(player, IsLevelOneMonster, out card, out source))
-            {
-                Log("Clean Level 1 summon failed: no Level 1 monster found.");
-                return false;
-            }
-
-            int zone = FirstEmpty(player.Monsters);
-            if (zone < 0)
-            {
-                Log("Clean Level 1 summon failed: no open monster zone.");
-                ReturnCardToSource(player, card, source);
-                return false;
-            }
-
-            SummonToZone(player, card, zone, false, CleanMonsterStance.Attack);
-            Log("Clean special summons " + card.Definition.Name + " from " + source + ".");
-            return true;
-        }
 
         private sealed class RitualMaterialCandidate
         {
             public CleanCard Card;
             public List<CleanCard> List;
             public int ZoneIndex = -1;
+            public bool BanishesFromGraveyard;
 
             public bool IsMonsterZone
             {
@@ -1444,7 +5294,9 @@ namespace IcarusGame.CleanDuel
 
             CleanCard ritualMonster = player.Hand[ritualIndex];
             player.Hand.RemoveAt(ritualIndex);
+            bool usedBlueEyesWhiteDragon = RitualMaterialsIncludeBlueEyesWhiteDragon(materials);
             MoveRitualMaterialsToGrave(player, materials);
+            ritualMonster.RitualSummonedUsingBlueEyesWhiteDragon = usedBlueEyesWhiteDragon;
             int zone = FirstEmpty(player.Monsters);
             if (zone < 0)
             {
@@ -1466,7 +5318,7 @@ namespace IcarusGame.CleanDuel
             for (int i = 0; i < player.Hand.Count; i++)
             {
                 CleanCard ritualMonster = player.Hand[i];
-                if (!IsChaosFormRitualTarget(ritualMonster))
+                if (!IsChaosFormRitualTarget(ritualMonster) || !CanSpecialSummonUnderSpiritRestriction(player, ritualMonster))
                 {
                     continue;
                 }
@@ -1507,6 +5359,16 @@ namespace IcarusGame.CleanDuel
                 if (IsRitualTributeMaterial(card))
                 {
                     pool.Add(new RitualMaterialCandidate { Card = card, ZoneIndex = i });
+                }
+            }
+
+
+            for (int i = 0; i < player.Graveyard.Count; i++)
+            {
+                CleanCard card = player.Graveyard[i];
+                if (IsChaosFormGraveyardMaterial(card))
+                {
+                    pool.Add(new RitualMaterialCandidate { Card = card, List = player.Graveyard, BanishesFromGraveyard = true });
                 }
             }
 
@@ -1589,8 +5451,34 @@ namespace IcarusGame.CleanDuel
                 }
 
                 ResetCardForHiddenZone(card);
-                player.Graveyard.Add(card);
+                if (!material.BanishesFromGraveyard)
+                {
+                    AddToGraveyard(player, card, material.IsMonsterZone || object.ReferenceEquals(material.List, player.Hand));
+                }
+                else
+                {
+                    player.Banished.Add(card);
+                    Log("Chaos Form banishes " + card.Definition.Name + " from the GY as ritual material.");
+                }
             }
+        }
+
+        private bool RitualMaterialsIncludeBlueEyesWhiteDragon(List<RitualMaterialCandidate> materials)
+        {
+            for (int i = 0; i < materials.Count; i++)
+            {
+                if (materials[i].Card != null && materials[i].Card.Definition.Id == BlueEyesWhiteDragonCardId)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsChaosFormGraveyardMaterial(CleanCard card)
+        {
+            return card != null && (card.Definition.Id == BlueEyesWhiteDragonCardId || string.Equals(card.Definition.Name, "Dark Magician", StringComparison.OrdinalIgnoreCase));
         }
 
         private bool IsChaosFormRitualTarget(CleanCard card)
@@ -1609,11 +5497,231 @@ namespace IcarusGame.CleanDuel
         {
             return card != null && card.Definition.Kind == CleanCardKind.Monster && !IsRitualMonster(card);
         }
+        private bool CanSynchroSummonFromExtra(CleanPlayerState player, int preferredId)
+        {
+            int extraIndex;
+            List<int> materialZones;
+            return TryFindSynchroSummon(player, preferredId, out extraIndex, out materialZones);
+        }
+
+        internal bool LuaCanSynchroSummonBestAvailable(CleanPlayerState player, int preferredId)
+        {
+            return CanSynchroSummonFromExtra(player, preferredId);
+        }
+
+        internal bool LuaSynchroSummonBestAvailable(CleanPlayerState player, int preferredId)
+        {
+            int extraIndex;
+            List<int> materialZones;
+            if (!TryFindSynchroSummon(player, preferredId, out extraIndex, out materialZones))
+            {
+                Log("Synchro summon failed: needs exactly 1 Tuner and at least 1 non-Tuner with matching Levels.");
+                return false;
+            }
+
+            CleanCard synchroMonster = player.ExtraDeck[extraIndex];
+            player.ExtraDeck.RemoveAt(extraIndex);
+            MoveSynchroMaterialsToGrave(player, materialZones);
+
+            int zone = FirstEmpty(player.Monsters);
+            if (zone < 0)
+            {
+                player.ExtraDeck.Add(synchroMonster);
+                Log("Synchro summon failed: no open Monster Zone after materials were used.");
+                return false;
+            }
+
+            SummonToZone(player, synchroMonster, zone, false, CleanMonsterStance.Attack);
+            synchroMonster.SynchroSummoned = true;
+            Log("Clean Synchro Summons " + synchroMonster.Definition.Name + " using " + materialZones.Count + " material(s).");
+            return true;
+        }
+
+        private bool TryFindSynchroSummon(CleanPlayerState player, int preferredId, out int extraIndex, out List<int> materialZones)
+        {
+            extraIndex = -1;
+            materialZones = null;
+
+            if (preferredId > 0)
+            {
+                int preferredIndex = IndexOfCard(player.ExtraDeck, preferredId);
+                List<int> preferredMaterials;
+                if (preferredIndex >= 0 && IsSynchroSummonCandidate(player.ExtraDeck[preferredIndex]) && TrySelectSynchroMaterials(player, player.ExtraDeck[preferredIndex], out preferredMaterials))
+                {
+                    extraIndex = preferredIndex;
+                    materialZones = preferredMaterials;
+                    return true;
+                }
+            }
+
+            int bestAttack = -1;
+            List<int> bestMaterials = null;
+            for (int i = 0; i < player.ExtraDeck.Count; i++)
+            {
+                CleanCard candidate = player.ExtraDeck[i];
+                List<int> candidateMaterials;
+                if (!IsSynchroSummonCandidate(candidate) || !TrySelectSynchroMaterials(player, candidate, out candidateMaterials))
+                {
+                    continue;
+                }
+
+                if (candidate.Definition.Attack > bestAttack)
+                {
+                    bestAttack = candidate.Definition.Attack;
+                    extraIndex = i;
+                    bestMaterials = candidateMaterials;
+                }
+            }
+
+            materialZones = bestMaterials;
+            return extraIndex >= 0;
+        }
+
+        private bool TrySelectSynchroMaterials(CleanPlayerState player, CleanCard synchroMonster, out List<int> materialZones)
+        {
+            materialZones = new List<int>();
+            int targetLevel = Mathf.Max(0, synchroMonster.Definition.Level);
+            if (targetLevel <= 0)
+            {
+                return false;
+            }
+
+            return TrySelectSynchroMaterials(player, synchroMonster, targetLevel, 0, 0, materialZones);
+        }
+
+        private bool TrySelectSynchroMaterials(CleanPlayerState player, CleanCard synchroMonster, int targetLevel, int startZone, int currentLevel, List<int> selectedZones)
+        {
+            if (currentLevel == targetLevel)
+            {
+                return SynchroMaterialsAreValid(player, synchroMonster, selectedZones);
+            }
+
+            if (currentLevel > targetLevel)
+            {
+                return false;
+            }
+
+            for (int i = startZone; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard material = player.Monsters[i];
+                if (!IsSynchroMaterialCandidate(material) || !SynchroMaterialAllowedFor(synchroMonster, material))
+                {
+                    continue;
+                }
+
+                selectedZones.Add(i);
+                if (TrySelectSynchroMaterials(player, synchroMonster, targetLevel, i + 1, currentLevel + material.Definition.Level, selectedZones))
+                {
+                    return true;
+                }
+
+                selectedZones.RemoveAt(selectedZones.Count - 1);
+            }
+
+            return false;
+        }
+
+        private bool SynchroMaterialsAreValid(CleanPlayerState player, CleanCard synchroMonster, List<int> selectedZones)
+        {
+            int tunerCount = 0;
+            int nonTunerCount = 0;
+            for (int i = 0; i < selectedZones.Count; i++)
+            {
+                CleanCard material = player.Monsters[selectedZones[i]];
+                if (material == null)
+                {
+                    return false;
+                }
+
+                if (IsTunerMonster(material))
+                {
+                    tunerCount++;
+                }
+                else
+                {
+                    nonTunerCount++;
+                    if ((synchroMonster.Definition.Id == BlueEyesSpiritDragonCardId || synchroMonster.Definition.Id == BlueEyesUltimateSpiritDragonCardId) && !IsBlueEyesMonster(material))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            if (synchroMonster.Definition.Id == BlueEyesUltimateSpiritDragonCardId)
+            {
+                return tunerCount >= 2 && nonTunerCount == 1;
+            }
+
+            return tunerCount == 1 && nonTunerCount >= 1;
+        }
+
+        private bool SynchroMaterialAllowedFor(CleanCard synchroMonster, CleanCard material)
+        {
+            if ((synchroMonster.Definition.Id == BlueEyesSpiritDragonCardId || synchroMonster.Definition.Id == BlueEyesUltimateSpiritDragonCardId) &&
+                !IsTunerMonster(material) &&
+                !IsBlueEyesMonster(material))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool IsSynchroMaterialCandidate(CleanCard card)
+        {
+            return card != null && card.Definition.Kind == CleanCardKind.Monster && !card.FaceDown && card.Definition.Level > 0;
+        }
+
+        private void MoveSynchroMaterialsToGrave(CleanPlayerState player, List<int> materialZones)
+        {
+            for (int i = 0; i < materialZones.Count; i++)
+            {
+                int zone = materialZones[i];
+                CleanCard card = player.Monsters[zone];
+                if (card == null)
+                {
+                    continue;
+                }
+
+                player.Monsters[zone] = null;
+                ResetCardForHiddenZone(card);
+                AddToGraveyard(player, card, true);
+            }
+        }
+
+        private bool IsSynchroSummonCandidate(CleanCard card)
+        {
+            return card != null && card.Definition.Kind == CleanCardKind.Monster && IsSynchroMonsterDefinition(card.Definition);
+        }
+
+        private bool IsSynchroMonsterDefinition(CleanCardDefinition definition)
+        {
+            if (definition == null)
+            {
+                return false;
+            }
+
+            string typeLine = definition.TypeLine ?? string.Empty;
+            return typeLine.IndexOf("Synchro", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private bool IsTunerMonster(CleanCard card)
+        {
+            if (card == null || card.Definition.Kind != CleanCardKind.Monster)
+            {
+                return false;
+            }
+
+            string typeLine = card.Definition.TypeLine ?? string.Empty;
+            return typeLine.IndexOf("Tuner", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
         private sealed class FusionMaterialCandidate
         {
             public CleanCard Card;
             public List<CleanCard> List;
             public int ZoneIndex = -1;
+            public bool BanishesFromGraveyard;
             public string Source;
 
             public bool IsMonsterZone
@@ -1633,6 +5741,11 @@ namespace IcarusGame.CleanDuel
         {
             int ignored;
             return LuaFusionSummonBestAvailable(player, preferredId, materialsToDeck, out ignored);
+        }
+
+        internal bool LuaCanFusionSummonBestAvailable(CleanPlayerState player, int preferredId)
+        {
+            return CanFusionSummonFromExtra(player, preferredId);
         }
 
         internal bool LuaFusionSummonBestAvailable(CleanPlayerState player, int preferredId, bool materialsToDeck, out int fieldBlueEyesMaterialCount)
@@ -1660,6 +5773,7 @@ namespace IcarusGame.CleanDuel
             }
 
             SummonToZone(player, fusionMonster, zone, false, CleanMonsterStance.Attack);
+            fusionMonster.FusionSummoned = true;
             Log("Clean Fusion Summons " + fusionMonster.Definition.Name + " using " + materials.Count + " material(s).");
             return true;
         }
@@ -1668,11 +5782,15 @@ namespace IcarusGame.CleanDuel
         {
             extraIndex = -1;
             materials = null;
+            bool ultimateFusionOnly = preferredId == DragonMasterMagiaCardId;
 
             if (preferredId > 0)
             {
                 int preferredIndex = IndexOfCard(player.ExtraDeck, preferredId);
-                if (preferredIndex >= 0 && TrySelectFusionMaterials(player, player.ExtraDeck[preferredIndex], out materials) && HasFusionSummonSpace(player, materials))
+                if (preferredIndex >= 0
+                    && (!ultimateFusionOnly || IsUltimateFusionSummonCandidate(player.ExtraDeck[preferredIndex]))
+                    && TrySelectFusionMaterials(player, player.ExtraDeck[preferredIndex], out materials)
+                    && HasFusionSummonSpace(player, materials))
                 {
                     extraIndex = preferredIndex;
                     return true;
@@ -1685,7 +5803,10 @@ namespace IcarusGame.CleanDuel
             {
                 CleanCard candidate = player.ExtraDeck[i];
                 List<FusionMaterialCandidate> candidateMaterials;
-                if (!IsFusionSummonCandidate(candidate) || !TrySelectFusionMaterials(player, candidate, out candidateMaterials) || !HasFusionSummonSpace(player, candidateMaterials))
+                bool validCandidate = ultimateFusionOnly
+                    ? IsUltimateFusionSummonCandidate(candidate)
+                    : IsFusionSummonCandidate(candidate);
+                if (!validCandidate || !TrySelectFusionMaterials(player, candidate, out candidateMaterials) || !HasFusionSummonSpace(player, candidateMaterials))
                 {
                     continue;
                 }
@@ -1834,15 +5955,84 @@ namespace IcarusGame.CleanDuel
                 }
                 else
                 {
-                    player.Graveyard.Add(card);
+                    if (material.IsMonsterZone)
+                    {
+                        SendFieldCardToGraveOrFaceUpExtra(player, card, true);
+                    }
+                    else
+                    {
+                        AddToGraveyard(player, card, string.Equals(material.Source, "hand", StringComparison.OrdinalIgnoreCase));
+                    }
                 }
             }
         }
 
+        private void SendFieldCardToGraveOrFaceUpExtra(CleanPlayerState player, CleanCard card, bool countGatewayCounter)
+        {
+            if (card == null)
+            {
+                return;
+            }
+
+            if (IsPendulumMonster(card))
+            {
+                ResetCardForHiddenZone(card);
+                card.FaceUpExtraDeck = true;
+                player.ExtraDeck.Add(card);
+                Log(card.Definition.Name + " is placed face-up on the Extra Deck instead of going to the GY.");
+                return;
+            }
+
+            AddToGraveyard(player, card, countGatewayCounter);
+        }
+
+        private void AddToGraveyard(CleanPlayerState player, CleanCard card, bool countGatewayCounter)
+        {
+            if (card == null)
+            {
+                return;
+            }
+
+            card.SentToGraveThisTurn = true;
+            player.Graveyard.Add(card);
+            if (countGatewayCounter && card.Definition.Kind == CleanCardKind.Monster)
+            {
+                AddGatewayToChaosCounter(player);
+            }
+        }
+
+        private void AddToGraveyard(CleanPlayerState player, CleanCard card)
+        {
+            AddToGraveyard(player, card, false);
+        }
+
+        private void AddGatewayToChaosCounter(CleanPlayerState player)
+        {
+            if (!HasFaceUpGatewayToChaos(player))
+            {
+                return;
+            }
+
+            player.GatewayToChaosCounters = Mathf.Min(6, player.GatewayToChaosCounters + 1);
+            Log("Gateway to Chaos gains 1 Spell Counter (" + player.GatewayToChaosCounters + "/6).");
+        }
         private void ResetCardForHiddenZone(CleanCard card)
         {
             card.FaceDown = false;
             card.AttackBonus = 0;
+            card.DefenseBonus = 0;
+            card.AttackOverride = -1;
+            card.DefenseOverride = -1;
+            card.CannotAttack = false;
+            card.EffectsNegated = false;
+            card.PiercingThisTurn = false;
+            card.RitualSummonedUsingBlueEyesWhiteDragon = false;
+            card.SentToGraveThisTurn = false;
+            card.FusionSummoned = false;
+            card.SynchroSummoned = false;
+            card.LinkSummoned = false;
+            card.FaceUpExtraDeck = false;
+            card.DestroyDuringEndPhase = false;
             card.HasBattled = false;
             card.SummonedThisTurn = false;
         }
@@ -1865,6 +6055,17 @@ namespace IcarusGame.CleanDuel
         private bool IsFusionSummonCandidate(CleanCard card)
         {
             return card != null && card.Definition.Kind == CleanCardKind.Monster && IsFusionMonsterDefinition(card.Definition);
+        }
+
+        private bool IsUltimateFusionSummonCandidate(CleanCard card)
+        {
+            if (!IsFusionSummonCandidate(card))
+            {
+                return false;
+            }
+
+            return card.Definition.Id == DragonMasterMagiaCardId
+                || card.Definition.Name.StartsWith("Blue-Eyes", StringComparison.OrdinalIgnoreCase);
         }
 
         private bool IsFusionMonsterDefinition(CleanCardDefinition definition)
@@ -1911,33 +6112,6 @@ namespace IcarusGame.CleanDuel
                    name.IndexOf("Chaos", StringComparison.OrdinalIgnoreCase) >= 0 ||
                    name.IndexOf("Black Luster Soldier", StringComparison.OrdinalIgnoreCase) >= 0;
         }
-        internal bool LuaSpecialSummonFromExtra(CleanPlayerState player, int preferredId)
-        {
-            int zone = FirstEmpty(player.Monsters);
-            if (zone < 0)
-            {
-                Log("Extra Deck summon failed: no open monster zone.");
-                return false;
-            }
-
-            int index = IndexOfCard(player.ExtraDeck, preferredId);
-            if (index < 0)
-            {
-                index = BestMonsterInList(player.ExtraDeck);
-            }
-
-            if (index < 0)
-            {
-                Log("Extra Deck summon failed: no monster left in Extra Deck.");
-                return false;
-            }
-
-            CleanCard card = player.ExtraDeck[index];
-            player.ExtraDeck.RemoveAt(index);
-            SummonToZone(player, card, zone, false, CleanMonsterStance.Attack);
-            Log("Clean special summons " + card.Definition.Name + " from the Extra Deck.");
-            return true;
-        }
 
         internal bool LuaSearchBestBlueEyes(CleanPlayerState player)
         {
@@ -1955,7 +6129,7 @@ namespace IcarusGame.CleanDuel
             return true;
         }
 
-        private bool TryTakeBestMonsterFromZones(CleanPlayerState player, Predicate<CleanCard> predicate, out CleanCard card, out string source)
+        private bool TryTakeBestMonsterFromZones(CleanPlayerState player, Predicate<CleanCard> predicate, out CleanCard card, out string source, bool includeBanished = false, bool includeHand = true)
         {
             if (TryTakeBestMonster(player.Graveyard, predicate, out card))
             {
@@ -1969,7 +6143,13 @@ namespace IcarusGame.CleanDuel
                 return true;
             }
 
-            if (TryTakeBestMonster(player.Hand, predicate, out card))
+            if (includeBanished && TryTakeBestMonster(player.Banished, predicate, out card))
+            {
+                source = "banished";
+                return true;
+            }
+
+            if (includeHand && TryTakeBestMonster(player.Hand, predicate, out card))
             {
                 source = "hand";
                 return true;
@@ -2019,6 +6199,10 @@ namespace IcarusGame.CleanDuel
             {
                 player.Hand.Add(card);
             }
+            else if (string.Equals(source, "banished", StringComparison.OrdinalIgnoreCase))
+            {
+                player.Banished.Add(card);
+            }
             else
             {
                 player.Deck.Add(card);
@@ -2041,8 +6225,8 @@ namespace IcarusGame.CleanDuel
         private bool IsBlueEyesCard(CleanCard card)
         {
             return card.Definition.Id == 89631139 ||
-                   card.Definition.Name.IndexOf("Blue-Eyes", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   card.Definition.Name.IndexOf("with Eyes of Blue", StringComparison.OrdinalIgnoreCase) >= 0;
+                   card.Definition.Id == DragonSpiritOfWhiteCardId ||
+                   card.Definition.Name.IndexOf("Blue-Eyes", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private bool IsBlueEyesMonster(CleanCard card)
@@ -2189,8 +6373,9 @@ namespace IcarusGame.CleanDuel
 
             return true;
         }
-        private void Draw(CleanPlayerState player, int count)
+        private int Draw(CleanPlayerState player, int count)
         {
+            int drawn = 0;
             for (int i = 0; i < count; i++)
             {
                 if (player.Deck.Count == 0)
@@ -2198,15 +6383,19 @@ namespace IcarusGame.CleanDuel
                     player.LifePoints = 0;
                     State.GameOver = true;
                     State.WinnerText = OpponentOf(player.Id).Name + " wins by deck-out.";
+                    Log(player.Name + " cannot draw because the Deck is empty.");
                     Log(State.WinnerText);
-                    return;
+                    return drawn;
                 }
 
                 CleanCard top = player.Deck[0];
                 player.Deck.RemoveAt(0);
                 top.FaceDown = false;
                 player.Hand.Add(top);
+                drawn++;
             }
+
+            return drawn;
         }
 
         private void FillDeck(CleanPlayerState player)
@@ -2230,16 +6419,21 @@ namespace IcarusGame.CleanDuel
         {
             player.LifePoints = 8000;
             player.NormalSummonUsed = false;
+            player.PendulumSummonUsed = false;
+            player.GatewayToChaosCounters = 0;
+            player.ExtraDeckDragonOnlyThisTurn = false;
             player.Deck.Clear();
             player.ExtraDeck.Clear();
             player.Hand.Clear();
             player.Graveyard.Clear();
+            player.Banished.Clear();
+            player.FieldSpell = null;
             player.UsedOncePerTurn.Clear();
             Array.Clear(player.Monsters, 0, player.Monsters.Length);
             Array.Clear(player.SpellsTraps, 0, player.SpellsTraps.Length);
         }
 
-        private void SummonToZone(CleanPlayerState player, CleanCard card, int zone, bool faceDown, CleanMonsterStance stance)
+        private void SummonToZone(CleanPlayerState player, CleanCard card, int zone, bool faceDown, CleanMonsterStance stance, bool normalSummon = false)
         {
             player.Monsters[zone] = card;
             card.Controller = player.Id;
@@ -2247,6 +6441,10 @@ namespace IcarusGame.CleanDuel
             card.Stance = stance;
             card.HasBattled = false;
             card.SummonedThisTurn = true;
+            if (!faceDown)
+            {
+                ResolveSummonTrigger(player, OpponentOf(player.Id), card, normalSummon);
+            }
         }
 
         private CleanCard CardInHand(CleanPlayerState player, int index)
@@ -2416,7 +6614,8 @@ namespace IcarusGame.CleanDuel
         {
             for (int i = 0; i < State.Rival.Hand.Count; i++)
             {
-                if (State.Rival.Hand[i].Definition.Kind == CleanCardKind.Spell)
+                CleanCard card = State.Rival.Hand[i];
+                if (card.Definition.Kind == CleanCardKind.Spell && CanActivateCleanCard(card, State.Rival, CleanActivationSource.Hand))
                 {
                     return i;
                 }
@@ -2450,27 +6649,46 @@ namespace IcarusGame.CleanDuel
 
         private void DestroyStrongestMonster(CleanPlayerState player)
         {
-            int strongestZone = StrongestEffectTargetZone(player);
+            int strongestZone = StrongestDestructibleEffectTargetZone(player);
             if (strongestZone >= 0)
             {
-                string name = player.Monsters[strongestZone].PublicName;
+                CleanCard destroyed = player.Monsters[strongestZone];
+                string name = destroyed.PublicName;
                 MoveMonsterToGrave(player, strongestZone);
+                TriggerJetSummonAfterFieldCardDestroyed(destroyed);
                 Log(name + " is destroyed.");
+                TriggerBlueEyesUltimateSpiritDestroyed(player, destroyed);
             }
             else
             {
                 Log("No valid monster to target.");
             }
         }
-
         private void DestroyAllMonsters(CleanPlayerState player)
         {
+            List<CleanCard> destroyedCards = new List<CleanCard>();
             for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
             {
-                if (player.Monsters[i] != null)
+                CleanCard monster = player.Monsters[i];
+                if (monster == null)
                 {
-                    MoveMonsterToGrave(player, i);
+                    continue;
                 }
+
+                if (IsProtectedByJetFromCardEffect(player, monster))
+                {
+                    Log("Blue-Eyes Jet Dragon protects " + monster.Definition.Name + " from card-effect destruction.");
+                    continue;
+                }
+
+                destroyedCards.Add(monster);
+                MoveMonsterToGrave(player, i);
+            }
+
+            for (int i = 0; i < destroyedCards.Count; i++)
+            {
+                TriggerJetSummonAfterFieldCardDestroyed(destroyedCards[i]);
+                TriggerBlueEyesUltimateSpiritDestroyed(player, destroyedCards[i]);
             }
         }
 
@@ -2485,10 +6703,11 @@ namespace IcarusGame.CleanDuel
 
             int bestIndex = -1;
             int bestAttack = -1;
+
             for (int i = 0; i < player.Graveyard.Count; i++)
             {
                 CleanCard card = player.Graveyard[i];
-                if (card.Definition.Kind == CleanCardKind.Monster && card.Definition.Attack > bestAttack)
+                if (card.Definition.Kind == CleanCardKind.Monster && CanSpecialSummonUnderSpiritRestriction(player, card) && card.Definition.Attack > bestAttack)
                 {
                     bestAttack = card.Definition.Attack;
                     bestIndex = i;
@@ -2523,6 +6742,69 @@ namespace IcarusGame.CleanDuel
             Log(boosted > 0 ? "Allied monsters gain " + amount + " ATK." : "No allied monsters to boost.");
         }
 
+        private void PlaceFieldSpell(CleanPlayerState player, CleanCard card)
+        {
+            if (player.FieldSpell != null && !object.ReferenceEquals(player.FieldSpell, card))
+            {
+                CleanCard oldField = player.FieldSpell;
+                player.FieldSpell = null;
+                if (oldField.Definition.Id == GatewayToChaosCardId)
+                {
+                    player.GatewayToChaosCounters = 0;
+                }
+
+                ResetCardForHiddenZone(oldField);
+                AddToGraveyard(player, oldField);
+                Log(oldField.Definition.Name + " is sent to the GY from the Field Spell Zone.");
+            }
+
+            player.FieldSpell = card;
+            card.Controller = player.Id;
+            card.FaceDown = false;
+            if (card.Definition.Id == GatewayToChaosCardId)
+            {
+                player.GatewayToChaosCounters = 0;
+            }
+        }
+
+        private void MoveFieldSpellToGrave(CleanPlayerState player)
+        {
+            CleanCard card = player.FieldSpell;
+            if (card == null)
+            {
+                return;
+            }
+
+            player.FieldSpell = null;
+            if (card.Definition.Id == GatewayToChaosCardId)
+            {
+                player.GatewayToChaosCounters = 0;
+            }
+
+            ResetCardForHiddenZone(card);
+            SendFieldCardToGraveOrFaceUpExtra(player, card, true);
+        }
+
+        private void MoveSpellTrapToGrave(CleanPlayerState player, int zone)
+        {
+            CleanCard card = player.SpellsTraps[zone];
+            if (card == null)
+            {
+                return;
+            }
+
+            bool trueLightLeftFaceUp = card.Definition.Id == TrueLightCardId && !card.FaceDown;
+            player.SpellsTraps[zone] = null;
+            ResetCardForHiddenZone(card);
+            SendFieldCardToGraveOrFaceUpExtra(player, card, true);
+
+            if (trueLightLeftFaceUp)
+            {
+                DestroyAllMonsters(player);
+                Log("True Light left the field face-up, so all of " + player.Name + "'s monsters are destroyed.");
+            }
+        }
+
         private void MoveMonsterToGrave(CleanPlayerState player, int zone)
         {
             CleanCard card = player.Monsters[zone];
@@ -2533,9 +6815,22 @@ namespace IcarusGame.CleanDuel
 
             card.FaceDown = false;
             card.AttackBonus = 0;
+            card.DefenseBonus = 0;
+            card.AttackOverride = -1;
+            card.DefenseOverride = -1;
+            card.CannotAttack = false;
+            card.EffectsNegated = false;
+            card.PiercingThisTurn = false;
+            card.RitualSummonedUsingBlueEyesWhiteDragon = false;
+            card.SentToGraveThisTurn = false;
+            card.FusionSummoned = false;
+            card.SynchroSummoned = false;
+            card.LinkSummoned = false;
+            card.FaceUpExtraDeck = false;
+            card.DestroyDuringEndPhase = false;
             card.HasBattled = false;
             player.Monsters[zone] = null;
-            player.Graveyard.Add(card);
+            SendFieldCardToGraveOrFaceUpExtra(player, card, true);
         }
 
         private void CheckWin()
@@ -2574,6 +6869,7 @@ namespace IcarusGame.CleanDuel
         }
     }
 }
+
 
 
 

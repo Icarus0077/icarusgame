@@ -3927,6 +3927,7 @@ namespace IcarusGame.MasterDuel
 
             Material material = new Material(shader);
             SetMaterialColor(material, color);
+            MakeMaterialMatte(material);
             return material;
         }
 
@@ -4119,6 +4120,8 @@ namespace IcarusGame.MasterDuel
             {
                 material.SetTexture("_MainTex", texture);
             }
+
+            MakeMaterialMatte(material);
         }
 
         private void SetMaterialColor(Material material, Color color)
@@ -4131,6 +4134,38 @@ namespace IcarusGame.MasterDuel
             if (material.HasProperty("_Color"))
             {
                 material.SetColor("_Color", color);
+            }
+        }
+
+        private void MakeMaterialMatte(Material material)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            SetMaterialFloat(material, "_Smoothness", 0f);
+            SetMaterialFloat(material, "_Glossiness", 0f);
+            SetMaterialFloat(material, "_Metallic", 0f);
+            SetMaterialFloat(material, "_SpecularHighlights", 0f);
+            SetMaterialFloat(material, "_EnvironmentReflections", 0f);
+            if (material.HasProperty("_SpecColor"))
+            {
+                material.SetColor("_SpecColor", Color.black);
+            }
+
+            if (material.HasProperty("_EmissionColor"))
+            {
+                material.SetColor("_EmissionColor", Color.black);
+                material.DisableKeyword("_EMISSION");
+            }
+        }
+
+        private void SetMaterialFloat(Material material, string propertyName, float value)
+        {
+            if (material.HasProperty(propertyName))
+            {
+                material.SetFloat(propertyName, value);
             }
         }
 
