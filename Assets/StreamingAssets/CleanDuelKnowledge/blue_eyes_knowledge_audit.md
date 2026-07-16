@@ -1,6 +1,6 @@
 ﻿# CleanDuel Yu-Gi-Oh Knowledge Audit
 
-Generated UTC: 2026-07-10T13:40:41Z
+Generated UTC: 2026-07-16T12:22:02Z
 Unity deck source: CleanCardLibrary local Blue-Eyes recipe
 Card database source: CardDatabase/cards.cdb (14880 records)
 Lua source: D:\unity\script
@@ -9,17 +9,23 @@ Official reference priority: Konami Rulebook + Yu-Gi-Oh! Neuron/Card Database, t
 ## Baseline Rules To Keep
 
 - Do not expose Activate on Normal Monsters just because they have card art or text.
-- Ritual Monsters require a Ritual Spell/effect and valid Level/material payment.
-- Fusion Monsters require a Fusion Summon/effect unless their own text allows Special Summon.
-- Synchro Summons require at least 1 Tuner and at least 1 non-Tuner with the exact required Level total.
+- Each Duel starts with both players at 8000 LP and a 5-card opening hand; the first player starts in Main Phase 1 and does not draw or conduct a Battle Phase on that first turn.
+- A Duel is won by reducing the opponent to 0 LP, by opponent deck-out when they must draw, or by card effect; if both players reach 0 LP at the same time, the Duel is a draw.
+- A monster cannot manually change battle position the turn it was played, more than once per turn, or in Main Phase 2 after it attacked; Flip Summon changes face-down Defense to face-up Attack.
+- Ritual Monsters live in the Main Deck; Ritual Summons require the matching Ritual Spell/effect, valid tribute payment from hand/field as listed, the Ritual Monster goes to a Main Monster Zone, and the Ritual Spell goes to the GY after resolving.
+- Fusion Monsters live in the Extra Deck; Fusion Summons require a Fusion/Summoning Spell or effect plus listed materials, send/move materials as the summoning effect says, summon to the Extra Monster Zone or a linked Main Monster Zone, then send the summoning card to the GY.
+- Synchro Monsters live in the Extra Deck; Synchro Summons normally require exactly 1 face-up Tuner plus 1 or more face-up non-Tuners with the exact Level total, send those materials to the GY, then use the Extra Monster Zone or a linked Main Monster Zone.
 - Link Monsters use Link Materials and should not be treated as Level monsters.
 - Field Spells stay in the Field Spell Zone after activation unless replaced or removed.
+- Spell Cards can be Set and activated during your Main Phase, but Set Quick-Play Spells and Trap Cards cannot be activated during the same turn they were Set; Quick-Play Spells can be activated from hand during any phase of your turn.
 - Quick Effects are Spell Speed 2 monster effects and can be activated during the opponent's turn when their condition is legal.
 - Continuous Effects do not activate; they apply only while the card is face-up and not negated, then stop when that condition ends.
 - Trigger Effects activate from specific events such as Summon, attack target, destruction, Graveyard timing, or End Phase; do not expose them as generic Activate buttons.
 - Flip Effects are Trigger Effects that start with FLIP and trigger when a face-down monster is flipped face-up by Flip Summon, battle, or card effect.
 - Link Monsters use printed Link Materials and Link Rating; Extra Deck Link Summons use the Extra Monster Zone first, then linked Main Monster Zones opened by Link Arrows.
 - Link Arrows mark linked zones/monsters; two Link Monsters pointing at each other are co-linked.
+- Xyz Monsters live in the Extra Deck, use Rank instead of Level, require face-up same-Level Xyz Materials, and stack those materials under the Xyz Monster.
+- Xyz Summons use the Extra Monster Zone first, then linked Main Monster Zones; detaching sends exactly 1 attached Xyz Material to the GY.
 - Pendulum Monsters can be activated as Spells only in the left/right Pendulum Zones; Pendulum Summon is once per turn, uses open scales, and face-up Pendulum Monsters from the Extra Deck must use the Extra Monster Zone or a linked Main Monster Zone.
 - Pendulum Monsters on the field go face-up to the Extra Deck instead of the GY when they would be sent to the GY.
 - If a card text says choose/add/send/target, prefer a player choice prompt over automatic best-card selection.

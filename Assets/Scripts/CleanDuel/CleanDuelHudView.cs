@@ -27,6 +27,13 @@ namespace IcarusGame.CleanDuel
         private RectTransform choicePanel;
         private Text choiceTitle;
         private Text choiceBody;
+        private RectTransform gameOverOverlay;
+        private Image gameOverScrim;
+        private Image gameOverBanner;
+        private Image gameOverAccent;
+        private Text gameOverTitle;
+        private Text gameOverSubtitle;
+        private Text gameOverHint;
         private readonly List<Button> choiceButtons = new List<Button>();
         private readonly List<Text> choiceButtonLabels = new List<Text>();
         private Button choiceCancelButton;
@@ -77,6 +84,7 @@ namespace IcarusGame.CleanDuel
             BuildQuickButtons(canvasRect);
             BuildLog(canvasRect);
             BuildChoicePrompt(canvasRect);
+            BuildGameOverOverlay(canvasRect);
         }
 
         public void Render(CleanDuelGame game, CleanCard selectedCard, int selectedHand, int selectedMonster, int selectedSpellTrap, int selectedExtraDeck)
@@ -92,8 +100,9 @@ namespace IcarusGame.CleanDuel
             RenderRivalHand(game);
             RenderHand(game, selectedHand);
             RenderLog(state);
-            RenderChoicePrompt(state.PendingChoice);
-            PositionActionLayer(selectedHand, selectedMonster, selectedSpellTrap, selectedExtraDeck);
+            RenderChoicePrompt(state.GameOver ? null : state.PendingChoice);
+            RenderGameOverOverlay(state);
+            PositionActionLayer(state.GameOver ? -1 : selectedHand, state.GameOver ? -1 : selectedMonster, state.GameOver ? -1 : selectedSpellTrap, state.GameOver ? -1 : selectedExtraDeck);
 
             CleanCard selectedSpellTrapCard = null;
             if (selectedSpellTrap >= 0 && selectedSpellTrap < CleanPlayerState.ZoneCount)
@@ -113,13 +122,13 @@ namespace IcarusGame.CleanDuel
             bool selectedNormalMonster = IsNormalMonster(selectedCard);
             bool canActivateSelectedCard = !selectedNormalMonster &&
                                            ((selectedHand >= 0 && (game.CanActivateHandCard(selectedHand) || game.CanActivateLocalQuickEffectHandCard(selectedHand))) ||
-                                            (selectedExtraDeck >= 0 && game.CanLinkSummonFromExtra(selectedExtraDeck)) ||
+                                            (selectedExtraDeck >= 0 && (game.CanSynchroSummonFromExtra(selectedExtraDeck) || game.CanLinkSummonFromExtra(selectedExtraDeck) || game.CanXyzSummonFromExtra(selectedExtraDeck))) ||
                                             (selectedMonster >= 0 && (game.CanActivateMonsterZoneCard(selectedMonster) || game.CanActivateLocalQuickEffectMonsterZoneCard(selectedMonster))));
             activateButton.gameObject.SetActive(!selectedNormalMonster || selectedExtraDeck >= 0);
             Text activateLabel = activateButton.GetComponentInChildren<Text>();
             if (activateLabel != null)
             {
-                activateLabel.text = selectedExtraDeck >= 0 ? "Link Summon" : selectedHand >= 0 && game.CanActivatePendulumFromHand(selectedHand) ? "Pendulum" : "Activate";
+                activateLabel.text = selectedExtraDeck >= 0 ? ExtraDeckSummonLabel(game, selectedExtraDeck) : selectedHand >= 0 && game.CanActivatePendulumFromHand(selectedHand) ? "Pendulum" : "Activate";
             }
             summonButton.interactable = selectedHand >= 0 && game.CanNormalSummon(selectedHand);
             setMonsterButton.interactable = selectedHand >= 0 && game.CanSetMonster(selectedHand);
@@ -144,6 +153,20 @@ namespace IcarusGame.CleanDuel
             }
         }
 
+        private string ExtraDeckSummonLabel(CleanDuelGame game, int extraDeckIndex)
+        {
+            if (game.CanSynchroSummonFromExtra(extraDeckIndex))
+            {
+                return "Synchro Summon";
+            }
+
+            if (game.CanXyzSummonFromExtra(extraDeckIndex))
+            {
+                return "Xyz Summon";
+            }
+
+            return "Link Summon";
+        }
         private void BuildTopChrome(RectTransform canvas)
         {
             RectTransform gear = Panel("Gear", canvas, new Color(0.01f, 0.02f, 0.04f, 0.78f));
@@ -261,6 +284,56 @@ namespace IcarusGame.CleanDuel
             Text cancelLabel = choiceCancelButton.GetComponentInChildren<Text>();
             cancelLabel.text = "Cancel";
             choicePanel.gameObject.SetActive(false);
+        }
+        private void BuildGameOverOverlay(RectTransform canvas)
+        {
+            GameObject root = new GameObject("Game Over Overlay", typeof(RectTransform), typeof(Image));
+            root.transform.SetParent(canvas, false);
+            gameOverOverlay = root.GetComponent<RectTransform>();
+            Stretch(gameOverOverlay);
+
+            gameOverScrim = root.GetComponent<Image>();
+            gameOverScrim.color = new Color(0.005f, 0.008f, 0.014f, 0.58f);
+            gameOverScrim.raycastTarget = false;
+
+            GameObject bannerObject = new GameObject("Result Banner", typeof(RectTransform), typeof(Image));
+            bannerObject.transform.SetParent(gameOverOverlay, false);
+            gameOverBanner = bannerObject.GetComponent<Image>();
+            gameOverBanner.raycastTarget = false;
+            Anchor(gameOverBanner.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-510f, -162f), new Vector2(510f, 162f));
+
+            GameObject accentObject = new GameObject("Result Accent", typeof(RectTransform), typeof(Image));
+            accentObject.transform.SetParent(gameOverBanner.transform, false);
+            gameOverAccent = accentObject.GetComponent<Image>();
+            gameOverAccent.raycastTarget = false;
+            Anchor(gameOverAccent.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -9f), Vector2.zero);
+
+            Text upperRule = Label("Result Upper Rule", gameOverBanner.transform, 18, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.66f, 0.96f, 1f, 0.86f));
+            upperRule.text = "DUEL COMPLETE";
+            upperRule.raycastTarget = false;
+            Anchor(upperRule.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(32f, -55f), new Vector2(-32f, -20f));
+
+            gameOverTitle = Label("Result Title", gameOverBanner.transform, 108, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+            gameOverTitle.resizeTextForBestFit = true;
+            gameOverTitle.resizeTextMinSize = 54;
+            gameOverTitle.resizeTextMaxSize = 108;
+            gameOverTitle.verticalOverflow = VerticalWrapMode.Overflow;
+            gameOverTitle.raycastTarget = false;
+            Anchor(gameOverTitle.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 1f), new Vector2(30f, -118f), new Vector2(-30f, -48f));
+
+            gameOverSubtitle = Label("Result Subtitle", gameOverBanner.transform, 27, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.78f, 0.94f, 1f, 1f));
+            gameOverSubtitle.resizeTextForBestFit = true;
+            gameOverSubtitle.resizeTextMinSize = 17;
+            gameOverSubtitle.resizeTextMaxSize = 27;
+            gameOverSubtitle.raycastTarget = false;
+            Anchor(gameOverSubtitle.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(46f, -34f), new Vector2(-46f, 34f));
+
+            gameOverHint = Label("Result Hint", gameOverBanner.transform, 21, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.9f, 0.62f, 1f));
+            gameOverHint.text = "Restart om opnieuw te spelen";
+            gameOverHint.raycastTarget = false;
+            Anchor(gameOverHint.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(40f, 34f), new Vector2(-40f, 78f));
+
+            gameOverOverlay.gameObject.SetActive(false);
         }
 
         private void RenderRivalHand(CleanDuelGame game)
@@ -390,6 +463,51 @@ namespace IcarusGame.CleanDuel
             }
             logText.text = builder.ToString();
         }
+        private void RenderGameOverOverlay(CleanDuelState state)
+        {
+            bool visible = state != null && state.GameOver;
+            gameOverOverlay.gameObject.SetActive(visible);
+            if (!visible)
+            {
+                return;
+            }
+
+            bool localWon = IsWinnerTextForPlayer(state, state.Local);
+            bool rivalWon = IsWinnerTextForPlayer(state, state.Rival);
+            if (localWon)
+            {
+                gameOverTitle.text = "YOU WIN";
+                gameOverTitle.color = new Color(0.62f, 1f, 0.82f, 1f);
+                gameOverBanner.color = new Color(0.02f, 0.14f, 0.11f, 0.94f);
+                gameOverAccent.color = new Color(0.12f, 1f, 0.66f, 1f);
+                gameOverSubtitle.color = new Color(0.75f, 1f, 0.92f, 1f);
+            }
+            else if (rivalWon)
+            {
+                gameOverTitle.text = "YOU LOSE";
+                gameOverTitle.color = new Color(1f, 0.4f, 0.34f, 1f);
+                gameOverBanner.color = new Color(0.18f, 0.035f, 0.035f, 0.94f);
+                gameOverAccent.color = new Color(1f, 0.19f, 0.12f, 1f);
+                gameOverSubtitle.color = new Color(1f, 0.78f, 0.72f, 1f);
+            }
+            else
+            {
+                gameOverTitle.text = "DRAW";
+                gameOverTitle.color = new Color(1f, 0.88f, 0.42f, 1f);
+                gameOverBanner.color = new Color(0.16f, 0.12f, 0.04f, 0.94f);
+                gameOverAccent.color = new Color(1f, 0.78f, 0.16f, 1f);
+                gameOverSubtitle.color = new Color(1f, 0.92f, 0.68f, 1f);
+            }
+
+            gameOverSubtitle.text = string.IsNullOrEmpty(state.WinnerText) ? "Duel complete." : state.WinnerText;
+            gameOverHint.text = "Restart om opnieuw te spelen";
+        }
+
+        private bool IsWinnerTextForPlayer(CleanDuelState state, CleanPlayerState player)
+        {
+            return state != null && player != null && !string.IsNullOrEmpty(state.WinnerText) &&
+                   state.WinnerText.StartsWith(player.Name + " wins", System.StringComparison.OrdinalIgnoreCase);
+        }
 
         private void RenderChoicePrompt(CleanChoicePrompt prompt)
         {
@@ -435,7 +553,9 @@ namespace IcarusGame.CleanDuel
         {
             if (card.Definition.Kind == CleanCardKind.Monster)
             {
-                return "Level " + card.Definition.Level + "  ATK " + card.CurrentAttack + "  DEF " + card.CurrentDefense;
+                string typeLine = card.Definition.TypeLine ?? string.Empty;
+                string rankLabel = typeLine.IndexOf("Xyz", System.StringComparison.OrdinalIgnoreCase) >= 0 ? "Rank " : "Level ";
+                return rankLabel + card.Definition.Level + "  ATK " + card.CurrentAttack + "  DEF " + card.CurrentDefense;
             }
 
             return card.Definition.Kind + "  " + card.Definition.TypeLine;

@@ -259,6 +259,10 @@ namespace IcarusGame.CleanDuel
             AddFamilyIfCategory(info, "CATEGORY_REMOVE", families, "banish");
             AddFamilyIfCategory(info, "CATEGORY_DECKDES", families, "mill");
             AddFamilyIfCategory(info, "CATEGORY_CONTROL", families, "control_change");
+            if (info.HasDuelCall("Win"))
+            {
+                AddFamily(families, "win_condition");
+            }
 
             if (families.Count == 0)
             {
@@ -736,8 +740,29 @@ namespace IcarusGame.CleanDuel
                 return game.LuaChangeStrongestMonsterToDefense(rival);
             }
 
+            if (script.HasFamily("win_condition"))
+            {
+                game.WinByCardEffect(controller, ScriptSourceName(card, script));
+                return true;
+            }
+
             game.LuaLog("Lua script loaded, but no CleanDuel operation is mapped for this family yet.");
             return false;
+        }
+
+        private static string ScriptSourceName(CleanCard card, CleanLuaScriptInfo script)
+        {
+            string scriptName = script == null ? string.Empty : script.CardName;
+            if (card != null && card.Definition != null && !string.IsNullOrEmpty(card.Definition.Name))
+            {
+                bool generatedFallbackName = card.Definition.Name.StartsWith("Card ", StringComparison.Ordinal);
+                if (!generatedFallbackName || string.IsNullOrEmpty(scriptName))
+                {
+                    return card.Definition.Name;
+                }
+            }
+
+            return string.IsNullOrEmpty(scriptName) ? "card effect" : scriptName;
         }
 
         private bool ResolveExactCard(CleanDuelGame game, CleanPlayerState controller, CleanPlayerState rival, CleanCard card, CleanLuaScriptInfo script)

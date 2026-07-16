@@ -135,8 +135,10 @@ namespace IcarusGame.CleanDuel
         public CleanPlayerId Owner { get; private set; }
         public CleanPlayerId Controller { get; set; }
         public bool FaceDown { get; set; }
+        public bool SetThisTurn { get; set; }
         public bool HasBattled { get; set; }
         public bool SummonedThisTurn { get; set; }
+        public bool PositionChangedThisTurn { get; set; }
         public CleanMonsterStance Stance { get; set; }
         public int AttackBonus { get; set; }
         public int DefenseBonus { get; set; }
@@ -150,8 +152,10 @@ namespace IcarusGame.CleanDuel
         public bool FusionSummoned { get; set; }
         public bool SynchroSummoned { get; set; }
         public bool LinkSummoned { get; set; }
+        public bool XyzSummoned { get; set; }
         public bool FaceUpExtraDeck { get; set; }
         public bool DestroyDuringEndPhase { get; set; }
+        public readonly List<CleanCard> XyzMaterials = new List<CleanCard>();
 
         public int CurrentAttack
         {

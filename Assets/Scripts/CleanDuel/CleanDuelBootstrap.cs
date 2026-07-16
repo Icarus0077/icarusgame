@@ -91,10 +91,10 @@ namespace IcarusGame.CleanDuel
             }
             if (owner == CleanPlayerId.Local && zone == CleanZoneKind.ExtraDeck)
             {
-                int linkIndex = FirstLinkSummonCandidateFromExtraDeck();
-                if (linkIndex >= 0)
+                int summonIndex = FirstExtraDeckSummonCandidateFromExtraDeck();
+                if (summonIndex >= 0)
                 {
-                    selectedExtraDeck = selectedExtraDeck == linkIndex ? -1 : linkIndex;
+                    selectedExtraDeck = selectedExtraDeck == summonIndex ? -1 : summonIndex;
                     selectedHand = -1;
                     selectedMonster = -1;
                     selectedSpellTrap = -1;
@@ -154,7 +154,18 @@ namespace IcarusGame.CleanDuel
             }
             else if (extraDeckIndex >= 0)
             {
-                game.LinkSummonFromExtra(extraDeckIndex);
+                if (game.CanSynchroSummonFromExtra(extraDeckIndex))
+                {
+                    game.SynchroSummonFromExtra(extraDeckIndex);
+                }
+                else if (game.CanLinkSummonFromExtra(extraDeckIndex))
+                {
+                    game.LinkSummonFromExtra(extraDeckIndex);
+                }
+                else
+                {
+                    game.XyzSummonFromExtra(extraDeckIndex);
+                }
             }
             else if (monsterIndex >= 0)
             {
@@ -360,11 +371,11 @@ namespace IcarusGame.CleanDuel
             return cards.Count == 0 ? null : cards[cards.Count - 1];
         }
 
-        private int FirstLinkSummonCandidateFromExtraDeck()
+        private int FirstExtraDeckSummonCandidateFromExtraDeck()
         {
             for (int i = game.State.Local.ExtraDeck.Count - 1; i >= 0; i--)
             {
-                if (game.CanLinkSummonFromExtra(i))
+                if (game.CanSynchroSummonFromExtra(i) || game.CanLinkSummonFromExtra(i) || game.CanXyzSummonFromExtra(i))
                 {
                     return i;
                 }

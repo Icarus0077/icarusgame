@@ -37,7 +37,9 @@ namespace IcarusGame.EditorTools
             AssertGatewayAndSpiritScreenshotRules();
             AssertKnowledgeAuditBuilds();
             AssertEffectTimingRules();
+            AssertSpellTrapRulebookTiming();
             AssertFlipAndLinkRules();
+            AssertXyzRules();
             AssertPendulumRules();
             AssertDocumentTriggeredEffects();
             AssertMaidenFromHandPlacesTrueLight();
@@ -53,9 +55,10 @@ namespace IcarusGame.EditorTools
             AssertTrueLightProtectsBlueEyesFromTargeting();
             AssertTrueLightLeavingFieldDestroysOwnMonsters();
             AssertPhaseFlow();
+            AssertDuelRulebookBasics();
             AssertDeckOutRules();
             AssertNormalMonsterHasNoActivationAndUsesTributes();
-            Debug.Log("CleanDuel screenshot deck smoke test passed. Main=41, Extra=10, clean activations, real fusion summons, ritual summons, Flip/Trigger rules, Link Summon rules, Pendulum rules, True Light rules, phase flow, deck-out, targeting protection, and tribute rules verified.");
+            Debug.Log("CleanDuel screenshot deck smoke test passed. Main=41, Extra=10, clean activations, real fusion summons, rulebook Spell/Trap timing, ritual summons, Flip/Trigger rules, Link Summon rules, Synchro Summon rules, Xyz Summon rules, Pendulum rules, True Light rules, phase flow, first-turn battle lock, battle position rules, draw result, card-effect win, deck-out, targeting protection, and tribute rules verified.");
         }
 
         private static void AssertScreenshotDeckListFromSummary()
@@ -380,6 +383,7 @@ namespace IcarusGame.EditorTools
             }
 
             CleanDuelGame jetTrigger = ReadyCleanGame();
+            jetTrigger.State.TurnNumber = 2;
             jetTrigger.State.Phase = CleanDuelPhase.Battle;
             jetTrigger.State.Local.Monsters[0] = new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local);
             jetTrigger.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(30576089), CleanPlayerId.Local));
@@ -391,6 +395,7 @@ namespace IcarusGame.EditorTools
             }
 
             CleanDuelGame jetBounce = ReadyCleanGame();
+            jetBounce.State.TurnNumber = 2;
             jetBounce.State.Phase = CleanDuelPhase.Battle;
             jetBounce.State.Local.Monsters[0] = new CleanCard(CleanCardLibrary.Get(30576089), CleanPlayerId.Local);
             jetBounce.State.Rival.Monsters[0] = new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Rival);
@@ -417,6 +422,28 @@ namespace IcarusGame.EditorTools
             if (!string.IsNullOrEmpty(darkMagician.EffectKey))
             {
                 throw new InvalidOperationException("Lua EffectKey generation failed: Dark Magician should not receive an EffectKey without a Lua script.");
+            }
+
+            CleanLuaScriptRepository repository = new CleanLuaScriptRepository();
+            repository.Initialize();
+            CleanLuaScriptInfo creatorScript;
+            if (!repository.TryGet(100000002, out creatorScript) || !creatorScript.HasDuelCall("Win") || !creatorScript.HasFamily("win_condition"))
+            {
+                throw new InvalidOperationException("Lua win-condition classification failed: scripts that call Duel.Win should be recognized as win_condition effects.");
+            }
+
+            CleanDuelGame winGame = ReadyCleanGame();
+            CleanLuaEffectBridge bridge = new CleanLuaEffectBridge();
+            bridge.Initialize();
+            CleanCard creatorOfMiracles = new CleanCard(CleanCardLibrary.Get(100000002), CleanPlayerId.Local);
+            if (bridge.CanResolve(winGame, winGame.State.Local, winGame.State.Rival, creatorOfMiracles))
+            {
+                throw new InvalidOperationException("Lua win-condition activation gate failed: Duel.Win scripts should not become freely activatable without their own condition being satisfied.");
+            }
+
+            if (!bridge.TryResolve(winGame, winGame.State.Local, winGame.State.Rival, creatorOfMiracles) || !winGame.State.GameOver || winGame.State.WinnerText != "Dr, Wheelie wins by Creator of Miracles.")
+            {
+                throw new InvalidOperationException("Lua win-condition resolution failed: a resolved Duel.Win script should end the Duel for its controller.");
             }
         }
 
@@ -598,6 +625,35 @@ namespace IcarusGame.EditorTools
                 throw new InvalidOperationException("Ultimate Fusion restriction failed: an unrelated Fusion Monster was accepted.");
             }
 
+            CleanDuelGame noExtraDeckZone = ReadyCleanGame();
+            noExtraDeckZone.State.ExtraMonsters[0] = new CleanCard(CleanCardLibrary.Get(40908371), CleanPlayerId.Local);
+            noExtraDeckZone.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(71143015), CleanPlayerId.Local));
+            noExtraDeckZone.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
+            noExtraDeckZone.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
+            noExtraDeckZone.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
+            noExtraDeckZone.State.Local.ExtraDeck.Add(new CleanCard(CleanCardLibrary.Get(23995346), CleanPlayerId.Local));
+            if (noExtraDeckZone.CanActivateHandCard(0))
+            {
+                throw new InvalidOperationException("Fusion rule failed: an occupied Extra Monster Zone without a Link Arrow should block Extra Deck Fusion Summons.");
+            }
+
+            CleanDuelGame linkedFusion = ReadyCleanGame();
+            linkedFusion.State.ExtraMonsters[0] = new CleanCard(CleanCardLibrary.Get(42097666), CleanPlayerId.Local) { LinkSummoned = true };
+            linkedFusion.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(71143015), CleanPlayerId.Local));
+            linkedFusion.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
+            linkedFusion.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
+            linkedFusion.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
+            linkedFusion.State.Local.ExtraDeck.Add(new CleanCard(CleanCardLibrary.Get(23995346), CleanPlayerId.Local));
+            if (!linkedFusion.CanActivateHandCard(0))
+            {
+                throw new InvalidOperationException("Fusion rule failed: a Link Arrow should open a Main Monster Zone for an Extra Deck Fusion Summon.");
+            }
+
+            linkedFusion.ActivateHandCard(0);
+            if (linkedFusion.State.Local.Monsters[2] == null || linkedFusion.State.Local.Monsters[2].Definition.Id != 23995346 || !linkedFusion.State.Local.Monsters[2].FusionSummoned)
+            {
+                throw new InvalidOperationException("Fusion rule failed: Fusion Summon should use the linked Main Monster Zone when the Extra Monster Zone is occupied.");
+            }
             CleanDuelGame game = ReadyCleanGame();
             game.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(71143015), CleanPlayerId.Local));
             game.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
@@ -612,7 +668,7 @@ namespace IcarusGame.EditorTools
             }
 
             game.ActivateHandCard(0);
-            if (game.State.Local.Monsters[0] == null || game.State.Local.Monsters[0].Definition.Id != 23995346)
+            if (game.State.ExtraMonsters[0] == null || game.State.ExtraMonsters[0].Definition.Id != 23995346 || !game.State.ExtraMonsters[0].FusionSummoned)
             {
                 throw new InvalidOperationException("Ultimate Fusion activation failed: Blue-Eyes Ultimate Dragon was not Fusion Summoned from Extra Deck.");
             }
@@ -645,7 +701,7 @@ namespace IcarusGame.EditorTools
             }
 
             magia.ActivateHandCard(0);
-            if (magia.State.Local.Monsters[0] == null || magia.State.Local.Monsters[0].Definition.Id != 12381100)
+            if (magia.State.ExtraMonsters[0] == null || magia.State.ExtraMonsters[0].Definition.Id != 12381100 || !magia.State.ExtraMonsters[0].FusionSummoned)
             {
                 throw new InvalidOperationException("Ultimate Fusion activation failed: Dragon Master Magia was not Fusion Summoned.");
             }
@@ -674,23 +730,84 @@ namespace IcarusGame.EditorTools
                 throw new InvalidOperationException("Synchro rule failed: a Synchro Summon must not be available with only non-Tuner monsters, even when Levels match.");
             }
 
+            CleanDuelGame twoTunersBlocked = ReadyCleanGame();
+            twoTunersBlocked.State.Local.ExtraDeck.Add(TestMonster(99000004, "Generic Level 9 Synchro", 9, "Dragon / Synchro / Effect"));
+            twoTunersBlocked.State.Local.Monsters[0] = new CleanCard(CleanCardLibrary.Get(8240199), CleanPlayerId.Local);
+            twoTunersBlocked.State.Local.Monsters[1] = new CleanCard(CleanCardLibrary.Get(14558127), CleanPlayerId.Local);
+            twoTunersBlocked.State.Local.Monsters[2] = TestMonster(99000005, "Level 5 non-Tuner", 5, "Warrior / Effect");
+            if (twoTunersBlocked.CanSynchroSummonFromExtra(0))
+            {
+                throw new InvalidOperationException("Synchro rule failed: generic Synchro Summons should use exactly 1 Tuner, not multiple Tuners.");
+            }
+
+            CleanDuelGame faceDownBlocked = ReadyCleanGame();
+            faceDownBlocked.State.Local.ExtraDeck.Add(new CleanCard(CleanCardLibrary.Get(59822133), CleanPlayerId.Local));
+            faceDownBlocked.State.Local.Monsters[0] = new CleanCard(CleanCardLibrary.Get(8240199), CleanPlayerId.Local) { FaceDown = true };
+            faceDownBlocked.State.Local.Monsters[1] = new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local);
+            if (faceDownBlocked.CanSynchroSummonFromExtra(0))
+            {
+                throw new InvalidOperationException("Synchro rule failed: face-down monsters cannot be used as Synchro Materials.");
+            }
+
+            CleanDuelGame noExtraDeckZone = ReadyCleanGame();
+            noExtraDeckZone.State.ExtraMonsters[0] = new CleanCard(CleanCardLibrary.Get(40908371), CleanPlayerId.Local);
+            noExtraDeckZone.State.Local.ExtraDeck.Add(new CleanCard(CleanCardLibrary.Get(59822133), CleanPlayerId.Local));
+            noExtraDeckZone.State.Local.Monsters[0] = new CleanCard(CleanCardLibrary.Get(8240199), CleanPlayerId.Local);
+            noExtraDeckZone.State.Local.Monsters[1] = new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local);
+            if (noExtraDeckZone.CanSynchroSummonFromExtra(0))
+            {
+                throw new InvalidOperationException("Synchro rule failed: an occupied Extra Monster Zone without a Link Arrow should block Extra Deck Synchro Summons.");
+            }
+
             CleanDuelGame valid = ReadyCleanGame();
             valid.State.Local.ExtraDeck.Add(new CleanCard(CleanCardLibrary.Get(59822133), CleanPlayerId.Local));
             valid.State.Local.Monsters[0] = new CleanCard(CleanCardLibrary.Get(8240199), CleanPlayerId.Local);
             valid.State.Local.Monsters[1] = new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local);
-            if (!InvokeLuaCanSynchroSummon(valid, valid.State.Local, 59822133) || !InvokeLuaSynchroSummon(valid, valid.State.Local, 59822133))
+            if (!valid.CanSynchroSummonFromExtra(0) || !InvokeLuaCanSynchroSummon(valid, valid.State.Local, 59822133) || !InvokeLuaSynchroSummon(valid, valid.State.Local, 59822133))
             {
-                throw new InvalidOperationException("Synchro rule failed: Blue-Eyes Spirit Dragon should be summonable with 1 Tuner plus 1 non-Tuner Blue-Eyes monster at Level 9 total.");
+                throw new InvalidOperationException("Synchro rule failed: Blue-Eyes Spirit Dragon should be summonable with 1 face-up Tuner plus 1 face-up non-Tuner Blue-Eyes monster at Level 9 total.");
             }
 
-            if (valid.State.Local.Monsters[0] == null || valid.State.Local.Monsters[0].Definition.Id != 59822133 || !valid.State.Local.Monsters[0].SynchroSummoned)
+            if (valid.State.ExtraMonsters[0] == null || valid.State.ExtraMonsters[0].Definition.Id != 59822133 || !valid.State.ExtraMonsters[0].SynchroSummoned)
             {
-                throw new InvalidOperationException("Synchro summon failed: Blue-Eyes Spirit Dragon was not marked as Synchro Summoned on the field.");
+                throw new InvalidOperationException("Synchro summon failed: Blue-Eyes Spirit Dragon was not marked as Synchro Summoned in the Extra Monster Zone.");
             }
 
-            if (!valid.State.Local.Graveyard.Exists(card => card.Definition.Id == 8240199) || !valid.State.Local.Graveyard.Exists(card => card.Definition.Id == 89631139))
+            if (valid.State.Local.Monsters[0] != null || valid.State.Local.Monsters[1] != null || !valid.State.Local.Graveyard.Exists(card => card.Definition.Id == 8240199) || !valid.State.Local.Graveyard.Exists(card => card.Definition.Id == 89631139))
             {
                 throw new InvalidOperationException("Synchro summon failed: Tuner and non-Tuner materials were not sent from field to GY.");
+            }
+
+            CleanDuelGame multipleNonTuners = ReadyCleanGame();
+            multipleNonTuners.State.Local.ExtraDeck.Add(TestMonster(99000006, "Generic Level 9 Synchro", 9, "Dragon / Synchro / Effect"));
+            multipleNonTuners.State.Local.Monsters[0] = new CleanCard(CleanCardLibrary.Get(14558127), CleanPlayerId.Local);
+            multipleNonTuners.State.Local.Monsters[1] = TestMonster(99000007, "Level 4 non-Tuner", 4, "Warrior / Effect");
+            multipleNonTuners.State.Local.Monsters[2] = TestMonster(99000008, "Level 2 non-Tuner", 2, "Warrior / Effect");
+            if (!multipleNonTuners.CanSynchroSummonFromExtra(0))
+            {
+                throw new InvalidOperationException("Synchro rule failed: 1 Tuner plus multiple face-up non-Tuners with exact total Level should be legal.");
+            }
+
+            multipleNonTuners.SynchroSummonFromExtra(0);
+            if (multipleNonTuners.State.ExtraMonsters[0] == null || multipleNonTuners.State.Local.Graveyard.Count < 3)
+            {
+                throw new InvalidOperationException("Synchro summon failed: multiple non-Tuner Synchro Materials should be sent to the GY and summon to the Extra Monster Zone.");
+            }
+
+            CleanDuelGame linkedSynchro = ReadyCleanGame();
+            linkedSynchro.State.ExtraMonsters[0] = new CleanCard(CleanCardLibrary.Get(42097666), CleanPlayerId.Local) { LinkSummoned = true };
+            linkedSynchro.State.Local.ExtraDeck.Add(new CleanCard(CleanCardLibrary.Get(59822133), CleanPlayerId.Local));
+            linkedSynchro.State.Local.Monsters[0] = new CleanCard(CleanCardLibrary.Get(8240199), CleanPlayerId.Local);
+            linkedSynchro.State.Local.Monsters[1] = new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local);
+            if (!linkedSynchro.CanSynchroSummonFromExtra(0))
+            {
+                throw new InvalidOperationException("Synchro rule failed: a Link Arrow should open a Main Monster Zone for an Extra Deck Synchro Summon.");
+            }
+
+            linkedSynchro.SynchroSummonFromExtra(0);
+            if (linkedSynchro.State.Local.Monsters[2] == null || linkedSynchro.State.Local.Monsters[2].Definition.Id != 59822133 || !linkedSynchro.State.Local.Monsters[2].SynchroSummoned)
+            {
+                throw new InvalidOperationException("Synchro rule failed: Synchro Summon should use the linked Main Monster Zone when the Extra Monster Zone is occupied.");
             }
 
             CleanDuelGame ultimateOneTuner = ReadyCleanGame();
@@ -712,9 +829,9 @@ namespace IcarusGame.EditorTools
                 throw new InvalidOperationException("Synchro rule failed: Blue-Eyes Ultimate Spirit Dragon should be summonable with 1 Blue-Eyes non-Tuner plus 2 Tuners at Level 12 total.");
             }
 
-            if (ultimateValid.State.Local.Monsters[0] == null || ultimateValid.State.Local.Monsters[0].Definition.Id != 89604813 || !ultimateValid.State.Local.Monsters[0].SynchroSummoned)
+            if (ultimateValid.State.ExtraMonsters[0] == null || ultimateValid.State.ExtraMonsters[0].Definition.Id != 89604813 || !ultimateValid.State.ExtraMonsters[0].SynchroSummoned)
             {
-                throw new InvalidOperationException("Synchro summon failed: Blue-Eyes Ultimate Spirit Dragon was not marked as Synchro Summoned on the field.");
+                throw new InvalidOperationException("Synchro summon failed: Blue-Eyes Ultimate Spirit Dragon was not marked as Synchro Summoned in the Extra Monster Zone.");
             }
         }
 
@@ -886,6 +1003,97 @@ namespace IcarusGame.EditorTools
             return new CleanCard(new CleanCardDefinition(id, name, CleanCardKind.Monster, level, 100, 100, typeLine, string.Empty, string.Empty), CleanPlayerId.Local);
         }
 
+        private static void AssertSpellTrapRulebookTiming()
+        {
+            CleanDuelGame quickPlaySet = ReadyCleanGame();
+            quickPlaySet.State.Local.Hand.Clear();
+            quickPlaySet.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(71143015), CleanPlayerId.Local));
+            quickPlaySet.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
+            quickPlaySet.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
+            quickPlaySet.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
+            quickPlaySet.State.Local.ExtraDeck.Add(new CleanCard(CleanCardLibrary.Get(23995346), CleanPlayerId.Local));
+            if (!quickPlaySet.CanSetSpellTrap(0))
+            {
+                throw new InvalidOperationException("Spell/Trap rule failed: Quick-Play Spell should be settable during Main Phase.");
+            }
+
+            quickPlaySet.SetSpellTrap(0);
+            if (quickPlaySet.State.Local.SpellsTraps[0] == null || !quickPlaySet.State.Local.SpellsTraps[0].FaceDown || !quickPlaySet.State.Local.SpellsTraps[0].SetThisTurn)
+            {
+                throw new InvalidOperationException("Spell/Trap rule failed: set Quick-Play Spell did not remember that it was set this turn.");
+            }
+
+            if (quickPlaySet.CanActivateSetCard(0))
+            {
+                throw new InvalidOperationException("Spell/Trap rule failed: a Set Quick-Play Spell must not activate during the same turn it was Set.");
+            }
+
+            quickPlaySet.State.Local.SpellsTraps[0].SetThisTurn = false;
+            if (!quickPlaySet.CanActivateSetCard(0))
+            {
+                throw new InvalidOperationException("Spell/Trap rule failed: a Set Quick-Play Spell should activate after the turn it was Set.");
+            }
+
+            CleanDuelGame quickPlayFromHandBattle = ReadyCleanGame();
+            quickPlayFromHandBattle.State.Local.Hand.Clear();
+            quickPlayFromHandBattle.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(71143015), CleanPlayerId.Local));
+            quickPlayFromHandBattle.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
+            quickPlayFromHandBattle.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
+            quickPlayFromHandBattle.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
+            quickPlayFromHandBattle.State.Local.ExtraDeck.Add(new CleanCard(CleanCardLibrary.Get(23995346), CleanPlayerId.Local));
+            quickPlayFromHandBattle.State.Phase = CleanDuelPhase.Battle;
+            if (!quickPlayFromHandBattle.CanActivateHandCard(0))
+            {
+                throw new InvalidOperationException("Spell/Trap rule failed: Quick-Play Spell should activate from hand during your Battle Phase.");
+            }
+
+            CleanDuelGame trapSet = ReadyCleanGame();
+            trapSet.State.Local.Hand.Clear();
+            trapSet.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(62089826), CleanPlayerId.Local));
+            if (!trapSet.CanSetSpellTrap(0))
+            {
+                throw new InvalidOperationException("Trap rule failed: Trap should be settable during Main Phase.");
+            }
+
+            trapSet.SetSpellTrap(0);
+            trapSet.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
+            if (trapSet.CanActivateSetCard(0))
+            {
+                throw new InvalidOperationException("Trap rule failed: a Trap Card cannot be activated during the same turn it was Set.");
+            }
+
+            trapSet.State.Local.SpellsTraps[0].SetThisTurn = false;
+            if (!trapSet.CanActivateSetCard(0))
+            {
+                throw new InvalidOperationException("Trap rule failed: a Trap Card should be activatable after the turn it was Set.");
+            }
+
+            CleanDuelGame fieldSet = ReadyCleanGame();
+            fieldSet.State.Local.Hand.Clear();
+            fieldSet.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(40089744), CleanPlayerId.Local));
+            fieldSet.State.Local.Deck.Add(new CleanCard(CleanCardLibrary.Get(70551291), CleanPlayerId.Local));
+            if (!fieldSet.CanSetSpellTrap(0))
+            {
+                throw new InvalidOperationException("Field Spell rule failed: Gateway to Chaos should be settable.");
+            }
+
+            fieldSet.SetSpellTrap(0);
+            if (fieldSet.State.Local.FieldSpell == null || fieldSet.State.Local.FieldSpell.Definition.Id != 40089744 || !fieldSet.State.Local.FieldSpell.FaceDown || !fieldSet.State.Local.FieldSpell.SetThisTurn || fieldSet.State.Local.SpellsTraps[0] != null)
+            {
+                throw new InvalidOperationException("Field Spell rule failed: a Set Field Spell should be placed face-down in the Field Spell Zone.");
+            }
+
+            if (!fieldSet.CanActivateSetCard(CleanDuelGame.FieldSpellZoneIndex))
+            {
+                throw new InvalidOperationException("Field Spell rule failed: a Set Field Spell should be activatable during the same Main Phase.");
+            }
+
+            fieldSet.ActivateSetCard(CleanDuelGame.FieldSpellZoneIndex);
+            if (fieldSet.State.Local.FieldSpell == null || fieldSet.State.Local.FieldSpell.FaceDown || fieldSet.State.PendingChoice == null)
+            {
+                throw new InvalidOperationException("Field Spell rule failed: activating a Set Gateway to Chaos should flip it face-up and open its activation search choice.");
+            }
+        }
         private static void AssertRitualMonstersRequireRitualSpell()
         {
             CleanDuelGame blocked = ReadyCleanGame();
@@ -1498,6 +1706,115 @@ namespace IcarusGame.EditorTools
             }
         }
 
+        private static void AssertXyzRules()
+        {
+            CleanCardDefinition xyzDefinition = new CleanCardDefinition(
+                99003104,
+                "Codex Rank Four Xyz",
+                CleanCardKind.Monster,
+                4,
+                2400,
+                1800,
+                "Warrior / Xyz / Effect",
+                "2 Level 4 monsters. Once per turn: detach 1 material; test effect.",
+                string.Empty);
+            CleanCardDefinition levelFourA = new CleanCardDefinition(
+                99003141,
+                "Codex Level Four A",
+                CleanCardKind.Monster,
+                4,
+                1400,
+                1000,
+                "Warrior / Effect",
+                "Xyz material test monster.",
+                string.Empty);
+            CleanCardDefinition levelFourB = new CleanCardDefinition(
+                99003142,
+                "Codex Level Four B",
+                CleanCardKind.Monster,
+                4,
+                1500,
+                1000,
+                "Spellcaster / Effect",
+                "Xyz material test monster.",
+                string.Empty);
+            CleanCardDefinition levelThree = new CleanCardDefinition(
+                99003103,
+                "Codex Level Three",
+                CleanCardKind.Monster,
+                3,
+                1200,
+                1000,
+                "Warrior / Effect",
+                "Wrong Level material test monster.",
+                string.Empty);
+
+            CleanDuelGame faceDownBlocked = ReadyCleanGame();
+            faceDownBlocked.State.Local.ExtraDeck.Add(new CleanCard(xyzDefinition, CleanPlayerId.Local));
+            faceDownBlocked.State.Local.Monsters[0] = new CleanCard(levelFourA, CleanPlayerId.Local);
+            faceDownBlocked.State.Local.Monsters[1] = new CleanCard(levelFourB, CleanPlayerId.Local) { FaceDown = true };
+            if (faceDownBlocked.CanXyzSummonFromExtra(0))
+            {
+                throw new InvalidOperationException("Xyz rule failed: face-down monsters cannot be used as Xyz Materials.");
+            }
+
+            CleanDuelGame wrongLevelBlocked = ReadyCleanGame();
+            wrongLevelBlocked.State.Local.ExtraDeck.Add(new CleanCard(xyzDefinition, CleanPlayerId.Local));
+            wrongLevelBlocked.State.Local.Monsters[0] = new CleanCard(levelFourA, CleanPlayerId.Local);
+            wrongLevelBlocked.State.Local.Monsters[1] = new CleanCard(levelThree, CleanPlayerId.Local);
+            if (wrongLevelBlocked.CanXyzSummonFromExtra(0))
+            {
+                throw new InvalidOperationException("Xyz rule failed: Xyz Materials must match the Xyz Monster's Rank/required Level.");
+            }
+
+            CleanDuelGame xyz = ReadyCleanGame();
+            xyz.State.Local.ExtraDeck.Add(new CleanCard(xyzDefinition, CleanPlayerId.Local));
+            xyz.State.Local.Monsters[0] = new CleanCard(levelFourA, CleanPlayerId.Local);
+            xyz.State.Local.Monsters[1] = new CleanCard(levelFourB, CleanPlayerId.Local);
+            if (!xyz.CanXyzSummonFromExtra(0))
+            {
+                throw new InvalidOperationException("Xyz rule failed: 2 face-up Level 4 monsters should Xyz Summon a Rank 4 Xyz Monster.");
+            }
+
+            xyz.XyzSummonFromExtra(0);
+            CleanCard summoned = xyz.State.ExtraMonsters[0];
+            if (summoned == null || summoned.Definition.Id != 99003104 || !summoned.XyzSummoned || summoned.XyzMaterials.Count != 2 || xyz.State.Local.Monsters[0] != null || xyz.State.Local.Monsters[1] != null)
+            {
+                throw new InvalidOperationException("Xyz rule failed: Xyz Summon should stack the materials under the Xyz Monster in the Extra Monster Zone.");
+            }
+
+            if (xyz.State.Local.Graveyard.Count != 0)
+            {
+                throw new InvalidOperationException("Xyz rule failed: Xyz Materials should not go to the GY while attached.");
+            }
+
+            if (!InvokeDetachXyzMaterial(xyz, xyz.State.Local, summoned) || summoned.XyzMaterials.Count != 1 || xyz.State.Local.Graveyard.Count != 1)
+            {
+                throw new InvalidOperationException("Xyz rule failed: detaching should send exactly 1 stacked Xyz Material to the GY.");
+            }
+
+            CleanDuelGame linkedXyz = ReadyCleanGame();
+            linkedXyz.State.ExtraMonsters[0] = new CleanCard(CleanCardLibrary.Get(42097666), CleanPlayerId.Local) { LinkSummoned = true };
+            linkedXyz.State.Local.ExtraDeck.Add(new CleanCard(xyzDefinition, CleanPlayerId.Local));
+            linkedXyz.State.Local.Monsters[0] = new CleanCard(levelFourA, CleanPlayerId.Local);
+            linkedXyz.State.Local.Monsters[1] = new CleanCard(levelFourB, CleanPlayerId.Local);
+            if (!linkedXyz.CanXyzSummonFromExtra(0))
+            {
+                throw new InvalidOperationException("Xyz rule failed: a Link Arrow should open a Main Monster Zone for an Extra Deck Xyz Summon.");
+            }
+
+            linkedXyz.XyzSummonFromExtra(0);
+            if (linkedXyz.State.Local.Monsters[2] == null || linkedXyz.State.Local.Monsters[2].Definition.Id != 99003104 || linkedXyz.State.Local.Monsters[2].XyzMaterials.Count != 2)
+            {
+                throw new InvalidOperationException("Xyz rule failed: Xyz Summon should use the linked Main Monster Zone when the Extra Monster Zone is occupied.");
+            }
+
+            InvokeMoveMonsterToGrave(linkedXyz, linkedXyz.State.Local, 2);
+            if (linkedXyz.State.Local.Graveyard.Count < 3)
+            {
+                throw new InvalidOperationException("Xyz rule failed: when an Xyz Monster leaves the field, its remaining Xyz Materials should go to the GY too.");
+            }
+        }
         private static void AssertPendulumRules()
         {
             CleanCardDefinition scaleOne = new CleanCardDefinition(
@@ -1668,6 +1985,17 @@ namespace IcarusGame.EditorTools
             method.Invoke(game, new object[] { player, zone });
         }
 
+        private static bool InvokeDetachXyzMaterial(CleanDuelGame game, CleanPlayerState player, CleanCard xyzMonster)
+        {
+            MethodInfo method = typeof(CleanDuelGame).GetMethod("DetachXyzMaterial", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (method == null)
+            {
+                throw new InvalidOperationException("Could not find DetachXyzMaterial for Xyz tests.");
+            }
+
+            return (bool)method.Invoke(game, new object[] { player, xyzMonster });
+        }
+
         private static void InvokeMoveSpellTrapToGrave(CleanDuelGame game, CleanPlayerState player, int zone)
         {
             MethodInfo method = typeof(CleanDuelGame).GetMethod("MoveSpellTrapToGrave", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -1789,6 +2117,27 @@ namespace IcarusGame.EditorTools
         }
         private static void AssertPhaseFlow()
         {
+            CleanDuelGame firstTurn = new CleanDuelGame();
+            firstTurn.StartNewDuel();
+            firstTurn.State.Local.Monsters[0] = new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local) { SummonedThisTurn = false };
+            firstTurn.State.Phase = CleanDuelPhase.Battle;
+            if (firstTurn.CanAttackWith(0))
+            {
+                throw new InvalidOperationException("Phase flow failed: the first player must not be allowed to attack during the first turn of the Duel.");
+            }
+
+            firstTurn.State.Phase = CleanDuelPhase.Main;
+            firstTurn.State.Local.Deck.Clear();
+            firstTurn.State.Local.Deck.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
+            firstTurn.State.Rival.Hand.Clear();
+            firstTurn.State.Rival.Deck.Clear();
+            firstTurn.State.Rival.Deck.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Rival));
+            firstTurn.AdvancePhase();
+            if (firstTurn.State.TurnNumber == 1 && firstTurn.State.Phase == CleanDuelPhase.Battle)
+            {
+                throw new InvalidOperationException("Phase flow failed: Main Phase 1 should not advance to Battle Phase on the first turn.");
+            }
+
             CleanDuelGame game = new CleanDuelGame();
             game.StartNewDuel();
             if (game.State.Phase != CleanDuelPhase.Main)
@@ -1796,10 +2145,11 @@ namespace IcarusGame.EditorTools
                 throw new InvalidOperationException("Phase flow failed: Draw should automatically advance to Main Phase 1 after the opening draw.");
             }
 
+            game.State.TurnNumber = 2;
             game.AdvancePhase();
             if (game.State.Phase != CleanDuelPhase.Battle)
             {
-                throw new InvalidOperationException("Phase flow failed: Main Phase 1 should advance to Battle Phase.");
+                throw new InvalidOperationException("Phase flow failed: Main Phase 1 should advance to Battle Phase after the first turn restriction has passed.");
             }
 
             game.AdvancePhase();
@@ -1846,6 +2196,72 @@ namespace IcarusGame.EditorTools
                 throw new InvalidOperationException("Phase flow failed: Battle Phase End Turn choice should pass the turn and auto-enter Main Phase 1 after draw.");
             }
         }
+
+        private static void AssertDuelRulebookBasics()
+        {
+            CleanDuelGame setup = new CleanDuelGame();
+            setup.StartNewDuel();
+            if (setup.State.Local.LifePoints != 8000 || setup.State.Rival.LifePoints != 8000 || setup.State.Local.Hand.Count != 5 || setup.State.Rival.Hand.Count != 5)
+            {
+                throw new InvalidOperationException("Duel setup rule failed: both players should start with 8000 LP and a 5-card opening hand.");
+            }
+
+            CleanDuelGame position = ReadyCleanGame();
+            CleanCard blueEyes = new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local) { SummonedThisTurn = false };
+            position.State.Local.Monsters[0] = blueEyes;
+            position.ToggleLocalMonsterStance(0);
+            if (blueEyes.Stance != CleanMonsterStance.Defense || !blueEyes.PositionChangedThisTurn)
+            {
+                throw new InvalidOperationException("Battle position rule failed: a legal manual position change should switch stance and mark the monster for the turn.");
+            }
+
+            position.ToggleLocalMonsterStance(0);
+            if (blueEyes.Stance != CleanMonsterStance.Defense)
+            {
+                throw new InvalidOperationException("Battle position rule failed: a monster should not change battle position twice in one turn.");
+            }
+
+            CleanDuelGame attackedMain2 = ReadyCleanGame();
+            CleanCard attacker = new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local) { SummonedThisTurn = false, HasBattled = true };
+            attackedMain2.State.Local.Monsters[0] = attacker;
+            attackedMain2.State.Phase = CleanDuelPhase.Main2;
+            attackedMain2.ToggleLocalMonsterStance(0);
+            if (attacker.Stance != CleanMonsterStance.Attack)
+            {
+                throw new InvalidOperationException("Battle position rule failed: a monster that attacked cannot change battle position in Main Phase 2.");
+            }
+
+            CleanDuelGame flip = ReadyCleanGame();
+            CleanCard faceDown = new CleanCard(CleanCardLibrary.Get(88241506), CleanPlayerId.Local) { FaceDown = true, Stance = CleanMonsterStance.Defense, SummonedThisTurn = false };
+            flip.State.Local.Monsters[0] = faceDown;
+            if (!flip.CanFlipSummonMonster(0))
+            {
+                throw new InvalidOperationException("Flip Summon rule failed: an older face-down monster should be Flip Summonable.");
+            }
+
+            flip.FlipSummonMonster(0);
+            if (faceDown.FaceDown || faceDown.Stance != CleanMonsterStance.Attack || !faceDown.PositionChangedThisTurn || flip.CanFlipSummonMonster(0))
+            {
+                throw new InvalidOperationException("Flip Summon rule failed: Flip Summon should turn the monster face-up Attack and consume its position change for the turn.");
+            }
+
+            CleanDuelGame draw = ReadyCleanGame();
+            draw.State.Local.LifePoints = 0;
+            draw.State.Rival.LifePoints = 0;
+            InvokeCheckWin(draw);
+            if (!draw.State.GameOver || draw.State.WinnerText != "Duel ends in a draw." || draw.State.Local.LifePoints != 0 || draw.State.Rival.LifePoints != 0)
+            {
+                throw new InvalidOperationException("Victory rule failed: if both players reach 0 LP at the same time, the Duel should be a draw.");
+            }
+
+            CleanDuelGame effectWin = ReadyCleanGame();
+            InvokeWinByCardEffect(effectWin, effectWin.State.Local, "card effect");
+            if (!effectWin.State.GameOver || effectWin.State.WinnerText != "Dr, Wheelie wins by card effect.")
+            {
+                throw new InvalidOperationException("Victory rule failed: a card effect that says you win should end the Duel for that player.");
+            }
+        }
+
         private static void AssertDeckOutRules()
         {
             CleanDuelGame turnDraw = new CleanDuelGame();
@@ -1868,6 +2284,28 @@ namespace IcarusGame.EditorTools
             {
                 throw new InvalidOperationException("Deck-out rule failed: effect draw should also lose when the Deck is empty.");
             }
+        }
+
+        private static void InvokeCheckWin(CleanDuelGame game)
+        {
+            MethodInfo method = typeof(CleanDuelGame).GetMethod("CheckWin", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (method == null)
+            {
+                throw new InvalidOperationException("Could not find CheckWin for victory condition tests.");
+            }
+
+            method.Invoke(game, null);
+        }
+
+        private static void InvokeWinByCardEffect(CleanDuelGame game, CleanPlayerState winner, string sourceName)
+        {
+            MethodInfo method = typeof(CleanDuelGame).GetMethod("WinByCardEffect", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (method == null)
+            {
+                throw new InvalidOperationException("Could not find WinByCardEffect for card-effect victory tests.");
+            }
+
+            method.Invoke(game, new object[] { winner, sourceName });
         }
 
         private static void InvokeLuaDraw(CleanDuelGame game, CleanPlayerState player, int count)

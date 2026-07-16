@@ -172,6 +172,11 @@ namespace IcarusGame.CleanDuel
         {
             return phase == CleanDuelPhase.Main || phase == CleanDuelPhase.Main2;
         }
+
+        private bool IsFirstTurnOfDuel()
+        {
+            return State.TurnNumber == 1 && State.TurnPlayer == CleanPlayerId.Local;
+        }
         public string DescribeLua(CleanCard card)
         {
             if (IsNormalMonster(card))
@@ -212,18 +217,23 @@ namespace IcarusGame.CleanDuel
             CleanCard card = CardInHand(State.Local, handIndex);
             return card != null &&
                    card.Definition.Kind != CleanCardKind.Monster &&
-                   FirstEmpty(State.Local.SpellsTraps) >= 0;
+                   (IsFieldSpellCard(card) || FirstEmpty(State.Local.SpellsTraps) >= 0);
         }
 
         public bool CanActivateHandCard(int handIndex)
         {
-            if (!CanUseLocalActions() || !IsMainPhase(State.Phase))
+            if (!CanUseLocalActions())
             {
                 return false;
             }
 
             CleanCard card = CardInHand(State.Local, handIndex);
             if (card == null)
+            {
+                return false;
+            }
+
+            if (!IsMainPhase(State.Phase) && !IsQuickPlaySpell(card))
             {
                 return false;
             }
@@ -300,7 +310,7 @@ namespace IcarusGame.CleanDuel
             }
 
             CleanCard card = State.Local.Monsters[zoneIndex];
-            return card != null && card.FaceDown && !card.SummonedThisTurn && card.Definition.Kind == CleanCardKind.Monster;
+            return card != null && card.FaceDown && !card.SummonedThisTurn && !card.PositionChangedThisTurn && card.Definition.Kind == CleanCardKind.Monster;
         }
 
         public void FlipSummonMonster(int zoneIndex)
@@ -314,6 +324,7 @@ namespace IcarusGame.CleanDuel
             card.FaceDown = false;
             card.Stance = CleanMonsterStance.Attack;
             card.SummonedThisTurn = true;
+            card.PositionChangedThisTurn = true;
             Log("Flip Summoned " + card.Definition.Name + ".");
             ResolveFlipTrigger(State.Local, State.Rival, card, "Flip Summon");
             NotifyChanged();
@@ -367,6 +378,98 @@ namespace IcarusGame.CleanDuel
             NotifyChanged();
         }
 
+        public bool CanSynchroSummonFromExtra(int extraDeckIndex)
+        {
+            if (!CanUseLocalActions() || !IsMainPhase(State.Phase) || extraDeckIndex < 0 || extraDeckIndex >= State.Local.ExtraDeck.Count)
+            {
+                return false;
+            }
+
+            List<int> materialZones;
+            bool summonToExtraMonsterZone;
+            int targetMainZone;
+            return TryPlanSynchroSummon(State.Local, extraDeckIndex, out materialZones, out summonToExtraMonsterZone, out targetMainZone);
+        }
+
+        public void SynchroSummonFromExtra(int extraDeckIndex)
+        {
+            if (!CanSynchroSummonFromExtra(extraDeckIndex))
+            {
+                return;
+            }
+
+            List<int> materialZones;
+            bool summonToExtraMonsterZone;
+            int targetMainZone;
+            if (!TryPlanSynchroSummon(State.Local, extraDeckIndex, out materialZones, out summonToExtraMonsterZone, out targetMainZone))
+            {
+                return;
+            }
+
+            CleanCard synchroMonster = State.Local.ExtraDeck[extraDeckIndex];
+            State.Local.ExtraDeck.RemoveAt(extraDeckIndex);
+            MoveSynchroMaterialsToGrave(State.Local, materialZones);
+            PrepareExtraDeckMonsterSummon(State.Local, synchroMonster);
+            synchroMonster.SynchroSummoned = true;
+            if (summonToExtraMonsterZone)
+            {
+                State.ExtraMonsters[ExtraMonsterZoneIndexFor(State.Local)] = synchroMonster;
+                Log("Synchro Summoned " + synchroMonster.Definition.Name + " to the Extra Monster Zone using " + materialZones.Count + " material(s).");
+            }
+            else
+            {
+                SummonToZone(State.Local, synchroMonster, targetMainZone, false, CleanMonsterStance.Attack);
+                Log("Synchro Summoned " + synchroMonster.Definition.Name + " to a linked Main Monster Zone using " + materialZones.Count + " material(s).");
+            }
+
+            NotifyChanged();
+        }
+        public bool CanXyzSummonFromExtra(int extraDeckIndex)
+        {
+            if (!CanUseLocalActions() || !IsMainPhase(State.Phase) || extraDeckIndex < 0 || extraDeckIndex >= State.Local.ExtraDeck.Count)
+            {
+                return false;
+            }
+
+            List<int> materialZones;
+            bool summonToExtraMonsterZone;
+            int targetMainZone;
+            return TryPlanXyzSummon(State.Local, extraDeckIndex, out materialZones, out summonToExtraMonsterZone, out targetMainZone);
+        }
+
+        public void XyzSummonFromExtra(int extraDeckIndex)
+        {
+            if (!CanXyzSummonFromExtra(extraDeckIndex))
+            {
+                return;
+            }
+
+            List<int> materialZones;
+            bool summonToExtraMonsterZone;
+            int targetMainZone;
+            if (!TryPlanXyzSummon(State.Local, extraDeckIndex, out materialZones, out summonToExtraMonsterZone, out targetMainZone))
+            {
+                return;
+            }
+
+            CleanCard xyzMonster = State.Local.ExtraDeck[extraDeckIndex];
+            State.Local.ExtraDeck.RemoveAt(extraDeckIndex);
+            MoveXyzMaterialsUnderMonster(State.Local, materialZones, xyzMonster);
+            PrepareExtraDeckMonsterSummon(State.Local, xyzMonster);
+            xyzMonster.XyzSummoned = true;
+            if (summonToExtraMonsterZone)
+            {
+                State.ExtraMonsters[ExtraMonsterZoneIndexFor(State.Local)] = xyzMonster;
+                Log("Xyz Summoned " + xyzMonster.Definition.Name + " to the Extra Monster Zone using " + xyzMonster.XyzMaterials.Count + " material(s).");
+            }
+            else
+            {
+                SummonToZone(State.Local, xyzMonster, targetMainZone, false, CleanMonsterStance.Attack);
+                Log("Xyz Summoned " + xyzMonster.Definition.Name + " to a linked Main Monster Zone using " + xyzMonster.XyzMaterials.Count + " material(s).");
+            }
+
+            NotifyChanged();
+        }
         public bool CanActivateLocalExtraMonsterZoneCard(int extraMonsterZoneIndex)
         {
             if (!CanUseLocalActions() || !IsMainPhase(State.Phase) || extraMonsterZoneIndex != ExtraMonsterZoneIndexFor(State.Local))
@@ -397,13 +500,24 @@ namespace IcarusGame.CleanDuel
 
         public bool CanActivateSetCard(int zoneIndex)
         {
-            if (!CanUseLocalActions() || !IsMainPhase(State.Phase) || zoneIndex < 0 || zoneIndex > FieldSpellZoneIndex)
+            if (!CanUseLocalActions() || zoneIndex < 0 || zoneIndex > FieldSpellZoneIndex)
             {
                 return false;
             }
 
             CleanCard card = zoneIndex == FieldSpellZoneIndex ? State.Local.FieldSpell : State.Local.SpellsTraps[zoneIndex];
             if (card == null)
+            {
+                return false;
+            }
+
+            bool canActivateOutsideMainPhase = IsQuickPlaySpell(card) || card.Definition.Kind == CleanCardKind.Trap;
+            if (!IsMainPhase(State.Phase) && !canActivateOutsideMainPhase)
+            {
+                return false;
+            }
+
+            if (card.FaceDown && card.SetThisTurn && (IsQuickPlaySpell(card) || card.Definition.Kind == CleanCardKind.Trap))
             {
                 return false;
             }
@@ -415,6 +529,7 @@ namespace IcarusGame.CleanDuel
 
             return CanActivateCleanCard(card, State.Local, CleanActivationSource.SpellTrapZone);
         }
+
         public bool CanActivateLocalQuickEffectHandCard(int handIndex)
         {
             return CanActivateLocalQuickEffectHandCardInternal(handIndex, false);
@@ -487,7 +602,7 @@ namespace IcarusGame.CleanDuel
         }
         public bool CanAttackWith(int monsterZone)
         {
-            if (!CanUseLocalActions() || State.Phase != CleanDuelPhase.Battle || monsterZone < 0 || monsterZone >= CleanPlayerState.ZoneCount)
+            if (!CanUseLocalActions() || State.Phase != CleanDuelPhase.Battle || IsFirstTurnOfDuel() || monsterZone < 0 || monsterZone >= CleanPlayerState.ZoneCount)
             {
                 return false;
             }
@@ -561,10 +676,21 @@ namespace IcarusGame.CleanDuel
             }
 
             CleanCard card = State.Local.Hand[handIndex];
-            int zone = FirstEmpty(State.Local.SpellsTraps);
             State.Local.Hand.RemoveAt(handIndex);
+            if (IsFieldSpellCard(card))
+            {
+                PlaceFieldSpell(State.Local, card, true);
+                card.SetThisTurn = true;
+                Log("Set Field Spell card in the Field Spell Zone.");
+                NotifyChanged();
+                return;
+            }
+
+            int zone = FirstEmpty(State.Local.SpellsTraps);
             State.Local.SpellsTraps[zone] = card;
+            card.Controller = State.Local.Id;
             card.FaceDown = true;
+            card.SetThisTurn = true;
             Log("Set " + card.Definition.Kind + " card.");
             NotifyChanged();
         }
@@ -631,8 +757,12 @@ namespace IcarusGame.CleanDuel
                 CleanCard fieldCard = State.Local.FieldSpell;
                 if (fieldCard != null)
                 {
-                    fieldCard.FaceDown = false;
+                    fieldCard.SetThisTurn = false;
                     ResolveEffect(State.Local, State.Rival, fieldCard, CleanActivationSource.SpellTrapZone);
+                    if (fieldCard.FaceDown)
+                    {
+                        fieldCard.FaceDown = false;
+                    }
                 }
 
                 NotifyChanged();
@@ -642,6 +772,7 @@ namespace IcarusGame.CleanDuel
             CleanCard card = State.Local.SpellsTraps[zoneIndex];
             if (card.Definition.Id == TrueLightCardId)
             {
+                card.SetThisTurn = false;
                 card.FaceDown = false;
                 OpenTrueLightChoice(State.Local);
                 NotifyChanged();
@@ -651,6 +782,7 @@ namespace IcarusGame.CleanDuel
             if (card.Definition.Id == MausoleumOfWhiteCardId)
             {
                 bool wasFaceDown = card.FaceDown;
+                card.SetThisTurn = false;
                 card.FaceDown = false;
                 if (wasFaceDown)
                 {
@@ -668,6 +800,7 @@ namespace IcarusGame.CleanDuel
             }
 
             State.Local.SpellsTraps[zoneIndex] = null;
+            card.SetThisTurn = false;
             card.FaceDown = false;
             if (ResolveEffect(State.Local, State.Rival, card, CleanActivationSource.SpellTrapZone))
             {
@@ -806,7 +939,7 @@ namespace IcarusGame.CleanDuel
             }
 
             CleanCard card = State.Local.Monsters[zoneIndex];
-            if (card == null || card.SummonedThisTurn)
+            if (card == null || card.SummonedThisTurn || card.PositionChangedThisTurn || (State.Phase == CleanDuelPhase.Main2 && card.HasBattled))
             {
                 return;
             }
@@ -818,6 +951,7 @@ namespace IcarusGame.CleanDuel
             }
 
             card.Stance = card.Stance == CleanMonsterStance.Attack ? CleanMonsterStance.Defense : CleanMonsterStance.Attack;
+            card.PositionChangedThisTurn = true;
             Log(card.Definition.Name + " changed stance.");
             NotifyChanged();
         }
@@ -876,6 +1010,13 @@ namespace IcarusGame.CleanDuel
                     EnterMainPhase1();
                     break;
                 case CleanDuelPhase.Main:
+                    if (IsFirstTurnOfDuel())
+                    {
+                        Log("First turn cannot enter the Battle Phase; turn ends.");
+                        EnterEndPhaseAndEndTurn();
+                        return;
+                    }
+
                     State.Phase = CleanDuelPhase.Battle;
                     Log("Phase: Battle.");
                     break;
@@ -960,9 +1101,24 @@ namespace IcarusGame.CleanDuel
                 {
                     monster.HasBattled = false;
                     monster.SummonedThisTurn = false;
+                    monster.PositionChangedThisTurn = false;
                     monster.AttackBonus = 0;
                     monster.DefenseBonus = 0;
                 }
+            }
+
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                CleanCard spellTrap = ending.SpellsTraps[i];
+                if (spellTrap != null)
+                {
+                    spellTrap.SetThisTurn = false;
+                }
+            }
+
+            if (ending.FieldSpell != null)
+            {
+                ending.FieldSpell.SetThisTurn = false;
             }
 
             ending.NormalSummonUsed = false;
@@ -1382,6 +1538,7 @@ namespace IcarusGame.CleanDuel
 
         private void ReturnFieldCardToPrivateZone(CleanPlayerState player, CleanCard card)
         {
+            SendXyzMaterialsToGrave(player, card);
             if (IsExtraDeckMonsterDefinition(card.Definition))
             {
                 player.ExtraDeck.Add(card);
@@ -3491,7 +3648,7 @@ namespace IcarusGame.CleanDuel
                 return true;
             }
 
-            targetMainZone = FirstLinkedExtraDeckMainMonsterZone(player);
+            targetMainZone = FirstLinkedExtraDeckMainMonsterZone(player, materialZones);
             return targetMainZone >= 0;
         }
 
@@ -3576,6 +3733,7 @@ namespace IcarusGame.CleanDuel
             card.Stance = CleanMonsterStance.Attack;
             card.HasBattled = false;
             card.SummonedThisTurn = true;
+            card.PositionChangedThisTurn = false;
         }
 
         private int ExtraMonsterZoneIndexFor(CleanPlayerState player)
@@ -3585,15 +3743,25 @@ namespace IcarusGame.CleanDuel
 
         private int FirstLinkedExtraDeckMainMonsterZone(CleanPlayerState player)
         {
+            return FirstLinkedExtraDeckMainMonsterZone(player, null);
+        }
+
+        private int FirstLinkedExtraDeckMainMonsterZone(CleanPlayerState player, List<int> zonesClearedBySummon)
+        {
             for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
             {
-                if (player.Monsters[i] == null && IsMainMonsterZoneLinkedForExtraDeckSummon(player, i))
+                if ((player.Monsters[i] == null || ContainsZone(zonesClearedBySummon, i)) && IsMainMonsterZoneLinkedForExtraDeckSummon(player, i))
                 {
                     return i;
                 }
             }
 
             return -1;
+        }
+
+        private bool ContainsZone(List<int> zones, int zone)
+        {
+            return zones != null && zones.Contains(zone);
         }
 
         private bool IsMainMonsterZoneLinkedForExtraDeckSummon(CleanPlayerState player, int zoneIndex)
@@ -3612,6 +3780,185 @@ namespace IcarusGame.CleanDuel
             return zoneIndex == 2;
         }
 
+        private bool TryPlanXyzSummon(CleanPlayerState player, int extraDeckIndex, out List<int> materialZones, out bool summonToExtraMonsterZone, out int targetMainZone)
+        {
+            materialZones = null;
+            summonToExtraMonsterZone = false;
+            targetMainZone = -1;
+            if (extraDeckIndex < 0 || extraDeckIndex >= player.ExtraDeck.Count || !IsXyzMonsterDefinition(player.ExtraDeck[extraDeckIndex].Definition))
+            {
+                return false;
+            }
+
+            CleanCard xyzMonster = player.ExtraDeck[extraDeckIndex];
+            if (!TrySelectXyzMaterials(player, xyzMonster, out materialZones))
+            {
+                return false;
+            }
+
+            int extraZone = ExtraMonsterZoneIndexFor(player);
+            if (State.ExtraMonsters[extraZone] == null)
+            {
+                summonToExtraMonsterZone = true;
+                return true;
+            }
+
+            targetMainZone = FirstLinkedExtraDeckMainMonsterZone(player, materialZones);
+            return targetMainZone >= 0;
+        }
+
+        private bool TrySelectXyzMaterials(CleanPlayerState player, CleanCard xyzMonster, out List<int> materialZones)
+        {
+            materialZones = new List<int>();
+            int rank = XyzRank(xyzMonster);
+            int requiredMaterials = XyzMaterialCount(xyzMonster);
+            if (rank <= 0 || requiredMaterials <= 0)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < CleanPlayerState.ZoneCount && materialZones.Count < requiredMaterials; i++)
+            {
+                CleanCard material = player.Monsters[i];
+                if (IsXyzMaterialCandidate(material, rank))
+                {
+                    materialZones.Add(i);
+                }
+            }
+
+            return materialZones.Count == requiredMaterials;
+        }
+
+        private bool IsXyzMaterialCandidate(CleanCard material, int requiredLevel)
+        {
+            return material != null &&
+                   !material.FaceDown &&
+                   material.Definition.Kind == CleanCardKind.Monster &&
+                   !IsLinkMonsterDefinition(material.Definition) &&
+                   !IsXyzMonsterDefinition(material.Definition) &&
+                   material.Definition.Level == requiredLevel;
+        }
+
+        private int XyzRank(CleanCard xyzMonster)
+        {
+            if (!IsXyzMonsterDefinition(xyzMonster != null ? xyzMonster.Definition : null))
+            {
+                return 0;
+            }
+
+            return Mathf.Max(0, xyzMonster.Definition.Level);
+        }
+
+        private int XyzMaterialCount(CleanCard xyzMonster)
+        {
+            if (xyzMonster == null)
+            {
+                return 0;
+            }
+
+            int parsed = ParseLeadingMaterialCount(xyzMonster.Definition.Text);
+            if (parsed > 0)
+            {
+                return parsed;
+            }
+
+            parsed = ParseLeadingMaterialCount(xyzMonster.Definition.TypeLine);
+            return parsed > 0 ? parsed : 2;
+        }
+
+        private int ParseLeadingMaterialCount(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return 0;
+            }
+
+            int levelIndex = text.IndexOf("Level", StringComparison.OrdinalIgnoreCase);
+            if (levelIndex < 0)
+            {
+                return 0;
+            }
+
+            int value = 0;
+            bool found = false;
+            for (int i = Mathf.Max(0, levelIndex - 4); i < levelIndex; i++)
+            {
+                if (!char.IsDigit(text[i]))
+                {
+                    if (found)
+                    {
+                        break;
+                    }
+
+                    continue;
+                }
+
+                found = true;
+                value = value * 10 + (text[i] - '0');
+            }
+
+            return found ? value : 0;
+        }
+
+        private void MoveXyzMaterialsUnderMonster(CleanPlayerState player, List<int> materialZones, CleanCard xyzMonster)
+        {
+            xyzMonster.XyzMaterials.Clear();
+            for (int i = 0; i < materialZones.Count; i++)
+            {
+                int zone = materialZones[i];
+                if (zone < 0 || zone >= CleanPlayerState.ZoneCount || player.Monsters[zone] == null)
+                {
+                    continue;
+                }
+
+                CleanCard material = player.Monsters[zone];
+                player.Monsters[zone] = null;
+                SendXyzMaterialsToGrave(player, material);
+                ResetCardForHiddenZone(material);
+                material.Controller = player.Id;
+                material.FaceDown = false;
+                xyzMonster.XyzMaterials.Add(material);
+            }
+        }
+
+        private bool DetachXyzMaterial(CleanPlayerState player, CleanCard xyzMonster)
+        {
+            if (player == null || xyzMonster == null || !IsXyzMonsterDefinition(xyzMonster.Definition) || xyzMonster.XyzMaterials.Count == 0)
+            {
+                return false;
+            }
+
+            CleanCard material = xyzMonster.XyzMaterials[0];
+            xyzMonster.XyzMaterials.RemoveAt(0);
+            ResetCardForHiddenZone(material);
+            AddToGraveyard(player, material, false);
+            Log(xyzMonster.Definition.Name + " detaches " + material.Definition.Name + " as Xyz Material.");
+            return true;
+        }
+
+        private void SendXyzMaterialsToGrave(CleanPlayerState player, CleanCard xyzMonster)
+        {
+            if (player == null || xyzMonster == null || xyzMonster.XyzMaterials.Count == 0)
+            {
+                return;
+            }
+
+            int count = xyzMonster.XyzMaterials.Count;
+            while (xyzMonster.XyzMaterials.Count > 0)
+            {
+                CleanCard material = xyzMonster.XyzMaterials[0];
+                xyzMonster.XyzMaterials.RemoveAt(0);
+                ResetCardForHiddenZone(material);
+                AddToGraveyard(player, material, false);
+            }
+
+            Log(count + " Xyz Material(s) from " + xyzMonster.Definition.Name + " are sent to the GY.");
+        }
+
+        private bool IsXyzMonsterDefinition(CleanCardDefinition definition)
+        {
+            return definition != null && (definition.TypeLine ?? string.Empty).IndexOf("Xyz", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
         private bool IsLinkMonsterDefinition(CleanCardDefinition definition)
         {
             return definition != null && (definition.TypeLine ?? string.Empty).IndexOf("Link", StringComparison.OrdinalIgnoreCase) >= 0;
@@ -3944,7 +4291,7 @@ namespace IcarusGame.CleanDuel
         private bool ActivateGatewayToChaos(CleanPlayerState player, CleanCard source, CleanActivationSource activationSource)
         {
             bool alreadyFieldSpell = object.ReferenceEquals(player.FieldSpell, source);
-            if (activationSource == CleanActivationSource.Hand || !alreadyFieldSpell)
+            if (activationSource == CleanActivationSource.Hand || !alreadyFieldSpell || source.FaceDown)
             {
                 if (player.UsedOncePerTurn.Contains(GatewayActivationOnceKey) || !HasMatchingCard(player.Deck, IsGatewayToChaosSearchCandidate))
                 {
@@ -5501,7 +5848,9 @@ namespace IcarusGame.CleanDuel
         {
             int extraIndex;
             List<int> materialZones;
-            return TryFindSynchroSummon(player, preferredId, out extraIndex, out materialZones);
+            bool summonToExtraMonsterZone;
+            int targetMainZone;
+            return IsMainPhase(State.Phase) && TryFindSynchroSummon(player, preferredId, out extraIndex, out materialZones, out summonToExtraMonsterZone, out targetMainZone);
         }
 
         internal bool LuaCanSynchroSummonBestAvailable(CleanPlayerState player, int preferredId)
@@ -5513,54 +5862,68 @@ namespace IcarusGame.CleanDuel
         {
             int extraIndex;
             List<int> materialZones;
-            if (!TryFindSynchroSummon(player, preferredId, out extraIndex, out materialZones))
+            bool summonToExtraMonsterZone;
+            int targetMainZone;
+            if (!IsMainPhase(State.Phase) || !TryFindSynchroSummon(player, preferredId, out extraIndex, out materialZones, out summonToExtraMonsterZone, out targetMainZone))
             {
-                Log("Synchro summon failed: needs exactly 1 Tuner and at least 1 non-Tuner with matching Levels.");
+                Log("Synchro summon failed: needs legal Extra Deck zone plus face-up Tuner and non-Tuner materials with matching Levels.");
                 return false;
             }
 
             CleanCard synchroMonster = player.ExtraDeck[extraIndex];
             player.ExtraDeck.RemoveAt(extraIndex);
             MoveSynchroMaterialsToGrave(player, materialZones);
+            PrepareExtraDeckMonsterSummon(player, synchroMonster);
+            synchroMonster.SynchroSummoned = true;
 
-            int zone = FirstEmpty(player.Monsters);
-            if (zone < 0)
+            if (summonToExtraMonsterZone)
             {
-                player.ExtraDeck.Add(synchroMonster);
-                Log("Synchro summon failed: no open Monster Zone after materials were used.");
-                return false;
+                State.ExtraMonsters[ExtraMonsterZoneIndexFor(player)] = synchroMonster;
+                Log("Clean Synchro Summons " + synchroMonster.Definition.Name + " to the Extra Monster Zone using " + materialZones.Count + " material(s).");
+            }
+            else
+            {
+                SummonToZone(player, synchroMonster, targetMainZone, false, CleanMonsterStance.Attack);
+                Log("Clean Synchro Summons " + synchroMonster.Definition.Name + " to a linked Main Monster Zone using " + materialZones.Count + " material(s).");
             }
 
-            SummonToZone(player, synchroMonster, zone, false, CleanMonsterStance.Attack);
-            synchroMonster.SynchroSummoned = true;
-            Log("Clean Synchro Summons " + synchroMonster.Definition.Name + " using " + materialZones.Count + " material(s).");
             return true;
         }
 
-        private bool TryFindSynchroSummon(CleanPlayerState player, int preferredId, out int extraIndex, out List<int> materialZones)
+        private bool TryFindSynchroSummon(CleanPlayerState player, int preferredId, out int extraIndex, out List<int> materialZones, out bool summonToExtraMonsterZone, out int targetMainZone)
         {
             extraIndex = -1;
             materialZones = null;
+            summonToExtraMonsterZone = false;
+            targetMainZone = -1;
 
             if (preferredId > 0)
             {
                 int preferredIndex = IndexOfCard(player.ExtraDeck, preferredId);
                 List<int> preferredMaterials;
-                if (preferredIndex >= 0 && IsSynchroSummonCandidate(player.ExtraDeck[preferredIndex]) && TrySelectSynchroMaterials(player, player.ExtraDeck[preferredIndex], out preferredMaterials))
+                bool preferredToExtraMonsterZone;
+                int preferredTargetMainZone;
+                if (preferredIndex >= 0 && TryPlanSynchroSummon(player, preferredIndex, out preferredMaterials, out preferredToExtraMonsterZone, out preferredTargetMainZone))
                 {
                     extraIndex = preferredIndex;
                     materialZones = preferredMaterials;
+                    summonToExtraMonsterZone = preferredToExtraMonsterZone;
+                    targetMainZone = preferredTargetMainZone;
                     return true;
                 }
             }
 
             int bestAttack = -1;
             List<int> bestMaterials = null;
+            bool bestToExtraMonsterZone = false;
+            int bestTargetMainZone = -1;
             for (int i = 0; i < player.ExtraDeck.Count; i++)
             {
                 CleanCard candidate = player.ExtraDeck[i];
                 List<int> candidateMaterials;
-                if (!IsSynchroSummonCandidate(candidate) || !TrySelectSynchroMaterials(player, candidate, out candidateMaterials))
+                bool candidateToExtraMonsterZone;
+                int candidateTargetMainZone;
+                if (!TryPlanSynchroSummon(player, i, out candidateMaterials, out candidateToExtraMonsterZone, out candidateTargetMainZone))
                 {
                     continue;
                 }
@@ -5570,11 +5933,42 @@ namespace IcarusGame.CleanDuel
                     bestAttack = candidate.Definition.Attack;
                     extraIndex = i;
                     bestMaterials = candidateMaterials;
+                    bestToExtraMonsterZone = candidateToExtraMonsterZone;
+                    bestTargetMainZone = candidateTargetMainZone;
                 }
             }
 
             materialZones = bestMaterials;
+            summonToExtraMonsterZone = bestToExtraMonsterZone;
+            targetMainZone = bestTargetMainZone;
             return extraIndex >= 0;
+        }
+
+        private bool TryPlanSynchroSummon(CleanPlayerState player, int extraDeckIndex, out List<int> materialZones, out bool summonToExtraMonsterZone, out int targetMainZone)
+        {
+            materialZones = null;
+            summonToExtraMonsterZone = false;
+            targetMainZone = -1;
+            if (extraDeckIndex < 0 || extraDeckIndex >= player.ExtraDeck.Count || !IsSynchroSummonCandidate(player.ExtraDeck[extraDeckIndex]))
+            {
+                return false;
+            }
+
+            CleanCard synchroMonster = player.ExtraDeck[extraDeckIndex];
+            if (!TrySelectSynchroMaterials(player, synchroMonster, out materialZones))
+            {
+                return false;
+            }
+
+            int extraZone = ExtraMonsterZoneIndexFor(player);
+            if (State.ExtraMonsters[extraZone] == null)
+            {
+                summonToExtraMonsterZone = true;
+                return true;
+            }
+
+            targetMainZone = FirstLinkedExtraDeckMainMonsterZone(player, materialZones);
+            return targetMainZone >= 0;
         }
 
         private bool TrySelectSynchroMaterials(CleanPlayerState player, CleanCard synchroMonster, out List<int> materialZones)
@@ -5734,7 +6128,9 @@ namespace IcarusGame.CleanDuel
         {
             int extraIndex;
             List<FusionMaterialCandidate> materials;
-            return TryFindFusionSummon(player, preferredId, out extraIndex, out materials);
+            bool summonToExtraMonsterZone;
+            int targetMainZone;
+            return TryFindFusionSummon(player, preferredId, out extraIndex, out materials, out summonToExtraMonsterZone, out targetMainZone);
         }
 
         internal bool LuaFusionSummonBestAvailable(CleanPlayerState player, int preferredId, bool materialsToDeck)
@@ -5753,9 +6149,11 @@ namespace IcarusGame.CleanDuel
             fieldBlueEyesMaterialCount = 0;
             int extraIndex;
             List<FusionMaterialCandidate> materials;
-            if (!TryFindFusionSummon(player, preferredId, out extraIndex, out materials))
+            bool summonToExtraMonsterZone;
+            int targetMainZone;
+            if (!TryFindFusionSummon(player, preferredId, out extraIndex, out materials, out summonToExtraMonsterZone, out targetMainZone))
             {
-                Log("Fusion summon failed: no valid Fusion Monster, materials, or open Monster Zone.");
+                Log("Fusion summon failed: no valid Fusion Monster, materials, or legal Extra Deck zone.");
                 return false;
             }
 
@@ -5763,50 +6161,56 @@ namespace IcarusGame.CleanDuel
             player.ExtraDeck.RemoveAt(extraIndex);
             fieldBlueEyesMaterialCount = CountFieldBlueEyesMaterials(materials);
             MoveFusionMaterials(player, materials, materialsToDeck);
+            PrepareExtraDeckMonsterSummon(player, fusionMonster);
+            fusionMonster.FusionSummoned = true;
 
-            int zone = FirstEmpty(player.Monsters);
-            if (zone < 0)
+            if (summonToExtraMonsterZone)
             {
-                player.ExtraDeck.Add(fusionMonster);
-                Log("Fusion summon failed: no open Monster Zone after materials were used.");
-                return false;
+                State.ExtraMonsters[ExtraMonsterZoneIndexFor(player)] = fusionMonster;
+                Log("Clean Fusion Summons " + fusionMonster.Definition.Name + " to the Extra Monster Zone using " + materials.Count + " material(s).");
+            }
+            else
+            {
+                SummonToZone(player, fusionMonster, targetMainZone, false, CleanMonsterStance.Attack);
+                Log("Clean Fusion Summons " + fusionMonster.Definition.Name + " to a linked Main Monster Zone using " + materials.Count + " material(s).");
             }
 
-            SummonToZone(player, fusionMonster, zone, false, CleanMonsterStance.Attack);
-            fusionMonster.FusionSummoned = true;
-            Log("Clean Fusion Summons " + fusionMonster.Definition.Name + " using " + materials.Count + " material(s).");
             return true;
         }
 
-        private bool TryFindFusionSummon(CleanPlayerState player, int preferredId, out int extraIndex, out List<FusionMaterialCandidate> materials)
+        private bool TryFindFusionSummon(CleanPlayerState player, int preferredId, out int extraIndex, out List<FusionMaterialCandidate> materials, out bool summonToExtraMonsterZone, out int targetMainZone)
         {
             extraIndex = -1;
             materials = null;
+            summonToExtraMonsterZone = false;
+            targetMainZone = -1;
             bool ultimateFusionOnly = preferredId == DragonMasterMagiaCardId;
 
             if (preferredId > 0)
             {
                 int preferredIndex = IndexOfCard(player.ExtraDeck, preferredId);
-                if (preferredIndex >= 0
-                    && (!ultimateFusionOnly || IsUltimateFusionSummonCandidate(player.ExtraDeck[preferredIndex]))
-                    && TrySelectFusionMaterials(player, player.ExtraDeck[preferredIndex], out materials)
-                    && HasFusionSummonSpace(player, materials))
+                bool preferredToExtraMonsterZone;
+                int preferredTargetMainZone;
+                if (preferredIndex >= 0 && TryPlanFusionSummon(player, preferredIndex, ultimateFusionOnly, out materials, out preferredToExtraMonsterZone, out preferredTargetMainZone))
                 {
                     extraIndex = preferredIndex;
+                    summonToExtraMonsterZone = preferredToExtraMonsterZone;
+                    targetMainZone = preferredTargetMainZone;
                     return true;
                 }
             }
 
             int bestAttack = -1;
             List<FusionMaterialCandidate> bestMaterials = null;
+            bool bestToExtraMonsterZone = false;
+            int bestTargetMainZone = -1;
             for (int i = 0; i < player.ExtraDeck.Count; i++)
             {
                 CleanCard candidate = player.ExtraDeck[i];
                 List<FusionMaterialCandidate> candidateMaterials;
-                bool validCandidate = ultimateFusionOnly
-                    ? IsUltimateFusionSummonCandidate(candidate)
-                    : IsFusionSummonCandidate(candidate);
-                if (!validCandidate || !TrySelectFusionMaterials(player, candidate, out candidateMaterials) || !HasFusionSummonSpace(player, candidateMaterials))
+                bool candidateToExtraMonsterZone;
+                int candidateTargetMainZone;
+                if (!TryPlanFusionSummon(player, i, ultimateFusionOnly, out candidateMaterials, out candidateToExtraMonsterZone, out candidateTargetMainZone))
                 {
                     continue;
                 }
@@ -5816,11 +6220,64 @@ namespace IcarusGame.CleanDuel
                     bestAttack = candidate.Definition.Attack;
                     extraIndex = i;
                     bestMaterials = candidateMaterials;
+                    bestToExtraMonsterZone = candidateToExtraMonsterZone;
+                    bestTargetMainZone = candidateTargetMainZone;
                 }
             }
 
             materials = bestMaterials;
+            summonToExtraMonsterZone = bestToExtraMonsterZone;
+            targetMainZone = bestTargetMainZone;
             return extraIndex >= 0;
+        }
+
+        private bool TryPlanFusionSummon(CleanPlayerState player, int extraDeckIndex, bool ultimateFusionOnly, out List<FusionMaterialCandidate> materials, out bool summonToExtraMonsterZone, out int targetMainZone)
+        {
+            materials = null;
+            summonToExtraMonsterZone = false;
+            targetMainZone = -1;
+            if (extraDeckIndex < 0 || extraDeckIndex >= player.ExtraDeck.Count)
+            {
+                return false;
+            }
+
+            CleanCard fusionMonster = player.ExtraDeck[extraDeckIndex];
+            bool validCandidate = ultimateFusionOnly
+                ? IsUltimateFusionSummonCandidate(fusionMonster)
+                : IsFusionSummonCandidate(fusionMonster);
+            if (!validCandidate || !TrySelectFusionMaterials(player, fusionMonster, out materials))
+            {
+                return false;
+            }
+
+            int extraZone = ExtraMonsterZoneIndexFor(player);
+            if (State.ExtraMonsters[extraZone] == null)
+            {
+                summonToExtraMonsterZone = true;
+                return true;
+            }
+
+            targetMainZone = FirstLinkedExtraDeckMainMonsterZone(player, FusionMaterialMainZones(materials));
+            return targetMainZone >= 0;
+        }
+
+        private List<int> FusionMaterialMainZones(List<FusionMaterialCandidate> materials)
+        {
+            List<int> zones = new List<int>();
+            if (materials == null)
+            {
+                return zones;
+            }
+
+            for (int i = 0; i < materials.Count; i++)
+            {
+                if (materials[i].IsMonsterZone)
+                {
+                    zones.Add(materials[i].ZoneIndex);
+                }
+            }
+
+            return zones;
         }
 
         private bool TrySelectFusionMaterials(CleanPlayerState player, CleanCard fusionMonster, out List<FusionMaterialCandidate> materials)
@@ -6019,6 +6476,7 @@ namespace IcarusGame.CleanDuel
         private void ResetCardForHiddenZone(CleanCard card)
         {
             card.FaceDown = false;
+            card.SetThisTurn = false;
             card.AttackBonus = 0;
             card.DefenseBonus = 0;
             card.AttackOverride = -1;
@@ -6028,13 +6486,16 @@ namespace IcarusGame.CleanDuel
             card.PiercingThisTurn = false;
             card.RitualSummonedUsingBlueEyesWhiteDragon = false;
             card.SentToGraveThisTurn = false;
+            card.PositionChangedThisTurn = false;
             card.FusionSummoned = false;
             card.SynchroSummoned = false;
             card.LinkSummoned = false;
+            card.XyzSummoned = false;
             card.FaceUpExtraDeck = false;
             card.DestroyDuringEndPhase = false;
             card.HasBattled = false;
             card.SummonedThisTurn = false;
+            card.PositionChangedThisTurn = false;
         }
 
         private int CountFieldBlueEyesMaterials(List<FusionMaterialCandidate> materials)
@@ -6441,6 +6902,7 @@ namespace IcarusGame.CleanDuel
             card.Stance = stance;
             card.HasBattled = false;
             card.SummonedThisTurn = true;
+            card.PositionChangedThisTurn = false;
             if (!faceDown)
             {
                 ResolveSummonTrigger(player, OpponentOf(player.Id), card, normalSummon);
@@ -6742,7 +7204,19 @@ namespace IcarusGame.CleanDuel
             Log(boosted > 0 ? "Allied monsters gain " + amount + " ATK." : "No allied monsters to boost.");
         }
 
-        private void PlaceFieldSpell(CleanPlayerState player, CleanCard card)
+        private bool IsFieldSpellCard(CleanCard card)
+        {
+            if (card == null || card.Definition.Kind != CleanCardKind.Spell)
+            {
+                return false;
+            }
+
+            string typeLine = card.Definition.TypeLine ?? string.Empty;
+            return card.Definition.Id == MausoleumOfWhiteCardId ||
+                   card.Definition.Id == GatewayToChaosCardId ||
+                   typeLine.IndexOf("Field", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+        private void PlaceFieldSpell(CleanPlayerState player, CleanCard card, bool faceDown = false)
         {
             if (player.FieldSpell != null && !object.ReferenceEquals(player.FieldSpell, card))
             {
@@ -6760,7 +7234,8 @@ namespace IcarusGame.CleanDuel
 
             player.FieldSpell = card;
             card.Controller = player.Id;
-            card.FaceDown = false;
+            card.FaceDown = faceDown;
+            card.SetThisTurn = faceDown;
             if (card.Definition.Id == GatewayToChaosCardId)
             {
                 player.GatewayToChaosCounters = 0;
@@ -6823,26 +7298,58 @@ namespace IcarusGame.CleanDuel
             card.PiercingThisTurn = false;
             card.RitualSummonedUsingBlueEyesWhiteDragon = false;
             card.SentToGraveThisTurn = false;
+            card.PositionChangedThisTurn = false;
             card.FusionSummoned = false;
             card.SynchroSummoned = false;
             card.LinkSummoned = false;
+            card.XyzSummoned = false;
             card.FaceUpExtraDeck = false;
             card.DestroyDuringEndPhase = false;
             card.HasBattled = false;
             player.Monsters[zone] = null;
+            SendXyzMaterialsToGrave(player, card);
             SendFieldCardToGraveOrFaceUpExtra(player, card, true);
         }
 
+        internal void WinByCardEffect(CleanPlayerState winner, string sourceName)
+        {
+            if (State.GameOver || winner == null)
+            {
+                return;
+            }
+
+            string effectName = string.IsNullOrEmpty(sourceName) ? "card effect" : sourceName;
+            State.GameOver = true;
+            State.WinnerText = winner.Name + " wins by " + effectName + ".";
+            Log(State.WinnerText);
+        }
         private void CheckWin()
         {
-            if (State.Local.LifePoints <= 0)
+            if (State.GameOver)
+            {
+                return;
+            }
+
+            bool localDefeated = State.Local.LifePoints <= 0;
+            bool rivalDefeated = State.Rival.LifePoints <= 0;
+            if (localDefeated && rivalDefeated)
+            {
+                State.Local.LifePoints = 0;
+                State.Rival.LifePoints = 0;
+                State.GameOver = true;
+                State.WinnerText = "Duel ends in a draw.";
+                Log(State.WinnerText);
+                return;
+            }
+
+            if (localDefeated)
             {
                 State.Local.LifePoints = 0;
                 State.GameOver = true;
                 State.WinnerText = State.Rival.Name + " wins.";
                 Log(State.WinnerText);
             }
-            else if (State.Rival.LifePoints <= 0)
+            else if (rivalDefeated)
             {
                 State.Rival.LifePoints = 0;
                 State.GameOver = true;
