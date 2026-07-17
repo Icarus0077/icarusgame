@@ -18,6 +18,7 @@ namespace IcarusGame.CleanDuel
         private int selectedMonster = -1;
         private int selectedSpellTrap = -1;
         private int selectedExtraDeck = -1;
+        private int selectedGraveyard = -1;
         private bool hasInspection;
         private CleanPlayerId inspectedOwner;
         private CleanZoneKind inspectedZone;
@@ -48,12 +49,26 @@ namespace IcarusGame.CleanDuel
             selectedMonster = -1;
             selectedSpellTrap = -1;
             selectedExtraDeck = -1;
+            selectedGraveyard = -1;
             ClearInspection();
             Refresh();
         }
 
         public void HandleZoneClicked(CleanPlayerId owner, CleanZoneKind zone, int index)
         {
+            if (owner == CleanPlayerId.Local && zone == CleanZoneKind.Graveyard)
+            {
+                int count = game.State.Local.Graveyard.Count;
+                selectedGraveyard = count == 0 ? -1 : selectedGraveyard < 0 ? count - 1 : (selectedGraveyard - 1 + count) % count;
+                selectedHand = -1;
+                selectedMonster = -1;
+                selectedSpellTrap = -1;
+                selectedExtraDeck = -1;
+                ClearInspection();
+                Refresh();
+                return;
+            }
+
             if (owner == CleanPlayerId.Local && zone == CleanZoneKind.Monster)
             {
                 CleanCard card = game.State.Local.Monsters[index];
@@ -290,7 +305,7 @@ namespace IcarusGame.CleanDuel
 
             if (hudView != null)
             {
-                hudView.Render(game, selectedCard, selectedHand, selectedMonster, selectedSpellTrap, selectedExtraDeck);
+                hudView.Render(game, selectedCard, selectedHand, selectedMonster, selectedSpellTrap, selectedExtraDeck, selectedGraveyard);
             }
         }
 
@@ -426,6 +441,8 @@ namespace IcarusGame.CleanDuel
             selectedHand = -1;
             selectedMonster = -1;
             selectedSpellTrap = -1;
+            selectedExtraDeck = -1;
+            selectedGraveyard = -1;
             ClearInspection();
         }
 

@@ -123,14 +123,18 @@ namespace IcarusGame.CleanDuel
 
     public sealed class CleanCard
     {
+        private static int nextRuntimeId;
+
         public CleanCard(CleanCardDefinition definition, CleanPlayerId owner)
         {
+            RuntimeId = ++nextRuntimeId;
             Definition = definition;
             Owner = owner;
             Controller = owner;
             Stance = CleanMonsterStance.Attack;
         }
 
+        public int RuntimeId { get; private set; }
         public CleanCardDefinition Definition { get; private set; }
         public CleanPlayerId Owner { get; private set; }
         public CleanPlayerId Controller { get; set; }
@@ -141,11 +145,13 @@ namespace IcarusGame.CleanDuel
         public bool PositionChangedThisTurn { get; set; }
         public CleanMonsterStance Stance { get; set; }
         public int AttackBonus { get; set; }
+        public int EquipAttackBonus { get; set; }
         public int DefenseBonus { get; set; }
         public int AttackOverride { get; set; } = -1;
         public int DefenseOverride { get; set; } = -1;
         public bool CannotAttack { get; set; }
         public bool EffectsNegated { get; set; }
+        public bool EffectsNegatedUntilEndOfTurn { get; set; }
         public bool PiercingThisTurn { get; set; }
         public bool RitualSummonedUsingBlueEyesWhiteDragon { get; set; }
         public bool SentToGraveThisTurn { get; set; }
@@ -155,11 +161,13 @@ namespace IcarusGame.CleanDuel
         public bool XyzSummoned { get; set; }
         public bool FaceUpExtraDeck { get; set; }
         public bool DestroyDuringEndPhase { get; set; }
+        public bool ProperlySummoned { get; set; }
+        public int EquippedToRuntimeId { get; set; }
         public readonly List<CleanCard> XyzMaterials = new List<CleanCard>();
 
         public int CurrentAttack
         {
-            get { return (AttackOverride >= 0 ? AttackOverride : Definition.Attack) + AttackBonus; }
+            get { return (AttackOverride >= 0 ? AttackOverride : Definition.Attack) + AttackBonus + EquipAttackBonus; }
         }
 
         public int CurrentDefense
@@ -188,6 +196,7 @@ namespace IcarusGame.CleanDuel
         public int LifePoints = 8000;
         public bool NormalSummonUsed;
         public bool PendulumSummonUsed;
+        public bool MaxxCDrawActive;
         public int GatewayToChaosCounters;
         public bool ExtraDeckDragonOnlyThisTurn;
         public readonly HashSet<string> UsedOncePerTurn = new HashSet<string>();

@@ -87,7 +87,7 @@ namespace IcarusGame.CleanDuel
             BuildGameOverOverlay(canvasRect);
         }
 
-        public void Render(CleanDuelGame game, CleanCard selectedCard, int selectedHand, int selectedMonster, int selectedSpellTrap, int selectedExtraDeck)
+        public void Render(CleanDuelGame game, CleanCard selectedCard, int selectedHand, int selectedMonster, int selectedSpellTrap, int selectedExtraDeck, int selectedGraveyard)
         {
             CleanDuelState state = game.State;
             localNameText.text = state.Local.Name;
@@ -102,7 +102,7 @@ namespace IcarusGame.CleanDuel
             RenderLog(state);
             RenderChoicePrompt(state.GameOver ? null : state.PendingChoice);
             RenderGameOverOverlay(state);
-            PositionActionLayer(state.GameOver ? -1 : selectedHand, state.GameOver ? -1 : selectedMonster, state.GameOver ? -1 : selectedSpellTrap, state.GameOver ? -1 : selectedExtraDeck);
+            PositionActionLayer(state.GameOver ? -1 : selectedHand, state.GameOver ? -1 : selectedMonster, state.GameOver ? -1 : selectedSpellTrap, state.GameOver ? -1 : selectedExtraDeck, state.GameOver ? -1 : selectedGraveyard);
 
             CleanCard selectedSpellTrapCard = null;
             if (selectedSpellTrap >= 0 && selectedSpellTrap < CleanPlayerState.ZoneCount)
@@ -123,12 +123,13 @@ namespace IcarusGame.CleanDuel
             bool canActivateSelectedCard = !selectedNormalMonster &&
                                            ((selectedHand >= 0 && (game.CanActivateHandCard(selectedHand) || game.CanActivateLocalQuickEffectHandCard(selectedHand))) ||
                                             (selectedExtraDeck >= 0 && (game.CanSynchroSummonFromExtra(selectedExtraDeck) || game.CanLinkSummonFromExtra(selectedExtraDeck) || game.CanXyzSummonFromExtra(selectedExtraDeck))) ||
-                                            (selectedMonster >= 0 && (game.CanActivateMonsterZoneCard(selectedMonster) || game.CanActivateLocalQuickEffectMonsterZoneCard(selectedMonster))));
-            activateButton.gameObject.SetActive(!selectedNormalMonster || selectedExtraDeck >= 0);
+                                            (selectedMonster >= 0 && (game.CanActivateMonsterZoneCard(selectedMonster) || game.CanActivateLocalQuickEffectMonsterZoneCard(selectedMonster))) ||
+                                            (selectedGraveyard >= 0 && game.CanActivateGraveyardCard(selectedGraveyard)));
+            activateButton.gameObject.SetActive(!selectedNormalMonster || selectedExtraDeck >= 0 || selectedGraveyard >= 0);
             Text activateLabel = activateButton.GetComponentInChildren<Text>();
             if (activateLabel != null)
             {
-                activateLabel.text = selectedExtraDeck >= 0 ? ExtraDeckSummonLabel(game, selectedExtraDeck) : selectedHand >= 0 && game.CanActivatePendulumFromHand(selectedHand) ? "Pendulum" : "Activate";
+                activateLabel.text = selectedExtraDeck >= 0 ? ExtraDeckSummonLabel(game, selectedExtraDeck) : selectedGraveyard >= 0 ? "Activate GY" : selectedHand >= 0 && game.CanActivatePendulumFromHand(selectedHand) ? "Pendulum" : "Activate";
             }
             summonButton.interactable = selectedHand >= 0 && game.CanNormalSummon(selectedHand);
             setMonsterButton.interactable = selectedHand >= 0 && game.CanSetMonster(selectedHand);
@@ -544,9 +545,9 @@ namespace IcarusGame.CleanDuel
             choiceCancelButton.transform.SetAsLastSibling();
         }
 
-        private void PositionActionLayer(int selectedHand, int selectedMonster, int selectedSpellTrap, int selectedExtraDeck)
+        private void PositionActionLayer(int selectedHand, int selectedMonster, int selectedSpellTrap, int selectedExtraDeck, int selectedGraveyard)
         {
-            actionLayer.gameObject.SetActive(selectedHand >= 0 || selectedMonster >= 0 || selectedSpellTrap >= 0 || selectedExtraDeck >= 0);
+            actionLayer.gameObject.SetActive(selectedHand >= 0 || selectedMonster >= 0 || selectedSpellTrap >= 0 || selectedExtraDeck >= 0 || selectedGraveyard >= 0);
         }
 
         private string FullStats(CleanCard card)
