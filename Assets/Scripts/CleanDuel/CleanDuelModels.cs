@@ -11,6 +11,7 @@ namespace IcarusGame.CleanDuel
     public enum CleanDuelPhase
     {
         Draw,
+        Standby,
         Main,
         Battle,
         Main2,
@@ -31,6 +32,14 @@ namespace IcarusGame.CleanDuel
         Quick,
         Trigger,
         Continuous
+    }
+
+    public enum CleanPromptKind
+    {
+        Choice,
+        CardEffect,
+        TriggerEffect,
+        SpecialSummon
     }
 
     public enum CleanMonsterStance
@@ -54,13 +63,20 @@ namespace IcarusGame.CleanDuel
 
     public sealed class CleanChoiceOption
     {
-        public CleanChoiceOption(int id, string label, string detail, bool isAvailable, string disabledReason)
+        public CleanChoiceOption(
+            int id,
+            string label,
+            string detail,
+            bool isAvailable,
+            string disabledReason,
+            int cardDefinitionId = 0)
         {
             Id = id;
             Label = label;
             Detail = detail;
             IsAvailable = isAvailable;
             DisabledReason = disabledReason;
+            CardDefinitionId = cardDefinitionId;
         }
 
         public int Id { get; private set; }
@@ -68,22 +84,33 @@ namespace IcarusGame.CleanDuel
         public string Detail { get; private set; }
         public bool IsAvailable { get; private set; }
         public string DisabledReason { get; private set; }
+        public int CardDefinitionId { get; private set; }
     }
 
     public sealed class CleanChoicePrompt
     {
-        public CleanChoicePrompt(int sourceCardId, string title, string body, List<CleanChoiceOption> options)
+        public CleanChoicePrompt(
+            int sourceCardId,
+            string title,
+            string body,
+            List<CleanChoiceOption> options,
+            CleanPromptKind kind = CleanPromptKind.Choice,
+            bool canCancel = true)
         {
             SourceCardId = sourceCardId;
             Title = title;
             Body = body;
             Options = options;
+            Kind = kind;
+            CanCancel = canCancel;
         }
 
         public int SourceCardId { get; private set; }
         public string Title { get; private set; }
         public string Body { get; private set; }
         public List<CleanChoiceOption> Options { get; private set; }
+        public CleanPromptKind Kind { get; private set; }
+        public bool CanCancel { get; private set; }
     }
 
     public sealed class CleanCardDefinition

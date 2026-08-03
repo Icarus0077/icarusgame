@@ -35,7 +35,7 @@ namespace IcarusGame.CleanDuel
             CreatePiles(CleanPlayerId.Local, -1f);
         }
 
-        public void Render(CleanDuelGame game, int selectedMonsterZone, int selectedSpellTrapZone)
+        public void Render(CleanDuelGame game, int selectedMonsterZone, int selectedSpellTrapZone, int selectedExtraMonsterZone, bool selectingAttackTarget)
         {
             for (int i = 0; i < slots.Count; i++)
             {
@@ -44,14 +44,45 @@ namespace IcarusGame.CleanDuel
                 bool selected = slot.Owner == CleanPlayerId.Local &&
                                 ((slot.Zone == CleanZoneKind.Monster && slot.Index == selectedMonsterZone) ||
                                  (slot.Zone == CleanZoneKind.SpellTrap && slot.Index == selectedSpellTrapZone) ||
-                                 (slot.Zone == CleanZoneKind.FieldSpell && selectedSpellTrapZone == CleanDuelGame.FieldSpellZoneIndex));
-                RenderSlot(slot, card, selected);
+                                 (slot.Zone == CleanZoneKind.FieldSpell && selectedSpellTrapZone == CleanDuelGame.FieldSpellZoneIndex) ||
+                                 (slot.Zone == CleanZoneKind.ExtraMonster && slot.Index == selectedExtraMonsterZone));
+                bool attackTarget = selectingAttackTarget &&
+                                    slot.Owner == CleanPlayerId.Rival &&
+                                    slot.Zone == CleanZoneKind.Monster &&
+                                    card != null;
+                RenderSlot(slot, card, selected, attackTarget);
             }
 
             for (int i = 0; i < piles.Count; i++)
             {
                 RenderPile(piles[i], game.Player(piles[i].Owner));
             }
+        }
+
+        public bool TryGetActionAnchorScreenPoint(CleanPlayerId owner, CleanZoneKind zone, int index, out Vector2 screenPoint)
+        {
+            screenPoint = Vector2.zero;
+            if (sceneCamera == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < slots.Count; i++)
+            {
+                BoardSlot slot = slots[i];
+                if (slot.Owner != owner || slot.Zone != zone || slot.Index != index)
+                {
+                    continue;
+                }
+
+                Transform slotRoot = slot.Card.transform.parent;
+                Vector3 worldAnchor = slotRoot.TransformPoint(new Vector3(0f, 0f, 0.82f));
+                Vector3 projected = sceneCamera.WorldToScreenPoint(worldAnchor);
+                screenPoint = new Vector2(projected.x, projected.y);
+                return projected.z > 0f;
+            }
+
+            return false;
         }
 
         private CleanCard CardForSlot(CleanDuelGame game, BoardSlot slot)
@@ -172,6 +203,24 @@ namespace IcarusGame.CleanDuel
             Renderer frame = CreateZoneDecoration("Zone Frame", 0f, 0f, size, accent, slotRoot, false);
             Renderer coreRenderer = CreateCylinder("Zone Lens", slotRoot, new Vector3(0f, 0.055f, 0f), new Vector3(size * 0.18f, 0.012f, size * 0.18f), new Color(0.11f, 0.24f, 0.28f, 1f)).GetComponent<Renderer>();
             Renderer card = CreateCardSurface("Card", slotRoot, new Vector3(0f, 0.095f, 0f), new Vector2(0.82f, 1.18f), new Color(0.1f, 0.055f, 0.032f, 1f));
+            List<Renderer> xyzMaterialCards = new List<Renderer>();
+            for (int materialIndex = 0; materialIndex < 4; materialIndex++)
+            {
+                Renderer materialCard = CreateCardSurface(
+                    "Xyz Material " + materialIndex,
+                    slotRoot,
+                    new Vector3(0f, 0.082f + materialIndex * 0.002f, 0f),
+                    new Vector2(0.82f, 1.18f),
+                    new Color(0.05f, 0.05f, 0.07f, 1f));
+                Collider materialCollider = materialCard.GetComponent<Collider>();
+                if (materialCollider != null)
+                {
+                    materialCollider.enabled = false;
+                }
+
+                materialCard.gameObject.SetActive(false);
+                xyzMaterialCards.Add(materialCard);
+            }
             TextMesh label = CreateLabel("Name", slotRoot, new Vector3(-0.45f, 0.16f, -0.47f), string.Empty, 24);
             TextMesh stats = CreateLabel("Stats", slotRoot, new Vector3(-0.34f, 0.16f, 0.45f), string.Empty, 22);
 
@@ -189,6 +238,7 @@ namespace IcarusGame.CleanDuel
                 Frame = frame,
                 Core = coreRenderer,
                 Card = card,
+                XyzMaterialCards = xyzMaterialCards,
                 Label = label,
                 Stats = stats
             };
@@ -251,7 +301,7 @@ namespace IcarusGame.CleanDuel
             return new PileView { Owner = owner, Zone = zone, Stack = stack, Label = label };
         }
 
-        private void RenderSlot(BoardSlot slot, CleanCard card, bool selected)
+        private void RenderSlot(BoardSlot slot, CleanCard card, bool selected, bool attackTarget)
         {
             bool hasCard = card != null;
             string emptyLabel = EmptyZoneLabel(slot);
@@ -259,8 +309,11 @@ namespace IcarusGame.CleanDuel
             slot.Card.gameObject.SetActive(hasCard);
             slot.Label.gameObject.SetActive(hasCard || showEmptyLabel);
             slot.Stats.gameObject.SetActive(hasCard);
-            SetColor(slot.Frame, selected ? new Color(1f, 0.88f, 0.18f, 1f) : new Color(0.018f, 0.026f, 0.046f, 1f));
-            SetColor(slot.Core, selected ? new Color(1f, 0.82f, 0.18f, 1f) : hasCard ? new Color(0.12f, 0.23f, 0.26f, 1f) : new Color(0.36f, 0.82f, 0.92f, 1f));
+            RenderXyzMaterialStack(slot, card);
+            Color frameColor = selected ? new Color(1f, 0.88f, 0.18f, 1f) : attackTarget ? new Color(1f, 0.16f, 0.12f, 1f) : new Color(0.018f, 0.026f, 0.046f, 1f);
+            Color coreColor = selected ? new Color(1f, 0.82f, 0.18f, 1f) : attackTarget ? new Color(1f, 0.32f, 0.08f, 1f) : hasCard ? new Color(0.12f, 0.23f, 0.26f, 1f) : new Color(0.36f, 0.82f, 0.92f, 1f);
+            SetColor(slot.Frame, frameColor);
+            SetColor(slot.Core, coreColor);
             if (!hasCard)
             {
                 if (showEmptyLabel)
@@ -313,6 +366,35 @@ namespace IcarusGame.CleanDuel
             float stanceYaw = defenseMonster ? 90f : 0f;
             slot.Card.transform.localRotation = Quaternion.Euler(0f, ownerYaw + stanceYaw, 0f);
             slot.Card.transform.localPosition = new Vector3(0f, 0.12f, 0f);
+        }
+
+        private void RenderXyzMaterialStack(BoardSlot slot, CleanCard card)
+        {
+            int materialCount = card == null ? 0 : card.XyzMaterials.Count;
+            int displayCount = Mathf.Min(materialCount, slot.XyzMaterialCards.Count);
+            for (int i = 0; i < slot.XyzMaterialCards.Count; i++)
+            {
+                Renderer materialCard = slot.XyzMaterialCards[i];
+                bool visible = i < displayCount;
+                materialCard.gameObject.SetActive(visible);
+                if (!visible)
+                {
+                    continue;
+                }
+
+                CleanCard xyzMaterial = card.XyzMaterials[i];
+                Texture2D texture = artCache.GetTexture(xyzMaterial.Definition.Id);
+                SetTexture(materialCard.material, texture);
+                SetColor(materialCard, texture == null ? artCache.CardColor(xyzMaterial) : Color.white);
+                float ownerYaw = slot.Owner == CleanPlayerId.Local ? 0f : 180f;
+                float fanOffset = (i - (displayCount - 1) * 0.5f) * 5f;
+                materialCard.transform.localRotation = Quaternion.Euler(0f, ownerYaw + fanOffset, 0f);
+                materialCard.transform.localPosition = new Vector3(
+                    (i - (displayCount - 1) * 0.5f) * 0.045f,
+                    0.094f + i * 0.002f,
+                    0.055f - i * 0.012f);
+                materialCard.transform.localScale = new Vector3(0.98f, 1f, 0.98f);
+            }
         }
 
         private void RenderPile(PileView pile, CleanPlayerState player)
@@ -390,7 +472,14 @@ namespace IcarusGame.CleanDuel
                 return card.Definition.Kind.ToString().ToUpperInvariant();
             }
 
-            return card.Stance == CleanMonsterStance.Attack ? "ATK " + card.CurrentAttack : "DEF " + card.CurrentDefense;
+            string combatStats = card.Stance == CleanMonsterStance.Attack ? "ATK " + card.CurrentAttack : "DEF " + card.CurrentDefense;
+            string typeLine = card.Definition.TypeLine ?? string.Empty;
+            if (typeLine.IndexOf("Xyz", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return combatStats + "  MAT " + card.XyzMaterials.Count;
+            }
+
+            return combatStats;
         }
 
         private string ShortName(string value, int max)
@@ -610,6 +699,7 @@ namespace IcarusGame.CleanDuel
             public Renderer Frame;
             public Renderer Core;
             public Renderer Card;
+            public List<Renderer> XyzMaterialCards;
             public TextMesh Label;
             public TextMesh Stats;
         }

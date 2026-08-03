@@ -29,6 +29,8 @@ namespace IcarusGame.CleanDuel
                 { 89604813, Monster(89604813, "Blue-Eyes Ultimate Spirit Dragon", 12, 3500, 4000, "ultimate_spirit_clean", "Dragon / LIGHT / Synchro / Effect") },
                 { 40908371, Monster(40908371, "Azure-Eyes Silver Dragon", 9, 2500, 3000, "azure_eyes_clean", "Dragon / LIGHT / Synchro / Effect") },
                 { 42097666, Monster(42097666, "Spirit with Eyes of Blue", 1, 300, 0, "spirit_with_eyes_clean", "Dragon / Link / Effect") },
+                { 63767246, Monster(63767246, "Number 38: Hope Harbinger Dragon Titanic Galaxy", 8, 3000, 2500, "hope_harbinger_clean", "Dragon / Xyz / Effect") },
+                { 18963306, Monster(18963306, "Galaxy-Eyes Cipher Dragon", 8, 3000, 2500, "cipher_dragon_clean", "Dragon / Xyz / Effect") },
                 { 24382602, Spell(24382602, "Mausoleum of White", "mausoleum_clean") },
                 { 93437091, Spell(93437091, "Bingo Machine, Go!!!", "bingo_clean") },
                 { 80326401, Spell(80326401, "Wishes for Eyes of Blue", "wishes_clean") },
@@ -76,7 +78,7 @@ namespace IcarusGame.CleanDuel
             }
 
             CardData data = YgoCardDatabase.CreateCardData(record, string.Empty, fallback.EffectKey);
-            string effectKey = ResolveEffectKey(fallback.EffectKey, data);
+            string effectKey = ResolveEffectKey(fallback.EffectKey);
             return new CleanCardDefinition(
                 data.Id,
                 data.Name,
@@ -144,7 +146,9 @@ namespace IcarusGame.CleanDuel
                 12381100, 12381100, 12381100,
                 59822133, 59822133,
                 89604813,
-                42097666, 42097666, 42097666
+                42097666, 42097666, 42097666,
+                63767246,
+                18963306
             };
         }
 
@@ -174,19 +178,15 @@ namespace IcarusGame.CleanDuel
             }
         }
 
-        private static string ResolveEffectKey(string configuredKey, CardData data)
+        private static string ResolveEffectKey(string configuredKey)
         {
             if (!string.IsNullOrEmpty(configuredKey))
             {
                 return configuredKey;
             }
 
-            if (data == null || !CleanLuaScriptRepository.HasCardScript(data.Id))
-            {
-                return string.Empty;
-            }
-
-            return "lua_" + data.Id;
+            // Lua source requires the full duel engine; never guess gameplay from it.
+            return string.Empty;
         }
 
         private static CleanCardDefinition Monster(int id, string name, int level, int attack, int defense, string effectKey, string typeLine)

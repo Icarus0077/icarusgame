@@ -20,11 +20,21 @@ namespace IcarusGame.CleanDuel
         private Text localNameText;
         private Text rivalNameText;
         private Text phaseOrbText;
+        private Button phaseOrbButton;
+        private Image phaseOrbImage;
+        private RectTransform phaseMicroMenu;
+        private Image phaseMenuBackground;
+        private Text phaseMenuTitle;
+        private Sprite phaseCircleSprite;
+        private bool phaseMenuOpen;
+        private readonly List<Image> phaseStepImages = new List<Image>();
         private Text logText;
+        private RectTransform canvasRect;
         private RectTransform handLayer;
         private RectTransform rivalHandLayer;
         private RectTransform actionLayer;
         private RectTransform choicePanel;
+        private Text choiceKind;
         private Text choiceTitle;
         private Text choiceBody;
         private RectTransform gameOverOverlay;
@@ -36,14 +46,11 @@ namespace IcarusGame.CleanDuel
         private Text gameOverHint;
         private readonly List<Button> choiceButtons = new List<Button>();
         private readonly List<Text> choiceButtonLabels = new List<Text>();
+        private readonly List<Image> choiceButtonArtwork = new List<Image>();
+        private readonly List<Text> phaseStepLabels = new List<Text>();
         private Button choiceCancelButton;
-        private Button summonButton;
-        private Button setMonsterButton;
-        private Button activateButton;
-        private Button setActivateButton;
-        private Button activateZoneButton;
-        private Button stanceButton;
-        private Button directAttackButton;
+        private Button primaryActionButton;
+        private Button secondaryActionButton;
         private Button pendulumButton;
         private Button nextPhaseButton;
 
@@ -71,7 +78,7 @@ namespace IcarusGame.CleanDuel
             scaler.referenceResolution = new Vector2(1920f, 1080f);
             scaler.matchWidthOrHeight = 0.5f;
 
-            RectTransform canvasRect = canvasObject.GetComponent<RectTransform>();
+            canvasRect = canvasObject.GetComponent<RectTransform>();
             Stretch(canvasRect);
 
             BuildTopChrome(canvasRect);
@@ -87,65 +94,133 @@ namespace IcarusGame.CleanDuel
             BuildGameOverOverlay(canvasRect);
         }
 
-        public void Render(CleanDuelGame game, CleanCard selectedCard, int selectedHand, int selectedMonster, int selectedSpellTrap, int selectedExtraDeck, int selectedGraveyard)
+        public void Render(
+            CleanDuelGame game,
+            CleanCard selectedCard,
+            bool revealSelectedFaceDownCard,
+            int selectedHand,
+            int selectedMonster,
+            int selectedSpellTrap,
+            int selectedExtraDeck,
+            int selectedExtraMonster,
+            int selectedGraveyard,
+            bool selectingAttackTarget,
+            bool hasBoardActionAnchor,
+            Vector2 boardActionAnchor)
         {
             CleanDuelState state = game.State;
             localNameText.text = state.Local.Name;
             localLpText.text = "LP  " + state.Local.LifePoints;
             rivalNameText.text = state.Rival.Name;
             rivalLpText.text = "LP  " + state.Rival.LifePoints;
-            phaseOrbText.text = "Turn " + state.TurnNumber + "\n" + PhaseLabel(state.Phase);
+            RenderPhaseControl(state);
 
-            RenderInspector(selectedCard, state, game);
+            RenderInspector(selectedCard, revealSelectedFaceDownCard, state, game);
             RenderRivalHand(game);
             RenderHand(game, selectedHand);
             RenderLog(state);
             RenderChoicePrompt(state.GameOver ? null : state.PendingChoice);
             RenderGameOverOverlay(state);
-            PositionActionLayer(state.GameOver ? -1 : selectedHand, state.GameOver ? -1 : selectedMonster, state.GameOver ? -1 : selectedSpellTrap, state.GameOver ? -1 : selectedExtraDeck, state.GameOver ? -1 : selectedGraveyard);
-
-            CleanCard selectedSpellTrapCard = null;
-            if (selectedSpellTrap >= 0 && selectedSpellTrap < CleanPlayerState.ZoneCount)
-            {
-                selectedSpellTrapCard = state.Local.SpellsTraps[selectedSpellTrap];
-            }
-            else if (selectedSpellTrap == CleanDuelGame.FieldSpellZoneIndex)
-            {
-                selectedSpellTrapCard = state.Local.FieldSpell;
-            }
-            Text activateZoneLabel = activateZoneButton.GetComponentInChildren<Text>();
-            if (activateZoneLabel != null)
-            {
-                activateZoneLabel.text = selectedSpellTrapCard != null && !selectedSpellTrapCard.FaceDown ? "Activate" : "Flip";
-            }
-
-            bool selectedNormalMonster = IsNormalMonster(selectedCard);
-            bool canActivateSelectedCard = !selectedNormalMonster &&
+            bool allowActions = !state.GameOver && state.PendingChoice == null;
+            bool selectedFaceDownMonster = selectedMonster >= 0 &&
+                                           selectedMonster < CleanPlayerState.ZoneCount &&
+                                           state.Local.Monsters[selectedMonster] != null &&
+                                           state.Local.Monsters[selectedMonster].FaceDown;
+            bool canFlipSummon = allowActions && selectedFaceDownMonster && game.CanFlipSummonMonster(selectedMonster);
+            bool canActivateSelectedCard = allowActions &&
                                            ((selectedHand >= 0 && (game.CanActivateHandCard(selectedHand) || game.CanActivateLocalQuickEffectHandCard(selectedHand))) ||
                                             (selectedExtraDeck >= 0 && (game.CanSynchroSummonFromExtra(selectedExtraDeck) || game.CanLinkSummonFromExtra(selectedExtraDeck) || game.CanXyzSummonFromExtra(selectedExtraDeck))) ||
+                                            (selectedExtraMonster >= 0 && game.CanActivateLocalExtraMonsterZoneCard(selectedExtraMonster)) ||
                                             (selectedMonster >= 0 && (game.CanActivateMonsterZoneCard(selectedMonster) || game.CanActivateLocalQuickEffectMonsterZoneCard(selectedMonster))) ||
                                             (selectedGraveyard >= 0 && game.CanActivateGraveyardCard(selectedGraveyard)));
-            activateButton.gameObject.SetActive(!selectedNormalMonster || selectedExtraDeck >= 0 || selectedGraveyard >= 0);
-            Text activateLabel = activateButton.GetComponentInChildren<Text>();
-            if (activateLabel != null)
+            bool canNormalSummon = allowActions && selectedHand >= 0 && game.CanNormalSummon(selectedHand);
+            bool canSetMonster = allowActions && selectedHand >= 0 && game.CanSetMonster(selectedHand);
+            bool canSetSpellTrap = allowActions && selectedHand >= 0 && game.CanSetSpellTrap(selectedHand);
+            bool canActivateSpellTrapZone = allowActions && selectedSpellTrap >= 0 && game.CanActivateSetCard(selectedSpellTrap);
+            bool canChangeStance = allowActions &&
+                                   selectedMonster >= 0 &&
+                                   !selectedFaceDownMonster &&
+                                   game.CanToggleLocalMonsterStance(selectedMonster);
+            bool canAttack = allowActions && selectedMonster >= 0 && game.CanAttackWith(selectedMonster);
+            bool canPendulumSummon = allowActions && game.CanPendulumSummon();
+
+            int actionCount = 0;
+            HideContextActions();
+            if (allowActions && selectedHand >= 0 && selectedCard != null)
             {
-                activateLabel.text = selectedExtraDeck >= 0 ? ExtraDeckSummonLabel(game, selectedExtraDeck) : selectedGraveyard >= 0 ? "Activate GY" : selectedHand >= 0 && game.CanActivatePendulumFromHand(selectedHand) ? "Pendulum" : "Activate";
+                if (selectedCard.Definition.Kind == CleanCardKind.Monster)
+                {
+                    if (canActivateSelectedCard)
+                    {
+                        AddContextAction(ref actionCount, game.CanActivatePendulumFromHand(selectedHand) ? "Pendulum" : "Activate", runtime.ActivateOrSetSelected, new Color(0.95f, 0.72f, 0.08f, 0.97f));
+                    }
+
+                    if (canNormalSummon)
+                    {
+                        AddContextAction(ref actionCount, "Summon", runtime.NormalSummonSelected, new Color(0.08f, 0.52f, 0.95f, 0.97f));
+                    }
+
+                    if (canSetMonster)
+                    {
+                        AddContextAction(ref actionCount, "Set", runtime.SetMonsterSelected, new Color(0.02f, 0.28f, 0.46f, 0.97f));
+                    }
+                }
+                else
+                {
+                    if (canActivateSelectedCard)
+                    {
+                        AddContextAction(ref actionCount, "Activate", runtime.ActivateOrSetSelected, new Color(0.95f, 0.72f, 0.08f, 0.97f));
+                    }
+
+                    if (canSetSpellTrap)
+                    {
+                        AddContextAction(ref actionCount, "Set", runtime.SetSpellTrapSelected, new Color(0.25f, 0.3f, 0.48f, 0.97f));
+                    }
+                }
             }
-            summonButton.interactable = selectedHand >= 0 && game.CanNormalSummon(selectedHand);
-            setMonsterButton.interactable = selectedHand >= 0 && game.CanSetMonster(selectedHand);
-            activateButton.interactable = canActivateSelectedCard;
-            setActivateButton.interactable = selectedHand >= 0 && game.CanSetSpellTrap(selectedHand);
-            activateZoneButton.interactable = selectedSpellTrap >= 0 && game.CanActivateSetCard(selectedSpellTrap);
-            Text stanceLabel = stanceButton.GetComponentInChildren<Text>();
-            bool selectedFaceDownMonster = selectedMonster >= 0 && selectedMonster < CleanPlayerState.ZoneCount && state.Local.Monsters[selectedMonster] != null && state.Local.Monsters[selectedMonster].FaceDown;
-            if (stanceLabel != null)
+            else if (allowActions && selectedMonster >= 0)
             {
-                stanceLabel.text = selectedFaceDownMonster ? "Flip" : "Stance";
+                if (canAttack)
+                {
+                    AddContextAction(
+                        ref actionCount,
+                        selectingAttackTarget ? "Select Target" : "Attack",
+                        runtime.AttackSelected,
+                        new Color(0.88f, 0.16f, 0.12f, 0.97f),
+                        !selectingAttackTarget);
+                }
+
+                if (canActivateSelectedCard)
+                {
+                    AddContextAction(ref actionCount, "Activate", runtime.ActivateOrSetSelected, new Color(0.95f, 0.72f, 0.08f, 0.97f));
+                }
+
+                if (canFlipSummon || canChangeStance)
+                {
+                    AddContextAction(
+                        ref actionCount,
+                        canFlipSummon ? "Flip Summon" : "Change Position",
+                        runtime.ToggleSelectedMonsterStance,
+                        new Color(0.68f, 0.18f, 0.62f, 0.97f));
+                }
+            }
+            else if (allowActions && selectedSpellTrap >= 0 && canActivateSpellTrapZone)
+            {
+                AddContextAction(ref actionCount, "Activate", runtime.ActivateSelectedZone, new Color(0.95f, 0.72f, 0.08f, 0.97f));
+            }
+            else if (allowActions && selectedExtraDeck >= 0 && canActivateSelectedCard)
+            {
+                AddContextAction(ref actionCount, ExtraDeckSummonLabel(game, selectedExtraDeck), runtime.ActivateOrSetSelected, new Color(0.08f, 0.52f, 0.95f, 0.97f));
+            }
+            else if (allowActions && (selectedExtraMonster >= 0 || selectedGraveyard >= 0) && canActivateSelectedCard)
+            {
+                AddContextAction(ref actionCount, selectedGraveyard >= 0 ? "Activate GY" : "Activate", runtime.ActivateOrSetSelected, new Color(0.95f, 0.72f, 0.08f, 0.97f));
             }
 
-            stanceButton.interactable = selectedMonster >= 0 && (game.CanFlipSummonMonster(selectedMonster) || (game.CanUseLocalActions() && !selectedFaceDownMonster && (state.Phase == CleanDuelPhase.Main || state.Phase == CleanDuelPhase.Main2)));
-            directAttackButton.interactable = selectedMonster >= 0 && game.CanAttackWith(selectedMonster);
-            pendulumButton.interactable = game.CanPendulumSummon();
+            LayoutActionButtons(actionCount);
+            PositionActionLayer(selectedHand, state.Local.Hand.Count, hasBoardActionAnchor, boardActionAnchor);
+            pendulumButton.gameObject.SetActive(canPendulumSummon);
+            pendulumButton.interactable = canPendulumSummon;
             nextPhaseButton.interactable = game.CanUseLocalActions() || state.GameOver;
             Text nextPhaseLabel = nextPhaseButton.GetComponentInChildren<Text>();
             if (nextPhaseLabel != null)
@@ -204,10 +279,89 @@ namespace IcarusGame.CleanDuel
 
         private void BuildPhaseOrb(RectTransform canvas)
         {
-            RectTransform orb = Panel("Phase Orb", canvas, new Color(0.02f, 0.12f, 0.2f, 0.86f));
-            Anchor(orb, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-314f, -42f), new Vector2(-204f, 68f));
-            phaseOrbText = Label("Phase Text", orb, 24, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.75f, 0.92f, 1f, 1f));
-            Stretch(phaseOrbText.rectTransform);
+            phaseCircleSprite = CreateCircleSprite(96);
+
+            GameObject orbObject = new GameObject("Round Phase Button", typeof(RectTransform), typeof(Image), typeof(Button), typeof(Outline));
+            orbObject.transform.SetParent(canvas, false);
+            RectTransform orb = orbObject.GetComponent<RectTransform>();
+            orb.anchorMin = new Vector2(1f, 0.5f);
+            orb.anchorMax = new Vector2(1f, 0.5f);
+            orb.pivot = new Vector2(0.5f, 0.5f);
+            orb.sizeDelta = new Vector2(104f, 104f);
+            orb.anchoredPosition = new Vector2(-145f, 120f);
+
+            phaseOrbImage = orbObject.GetComponent<Image>();
+            phaseOrbImage.sprite = phaseCircleSprite;
+            phaseOrbImage.color = new Color(0.02f, 0.42f, 0.92f, 0.98f);
+            phaseOrbImage.alphaHitTestMinimumThreshold = 0.1f;
+
+            Outline outline = orbObject.GetComponent<Outline>();
+            outline.effectColor = new Color(0.74f, 0.94f, 1f, 0.95f);
+            outline.effectDistance = new Vector2(3f, -3f);
+
+            phaseOrbButton = orbObject.GetComponent<Button>();
+            phaseOrbButton.targetGraphic = phaseOrbImage;
+            phaseOrbButton.navigation = new Navigation { mode = Navigation.Mode.None };
+            phaseOrbButton.onClick.AddListener(TogglePhaseMenu);
+
+            phaseOrbText = Label("Phase Text", orb, 18, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+            phaseOrbText.raycastTarget = false;
+            phaseOrbText.resizeTextForBestFit = true;
+            phaseOrbText.resizeTextMinSize = 12;
+            phaseOrbText.resizeTextMaxSize = 18;
+            Anchor(phaseOrbText.rectTransform, Vector2.zero, Vector2.one, new Vector2(10f, 10f), new Vector2(-10f, -10f));
+
+            GameObject menuObject = new GameObject("Large Phase Menu", typeof(RectTransform), typeof(Image), typeof(Outline));
+            menuObject.transform.SetParent(canvas, false);
+            phaseMicroMenu = menuObject.GetComponent<RectTransform>();
+            phaseMicroMenu.anchorMin = new Vector2(1f, 0.5f);
+            phaseMicroMenu.anchorMax = new Vector2(1f, 0.5f);
+            phaseMicroMenu.pivot = new Vector2(0.5f, 0.5f);
+            phaseMicroMenu.sizeDelta = new Vector2(360f, 230f);
+            phaseMicroMenu.anchoredPosition = new Vector2(-390f, 120f);
+
+            phaseMenuBackground = menuObject.GetComponent<Image>();
+            phaseMenuBackground.color = new Color(0.015f, 0.055f, 0.13f, 0.97f);
+            Outline menuOutline = menuObject.GetComponent<Outline>();
+            menuOutline.effectColor = new Color(0.08f, 0.58f, 1f, 0.95f);
+            menuOutline.effectDistance = new Vector2(3f, -3f);
+
+            phaseMenuTitle = Label("Phase Menu Title", phaseMicroMenu, 19, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+            phaseMenuTitle.text = "YOUR TURN PHASES";
+            phaseMenuTitle.raycastTarget = false;
+            Anchor(phaseMenuTitle.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(16f, -38f), new Vector2(-16f, -8f));
+
+            string[] phaseCodes = { "DP", "SP", "M1", "BP", "M2", "EP" };
+            string[] phaseNames = { "DRAW", "STANDBY", "MAIN 1", "BATTLE", "MAIN 2", "END" };
+            for (int i = 0; i < phaseCodes.Length; i++)
+            {
+                GameObject stepObject = new GameObject(phaseCodes[i], typeof(RectTransform), typeof(Image));
+                stepObject.transform.SetParent(phaseMicroMenu, false);
+                RectTransform stepRect = stepObject.GetComponent<RectTransform>();
+                stepRect.anchorMin = new Vector2(0.5f, 0.5f);
+                stepRect.anchorMax = new Vector2(0.5f, 0.5f);
+                stepRect.pivot = new Vector2(0.5f, 0.5f);
+                stepRect.sizeDelta = new Vector2(78f, 78f);
+                int column = i % 3;
+                int row = i / 3;
+                stepRect.anchoredPosition = new Vector2(-108f + column * 108f, row == 0 ? 34f : -62f);
+
+                Image stepImage = stepObject.GetComponent<Image>();
+                stepImage.sprite = phaseCircleSprite;
+                stepImage.raycastTarget = false;
+                phaseStepImages.Add(stepImage);
+
+                Text stepLabel = Label("Label", stepObject.transform, 13, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+                stepLabel.text = phaseCodes[i] + "\n" + phaseNames[i];
+                stepLabel.raycastTarget = false;
+                stepLabel.resizeTextForBestFit = true;
+                stepLabel.resizeTextMinSize = 10;
+                stepLabel.resizeTextMaxSize = 13;
+                Anchor(stepLabel.rectTransform, Vector2.zero, Vector2.one, new Vector2(7f, 7f), new Vector2(-7f, -7f));
+                phaseStepLabels.Add(stepLabel);
+            }
+
+            phaseMicroMenu.gameObject.SetActive(false);
         }
 
         private void BuildInspector(RectTransform canvas)
@@ -245,20 +399,16 @@ namespace IcarusGame.CleanDuel
             GameObject layer = new GameObject("Action Layer", typeof(RectTransform));
             layer.transform.SetParent(canvas, false);
             actionLayer = layer.GetComponent<RectTransform>();
-            Anchor(actionLayer, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-230f, 178f), new Vector2(230f, 338f));
+            Anchor(actionLayer, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-132f, -30f), new Vector2(132f, 30f));
 
-            summonButton = AddActionButton("Summon", actionLayer, new Vector2(0f, 0f), runtime.NormalSummonSelected, new Color(0.08f, 0.52f, 0.95f, 0.95f));
-            setMonsterButton = AddActionButton("Set", actionLayer, new Vector2(132f, 0f), runtime.SetMonsterSelected, new Color(0.02f, 0.28f, 0.46f, 0.95f));
-            activateButton = AddActionButton("Activate", actionLayer, new Vector2(-132f, 0f), runtime.ActivateOrSetSelected, new Color(0.95f, 0.85f, 0.04f, 0.95f));
-            setActivateButton = AddActionButton("Set S/T", actionLayer, new Vector2(264f, 0f), runtime.SetSpellTrapSelected, new Color(0.25f, 0.3f, 0.48f, 0.95f));
-            activateZoneButton = AddActionButton("Flip", actionLayer, new Vector2(-264f, 0f), runtime.ActivateSelectedZone, new Color(0.68f, 0.18f, 0.62f, 0.95f));
+            primaryActionButton = AddActionButton("Primary Action", actionLayer, Vector2.zero, null, new Color(0.08f, 0.52f, 0.95f, 0.97f));
+            secondaryActionButton = AddActionButton("Secondary Action", actionLayer, Vector2.zero, null, new Color(0.25f, 0.3f, 0.48f, 0.97f));
+            HideContextActions();
         }
 
         private void BuildQuickButtons(RectTransform canvas)
         {
             pendulumButton = AddCornerButton("Pendulum", canvas, new Vector2(1f, 0f), new Vector2(-468f, 30f), runtime.PendulumSummon);
-            directAttackButton = AddCornerButton("Attack", canvas, new Vector2(1f, 0f), new Vector2(-360f, 30f), runtime.AttackDirectly);
-            stanceButton = AddCornerButton("Stance", canvas, new Vector2(1f, 0f), new Vector2(-252f, 30f), runtime.ToggleSelectedMonsterStance);
             nextPhaseButton = AddCornerButton("Next", canvas, new Vector2(1f, 0f), new Vector2(-144f, 30f), runtime.AdvancePhase);
             AddCornerButton("Restart", canvas, new Vector2(1f, 0f), new Vector2(-36f, 30f), runtime.RestartDuel);
         }
@@ -276,6 +426,8 @@ namespace IcarusGame.CleanDuel
             Anchor(choicePanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-360f, -300f), new Vector2(360f, 300f));
             AddVertical(choicePanel.gameObject, 18, 18, 14, 14, 7f, TextAnchor.UpperCenter);
 
+            choiceKind = Label("Choice Kind", choicePanel, 14, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.45f, 0.9f, 1f, 1f));
+            AddLayout(choiceKind.gameObject, -1f, 22f, 1f, 0f);
             choiceTitle = Label("Choice Title", choicePanel, 26, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
             AddLayout(choiceTitle.gameObject, -1f, 34f, 1f, 0f);
             choiceBody = Label("Choice Body", choicePanel, 16, FontStyle.Normal, TextAnchor.UpperCenter, new Color(0.72f, 0.96f, 1f, 1f));
@@ -433,7 +585,7 @@ namespace IcarusGame.CleanDuel
             return button;
         }
 
-        private void RenderInspector(CleanCard card, CleanDuelState state, CleanDuelGame game)
+        private void RenderInspector(CleanCard card, bool revealFaceDownCard, CleanDuelState state, CleanDuelGame game)
         {
             inspectorPanel.gameObject.SetActive(card != null || state.GameOver);
             if (state.GameOver)
@@ -449,9 +601,14 @@ namespace IcarusGame.CleanDuel
                 return;
             }
 
-            inspectorTitle.text = card.PublicName;
-            inspectorStats.text = card.FaceDown ? "Face-down Defense" : FullStats(card);
-            inspectorBody.text = card.FaceDown ? "Hidden card." : BodyText(card, game);
+            bool concealCard = card.FaceDown && !revealFaceDownCard;
+            inspectorTitle.text = concealCard ? card.PublicName : card.Definition.Name;
+            inspectorStats.text = concealCard
+                ? card.Definition.Kind == CleanCardKind.Monster ? "Face-down Defense" : "Set Spell/Trap"
+                : card.FaceDown
+                    ? (card.Definition.Kind == CleanCardKind.Monster ? "Your Set Monster  |  " : "Your Set Spell/Trap  |  ") + FullStats(card)
+                    : FullStats(card);
+            inspectorBody.text = concealCard ? "Hidden opponent card." : BodyText(card, game);
         }
 
         private void RenderLog(CleanDuelState state)
@@ -519,6 +676,28 @@ namespace IcarusGame.CleanDuel
                 return;
             }
 
+            Color promptAccent;
+            switch (prompt.Kind)
+            {
+                case CleanPromptKind.CardEffect:
+                    choiceKind.text = "CARD EFFECT";
+                    promptAccent = new Color(0.9f, 0.25f, 0.7f, 1f);
+                    break;
+                case CleanPromptKind.TriggerEffect:
+                    choiceKind.text = "TRIGGER EFFECT";
+                    promptAccent = new Color(1f, 0.86f, 0.16f, 1f);
+                    break;
+                case CleanPromptKind.SpecialSummon:
+                    choiceKind.text = "SPECIAL SUMMON";
+                    promptAccent = new Color(0.15f, 0.82f, 1f, 1f);
+                    break;
+                default:
+                    choiceKind.text = "SELECT ACTION";
+                    promptAccent = new Color(0.45f, 0.9f, 1f, 1f);
+                    break;
+            }
+
+            choiceKind.color = promptAccent;
             choiceTitle.text = prompt.Title;
             choiceBody.text = prompt.Body;
             EnsureChoiceButtonCount(prompt.Options.Count);
@@ -532,22 +711,123 @@ namespace IcarusGame.CleanDuel
                 }
 
                 CleanChoiceOption option = prompt.Options[i];
+                Image artwork = choiceButtonArtwork[i];
+                Sprite artworkSprite = option.CardDefinitionId > 0 ? artCache.GetSprite(option.CardDefinitionId) : null;
+                bool showArtwork = artworkSprite != null;
+                artwork.gameObject.SetActive(showArtwork);
+                artwork.sprite = artworkSprite;
+                RectTransform optionLabelRect = choiceButtonLabels[i].rectTransform;
+                optionLabelRect.offsetMin = new Vector2(showArtwork ? 52f : 8f, 3f);
+                optionLabelRect.offsetMax = new Vector2(-8f, -3f);
                 choiceButtons[i].interactable = option.IsAvailable;
                 choiceButtons[i].GetComponent<Image>().color = option.IsAvailable
-                    ? new Color(0.08f, 0.35f, 0.72f, 0.96f)
+                    ? new Color(promptAccent.r * 0.55f, promptAccent.g * 0.55f, promptAccent.b * 0.55f, 0.96f)
                     : new Color(0.18f, 0.19f, 0.22f, 0.92f);
 
+                string optionLabel = prompt.Kind == CleanPromptKind.TriggerEffect && prompt.CanCancel
+                    ? "Activate: " + option.Label
+                    : option.Label;
                 choiceButtonLabels[i].text = option.IsAvailable
-                    ? option.Label + "\n" + option.Detail
-                    : option.Label + "\nUnavailable: " + option.DisabledReason;
+                    ? optionLabel + "\n" + option.Detail
+                    : optionLabel + "\nUnavailable: " + option.DisabledReason;
             }
 
+            Text cancelLabel = choiceCancelButton.GetComponentInChildren<Text>();
+            if (cancelLabel != null)
+            {
+                cancelLabel.text = prompt.Kind == CleanPromptKind.TriggerEffect
+                    ? "Do not activate"
+                    : prompt.Kind == CleanPromptKind.SpecialSummon
+                        ? "Cancel Special Summon"
+                        : "Cancel";
+            }
+
+            choiceCancelButton.gameObject.SetActive(prompt.CanCancel);
             choiceCancelButton.transform.SetAsLastSibling();
         }
 
-        private void PositionActionLayer(int selectedHand, int selectedMonster, int selectedSpellTrap, int selectedExtraDeck, int selectedGraveyard)
+        private void HideContextActions()
         {
-            actionLayer.gameObject.SetActive(selectedHand >= 0 || selectedMonster >= 0 || selectedSpellTrap >= 0 || selectedExtraDeck >= 0 || selectedGraveyard >= 0);
+            primaryActionButton.gameObject.SetActive(false);
+            secondaryActionButton.gameObject.SetActive(false);
+        }
+
+        private void AddContextAction(ref int actionCount, string label, UnityAction action, Color color, bool interactable = true)
+        {
+            if (actionCount >= 2)
+            {
+                return;
+            }
+
+            Button button = actionCount == 0 ? primaryActionButton : secondaryActionButton;
+            button.gameObject.SetActive(true);
+            button.interactable = interactable;
+            button.onClick.RemoveAllListeners();
+            if (action != null)
+            {
+                button.onClick.AddListener(action);
+            }
+
+            button.GetComponent<Image>().color = color;
+            Text buttonLabel = button.GetComponentInChildren<Text>();
+            if (buttonLabel != null)
+            {
+                buttonLabel.text = label;
+            }
+
+            actionCount++;
+        }
+
+        private void LayoutActionButtons(int actionCount)
+        {
+            actionLayer.gameObject.SetActive(actionCount > 0);
+            if (actionCount == 1)
+            {
+                primaryActionButton.GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
+                return;
+            }
+
+            if (actionCount == 2)
+            {
+                primaryActionButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(-64f, 0f);
+                secondaryActionButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(64f, 0f);
+            }
+        }
+
+        private void PositionActionLayer(int selectedHand, int handCount, bool hasBoardActionAnchor, Vector2 boardActionAnchor)
+        {
+            if (!actionLayer.gameObject.activeSelf)
+            {
+                return;
+            }
+
+            if (selectedHand >= 0)
+            {
+                float spacing = Mathf.Min(126f, 700f / Mathf.Max(1, handCount));
+                float start = -spacing * (handCount - 1) * 0.5f;
+                float x = start + spacing * selectedHand;
+                actionLayer.anchoredPosition = new Vector2(x, -canvasRect.rect.height * 0.5f + 278f);
+                return;
+            }
+
+            Vector2 localPoint;
+            if (hasBoardActionAnchor && RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, boardActionAnchor, null, out localPoint))
+            {
+                float halfWidth = ActionButtonGroupWidth() * 0.5f;
+                float clampedX = Mathf.Clamp(
+                    localPoint.x,
+                    -canvasRect.rect.width * 0.5f + halfWidth + 8f,
+                    canvasRect.rect.width * 0.5f - halfWidth - 8f);
+                actionLayer.anchoredPosition = new Vector2(clampedX, localPoint.y);
+                return;
+            }
+
+            actionLayer.anchoredPosition = new Vector2(0f, -80f);
+        }
+
+        private float ActionButtonGroupWidth()
+        {
+            return secondaryActionButton.gameObject.activeSelf ? 252f : 124f;
         }
 
         private string FullStats(CleanCard card)
@@ -564,9 +844,9 @@ namespace IcarusGame.CleanDuel
 
         private string BodyText(CleanCard card, CleanDuelGame game)
         {
-            string text = !string.IsNullOrEmpty(card.Definition.Text) ? card.Definition.Text : card.Definition.TypeLine;
-            string lua = game != null ? game.DescribeLua(card) : string.Empty;
-            return string.IsNullOrEmpty(lua) ? text : text + "\n\n" + lua;
+            // Show the official text from cards.cdb. Lua file names and inferred effect
+            // families are developer diagnostics, not card text and not game rules.
+            return !string.IsNullOrEmpty(card.Definition.Text) ? card.Definition.Text : card.Definition.TypeLine;
         }
 
         private bool IsNormalMonster(CleanCard card)
@@ -585,12 +865,134 @@ namespace IcarusGame.CleanDuel
             return typeLine.IndexOf("Normal", System.StringComparison.OrdinalIgnoreCase) >= 0 &&
                    typeLine.IndexOf("Effect", System.StringComparison.OrdinalIgnoreCase) < 0;
         }
+
+        private void TogglePhaseMenu()
+        {
+            phaseMenuOpen = !phaseMenuOpen;
+            if (phaseMicroMenu != null)
+            {
+                phaseMicroMenu.gameObject.SetActive(phaseMenuOpen);
+            }
+        }
+
+        private void RenderPhaseControl(CleanDuelState state)
+        {
+            bool localTurn = state.TurnPlayer == CleanPlayerId.Local;
+            Color accent = localTurn
+                ? new Color(0.02f, 0.48f, 1f, 0.98f)
+                : new Color(0.92f, 0.1f, 0.08f, 0.98f);
+            Color completed = new Color(accent.r * 0.56f, accent.g * 0.56f, accent.b * 0.56f, 0.94f);
+            Color upcoming = new Color(accent.r * 0.2f, accent.g * 0.2f, accent.b * 0.2f, 0.9f);
+            int currentPhase = Mathf.Clamp((int)state.Phase, 0, phaseStepImages.Count - 1);
+
+            phaseOrbImage.color = accent;
+            phaseOrbText.text = (localTurn ? "YOUR TURN" : "RIVAL TURN") + "\nT" + state.TurnNumber + "  " + PhaseCode(state.Phase);
+            phaseOrbText.color = Color.white;
+            phaseOrbButton.interactable = !state.GameOver;
+
+            Outline outline = phaseOrbButton.GetComponent<Outline>();
+            if (outline != null)
+            {
+                outline.effectColor = localTurn
+                    ? new Color(0.68f, 0.92f, 1f, 0.96f)
+                    : new Color(1f, 0.58f, 0.48f, 0.96f);
+            }
+
+            phaseMenuBackground.color = localTurn
+                ? new Color(0.01f, 0.055f, 0.15f, 0.98f)
+                : new Color(0.15f, 0.025f, 0.02f, 0.98f);
+            phaseMenuTitle.text = localTurn ? "YOUR TURN - 6 PHASES" : "RIVAL TURN - 6 PHASES";
+            phaseMenuTitle.color = localTurn ? new Color(0.68f, 0.92f, 1f, 1f) : new Color(1f, 0.68f, 0.58f, 1f);
+            Outline menuOutline = phaseMicroMenu.GetComponent<Outline>();
+            if (menuOutline != null)
+            {
+                menuOutline.effectColor = localTurn
+                    ? new Color(0.08f, 0.58f, 1f, 0.95f)
+                    : new Color(0.95f, 0.12f, 0.08f, 0.95f);
+            }
+
+            if (state.GameOver)
+            {
+                phaseMenuOpen = false;
+            }
+
+            phaseMicroMenu.gameObject.SetActive(phaseMenuOpen && !state.GameOver);
+            for (int i = 0; i < phaseStepImages.Count; i++)
+            {
+                bool current = i == currentPhase;
+                phaseStepImages[i].color = current ? accent : i < currentPhase ? completed : upcoming;
+                phaseStepLabels[i].color = current
+                    ? Color.white
+                    : new Color(0.76f + accent.r * 0.2f, 0.76f + accent.g * 0.2f, 0.76f + accent.b * 0.2f, 0.92f);
+                phaseStepImages[i].rectTransform.localScale = current ? Vector3.one * 1.08f : Vector3.one * 0.94f;
+            }
+
+            Image nextPhaseImage = nextPhaseButton != null ? nextPhaseButton.GetComponent<Image>() : null;
+            if (nextPhaseImage != null)
+            {
+                nextPhaseImage.color = localTurn
+                    ? new Color(0.02f, 0.35f, 0.72f, 0.96f)
+                    : new Color(0.62f, 0.08f, 0.06f, 0.96f);
+            }
+        }
+
+        private string PhaseCode(CleanDuelPhase phase)
+        {
+            switch (phase)
+            {
+                case CleanDuelPhase.Draw:
+                    return "DP";
+                case CleanDuelPhase.Standby:
+                    return "SP";
+                case CleanDuelPhase.Main:
+                    return "M1";
+                case CleanDuelPhase.Battle:
+                    return "BP";
+                case CleanDuelPhase.Main2:
+                    return "M2";
+                case CleanDuelPhase.End:
+                    return "EP";
+                default:
+                    return "M1";
+            }
+        }
+
+        private Sprite CreateCircleSprite(int size)
+        {
+            Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            texture.name = "Runtime Phase Circle";
+            texture.wrapMode = TextureWrapMode.Clamp;
+            texture.filterMode = FilterMode.Bilinear;
+            texture.hideFlags = HideFlags.HideAndDontSave;
+
+            Color32[] pixels = new Color32[size * size];
+            float center = (size - 1) * 0.5f;
+            float radius = center - 1f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float distance = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
+                    byte alpha = (byte)Mathf.RoundToInt(Mathf.Clamp01(radius - distance + 1f) * 255f);
+                    pixels[y * size + x] = new Color32(255, 255, 255, alpha);
+                }
+            }
+
+            texture.SetPixels32(pixels);
+            texture.Apply(false, false);
+            Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), size);
+            sprite.name = "Runtime Phase Circle";
+            return sprite;
+        }
+
         private string PhaseLabel(CleanDuelPhase phase)
         {
             switch (phase)
             {
                 case CleanDuelPhase.Draw:
                     return "Draw";
+                case CleanDuelPhase.Standby:
+                    return "Standby";
                 case CleanDuelPhase.Main:
                     return "Main 1";
                 case CleanDuelPhase.Battle:
@@ -609,6 +1011,8 @@ namespace IcarusGame.CleanDuel
             switch (phase)
             {
                 case CleanDuelPhase.Draw:
+                    return "Standby";
+                case CleanDuelPhase.Standby:
                     return "Main 1";
                 case CleanDuelPhase.Main:
                     return "Battle";
@@ -633,16 +1037,23 @@ namespace IcarusGame.CleanDuel
             GameObject go = new GameObject(text, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(parent, false);
             RectTransform rect = go.GetComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(118f, 118f);
+            rect.sizeDelta = new Vector2(120f, 52f);
             rect.anchorMin = new Vector2(0.5f, 0.5f);
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = position;
             Image image = go.GetComponent<Image>();
             image.color = color;
             Button button = go.GetComponent<Button>();
-            button.onClick.AddListener(action);
-            Text label = Label("Label", go.transform, 18, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+            if (action != null)
+            {
+                button.onClick.AddListener(action);
+            }
+
+            Text label = Label("Label", go.transform, 16, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
             label.text = text;
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = 12;
+            label.resizeTextMaxSize = 16;
             Stretch(label.rectTransform);
             return button;
         }
@@ -655,6 +1066,18 @@ namespace IcarusGame.CleanDuel
                 Button button = AddChoiceButton("Choice " + index, choicePanel, delegate { runtime.ChoosePendingOption(index); });
                 choiceButtons.Add(button);
                 choiceButtonLabels.Add(button.GetComponentInChildren<Text>());
+                GameObject artworkObject = new GameObject("Card Artwork", typeof(RectTransform), typeof(Image));
+                artworkObject.transform.SetParent(button.transform, false);
+                Image artwork = artworkObject.GetComponent<Image>();
+                artwork.preserveAspect = true;
+                artwork.raycastTarget = false;
+                RectTransform artworkRect = artwork.rectTransform;
+                artworkRect.anchorMin = new Vector2(0f, 0.5f);
+                artworkRect.anchorMax = new Vector2(0f, 0.5f);
+                artworkRect.pivot = new Vector2(0.5f, 0.5f);
+                artworkRect.sizeDelta = new Vector2(34f, 48f);
+                artworkRect.anchoredPosition = new Vector2(26f, 0f);
+                choiceButtonArtwork.Add(artwork);
             }
         }
 

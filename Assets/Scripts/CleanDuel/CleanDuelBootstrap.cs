@@ -18,7 +18,9 @@ namespace IcarusGame.CleanDuel
         private int selectedMonster = -1;
         private int selectedSpellTrap = -1;
         private int selectedExtraDeck = -1;
+        private int selectedExtraMonster = -1;
         private int selectedGraveyard = -1;
+        private bool selectingAttackTarget;
         private bool hasInspection;
         private CleanPlayerId inspectedOwner;
         private CleanZoneKind inspectedZone;
@@ -49,13 +51,30 @@ namespace IcarusGame.CleanDuel
             selectedMonster = -1;
             selectedSpellTrap = -1;
             selectedExtraDeck = -1;
+            selectedExtraMonster = -1;
             selectedGraveyard = -1;
+            selectingAttackTarget = false;
             ClearInspection();
             Refresh();
         }
 
         public void HandleZoneClicked(CleanPlayerId owner, CleanZoneKind zone, int index)
         {
+            if (selectingAttackTarget && owner == CleanPlayerId.Rival && zone == CleanZoneKind.Monster && selectedMonster >= 0 && game.CanAttackWith(selectedMonster))
+            {
+                CleanCard target = game.State.Rival.Monsters[index];
+                if (target != null)
+                {
+                    game.Attack(selectedMonster, index);
+                    ClearSelection();
+                    Refresh();
+                    return;
+                }
+            }
+
+            // Any click outside a valid highlighted target cancels target selection.
+            selectingAttackTarget = false;
+
             if (owner == CleanPlayerId.Local && zone == CleanZoneKind.Graveyard)
             {
                 int count = game.State.Local.Graveyard.Count;
@@ -64,6 +83,7 @@ namespace IcarusGame.CleanDuel
                 selectedMonster = -1;
                 selectedSpellTrap = -1;
                 selectedExtraDeck = -1;
+                selectedExtraMonster = -1;
                 ClearInspection();
                 Refresh();
                 return;
@@ -76,6 +96,8 @@ namespace IcarusGame.CleanDuel
                 selectedHand = -1;
                 selectedSpellTrap = -1;
                 selectedExtraDeck = -1;
+                selectedExtraMonster = -1;
+                selectedGraveyard = -1;
                 ClearInspection();
                 Refresh();
                 return;
@@ -88,6 +110,8 @@ namespace IcarusGame.CleanDuel
                 selectedHand = -1;
                 selectedMonster = -1;
                 selectedExtraDeck = -1;
+                selectedExtraMonster = -1;
+                selectedGraveyard = -1;
                 ClearInspection();
                 Refresh();
                 return;
@@ -100,31 +124,42 @@ namespace IcarusGame.CleanDuel
                 selectedHand = -1;
                 selectedMonster = -1;
                 selectedExtraDeck = -1;
+                selectedExtraMonster = -1;
+                selectedGraveyard = -1;
                 ClearInspection();
                 Refresh();
                 return;
             }
             if (owner == CleanPlayerId.Local && zone == CleanZoneKind.ExtraDeck)
             {
-                int summonIndex = FirstExtraDeckSummonCandidateFromExtraDeck();
-                if (summonIndex >= 0)
+                ClearSelection();
+                if (game.OpenExtraDeckSummonSelection())
                 {
-                    selectedExtraDeck = selectedExtraDeck == summonIndex ? -1 : summonIndex;
-                    selectedHand = -1;
-                    selectedMonster = -1;
-                    selectedSpellTrap = -1;
-                    ClearInspection();
+                    Refresh();
+                    return;
+                }
+
+                if (game.CanPendulumSummon())
+                {
+                    game.PendulumSummon();
                     Refresh();
                     return;
                 }
             }
-            if (owner == CleanPlayerId.Rival && zone == CleanZoneKind.Monster && selectedMonster >= 0 && game.CanAttackWith(selectedMonster))
+            if (owner == CleanPlayerId.Local && zone == CleanZoneKind.ExtraMonster)
             {
-                CleanCard target = game.State.Rival.Monsters[index];
-                if (target != null)
+                CleanCard card = index >= 0 && index < game.State.ExtraMonsters.Length
+                    ? game.State.ExtraMonsters[index]
+                    : null;
+                if (card != null && card.Controller == CleanPlayerId.Local)
                 {
-                    game.Attack(selectedMonster, index);
-                    ClearSelection();
+                    selectedExtraMonster = selectedExtraMonster == index ? -1 : index;
+                    selectedHand = -1;
+                    selectedMonster = -1;
+                    selectedSpellTrap = -1;
+                    selectedExtraDeck = -1;
+                    selectedGraveyard = -1;
+                    ClearInspection();
                     Refresh();
                     return;
                 }
@@ -155,16 +190,18 @@ namespace IcarusGame.CleanDuel
             int handIndex = selectedHand;
             int monsterIndex = selectedMonster;
             int extraDeckIndex = selectedExtraDeck;
+            int extraMonsterIndex = selectedExtraMonster;
+            int graveyardIndex = selectedGraveyard;
             ClearSelection();
             if (handIndex >= 0)
             {
                 if (game.CanActivateHandCard(handIndex))
                 {
-                    game.ActivateHandCard(handIndex);
+                    game.RequestActivateHandCard(handIndex);
                 }
                 else
                 {
-                    game.ActivateLocalQuickEffectHandCard(handIndex);
+                    game.RequestActivateLocalQuickEffectHandCard(handIndex);
                 }
             }
             else if (extraDeckIndex >= 0)
@@ -186,12 +223,20 @@ namespace IcarusGame.CleanDuel
             {
                 if (game.CanActivateMonsterZoneCard(monsterIndex))
                 {
-                    game.ActivateMonsterZoneCard(monsterIndex);
+                    game.RequestActivateMonsterZoneCard(monsterIndex);
                 }
                 else
                 {
-                    game.ActivateLocalQuickEffectMonsterZoneCard(monsterIndex);
+                    game.RequestActivateLocalQuickEffectMonsterZoneCard(monsterIndex);
                 }
+            }
+            else if (extraMonsterIndex >= 0)
+            {
+                game.RequestActivateLocalExtraMonsterZoneCard(extraMonsterIndex);
+            }
+            else if (graveyardIndex >= 0)
+            {
+                game.RequestActivateGraveyardCard(graveyardIndex);
             }
 
             Refresh();
@@ -207,9 +252,17 @@ namespace IcarusGame.CleanDuel
 
         public void ActivateSelectedZone()
         {
-            int index = selectedSpellTrap;
+            int spellTrapIndex = selectedSpellTrap;
+            int monsterIndex = selectedMonster;
             ClearSelection();
-            game.ActivateSetCard(index);
+            if (monsterIndex >= 0)
+            {
+                game.ToggleLocalMonsterStance(monsterIndex);
+            }
+            else
+            {
+                game.RequestActivateSetCard(spellTrapIndex);
+            }
             Refresh();
         }
 
@@ -233,14 +286,45 @@ namespace IcarusGame.CleanDuel
             Refresh();
         }
 
-        public void AttackDirectly()
+        public void AttackSelected()
         {
             int index = selectedMonster;
+            if (!game.CanAttackWith(index))
+            {
+                selectingAttackTarget = false;
+                Refresh();
+                return;
+            }
+
+            if (RivalControlsMonster())
+            {
+                selectingAttackTarget = true;
+                Refresh();
+                return;
+            }
+
             ClearSelection();
             game.Attack(index, -1);
             Refresh();
         }
 
+        public void AttackDirectly()
+        {
+            AttackSelected();
+        }
+
+        private bool RivalControlsMonster()
+        {
+            for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
+            {
+                if (game.State.Rival.Monsters[i] != null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
 
         public void PendulumSummon()
         {
@@ -298,15 +382,76 @@ namespace IcarusGame.CleanDuel
         {
             ClampSelection();
             CleanCard selectedCard = SelectedCard();
+            Vector2 boardActionAnchor = Vector2.zero;
+            bool hasBoardActionAnchor = false;
             if (boardView != null)
             {
-                boardView.Render(game, selectedMonster, selectedSpellTrap);
+                boardView.Render(game, selectedMonster, selectedSpellTrap, selectedExtraMonster, selectingAttackTarget);
+                hasBoardActionAnchor = TryGetSelectedBoardActionAnchor(out boardActionAnchor);
             }
 
             if (hudView != null)
             {
-                hudView.Render(game, selectedCard, selectedHand, selectedMonster, selectedSpellTrap, selectedExtraDeck, selectedGraveyard);
+                hudView.Render(
+                    game,
+                    selectedCard,
+                    CanRevealSelectedFaceDownCard(),
+                    selectedHand,
+                    selectedMonster,
+                    selectedSpellTrap,
+                    selectedExtraDeck,
+                    selectedExtraMonster,
+                    selectedGraveyard,
+                    selectingAttackTarget,
+                    hasBoardActionAnchor,
+                    boardActionAnchor);
             }
+        }
+
+        private bool TryGetSelectedBoardActionAnchor(out Vector2 screenPoint)
+        {
+            screenPoint = Vector2.zero;
+            if (boardView == null)
+            {
+                return false;
+            }
+
+            if (selectedMonster >= 0)
+            {
+                return boardView.TryGetActionAnchorScreenPoint(CleanPlayerId.Local, CleanZoneKind.Monster, selectedMonster, out screenPoint);
+            }
+
+            if (selectedSpellTrap == CleanDuelGame.FieldSpellZoneIndex)
+            {
+                return boardView.TryGetActionAnchorScreenPoint(CleanPlayerId.Local, CleanZoneKind.FieldSpell, 0, out screenPoint);
+            }
+
+            if (selectedSpellTrap >= 0)
+            {
+                return boardView.TryGetActionAnchorScreenPoint(CleanPlayerId.Local, CleanZoneKind.SpellTrap, selectedSpellTrap, out screenPoint);
+            }
+
+            if (selectedExtraMonster >= 0)
+            {
+                return boardView.TryGetActionAnchorScreenPoint(CleanPlayerId.Local, CleanZoneKind.ExtraMonster, selectedExtraMonster, out screenPoint);
+            }
+
+            return false;
+        }
+
+        private bool CanRevealSelectedFaceDownCard()
+        {
+            if (selectedHand >= 0 ||
+                selectedMonster >= 0 ||
+                selectedSpellTrap >= 0 ||
+                selectedExtraDeck >= 0 ||
+                selectedExtraMonster >= 0 ||
+                selectedGraveyard >= 0)
+            {
+                return true;
+            }
+
+            return hasInspection && inspectedOwner == CleanPlayerId.Local;
         }
 
         private CleanCard SelectedCard()
@@ -319,6 +464,11 @@ namespace IcarusGame.CleanDuel
             if (selectedMonster >= 0 && selectedMonster < CleanPlayerState.ZoneCount)
             {
                 return game.State.Local.Monsters[selectedMonster];
+            }
+
+            if (selectedExtraMonster >= 0 && selectedExtraMonster < game.State.ExtraMonsters.Length)
+            {
+                return game.State.ExtraMonsters[selectedExtraMonster];
             }
 
             if (selectedExtraDeck >= 0 && selectedExtraDeck < game.State.Local.ExtraDeck.Count)
@@ -336,6 +486,11 @@ namespace IcarusGame.CleanDuel
                 return game.State.Local.FieldSpell;
             }
 
+            if (selectedGraveyard >= 0 && selectedGraveyard < game.State.Local.Graveyard.Count)
+            {
+                return game.State.Local.Graveyard[selectedGraveyard];
+            }
+
             return CardForInspection();
         }
 
@@ -345,6 +500,8 @@ namespace IcarusGame.CleanDuel
             selectedMonster = -1;
             selectedSpellTrap = -1;
             selectedExtraDeck = -1;
+            selectedExtraMonster = -1;
+            selectedGraveyard = -1;
             inspectedOwner = owner;
             inspectedZone = zone;
             inspectedIndex = index;
@@ -416,6 +573,19 @@ namespace IcarusGame.CleanDuel
                 selectedExtraDeck = -1;
             }
 
+            if (selectedExtraMonster >= 0 &&
+                (selectedExtraMonster >= game.State.ExtraMonsters.Length ||
+                 game.State.ExtraMonsters[selectedExtraMonster] == null ||
+                 game.State.ExtraMonsters[selectedExtraMonster].Controller != CleanPlayerId.Local))
+            {
+                selectedExtraMonster = -1;
+            }
+
+            if (selectedGraveyard >= game.State.Local.Graveyard.Count)
+            {
+                selectedGraveyard = game.State.Local.Graveyard.Count - 1;
+            }
+
             if (selectedSpellTrap >= 0)
             {
                 if (selectedSpellTrap == CleanDuelGame.FieldSpellZoneIndex)
@@ -434,6 +604,11 @@ namespace IcarusGame.CleanDuel
             {
                 ClearInspection();
             }
+
+            if (selectingAttackTarget && !game.CanAttackWith(selectedMonster))
+            {
+                selectingAttackTarget = false;
+            }
         }
 
         private void ClearSelection()
@@ -442,7 +617,9 @@ namespace IcarusGame.CleanDuel
             selectedMonster = -1;
             selectedSpellTrap = -1;
             selectedExtraDeck = -1;
+            selectedExtraMonster = -1;
             selectedGraveyard = -1;
+            selectingAttackTarget = false;
             ClearInspection();
         }
 
