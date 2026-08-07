@@ -18,6 +18,18 @@ namespace IcarusGame.CleanDuel
         End
     }
 
+    public enum CleanDuelEndReason
+    {
+        None,
+        LifePoints,
+        DeckOut,
+        CardEffect,
+        Surrender,
+        Disconnect,
+        ServerCancelled,
+        Draw
+    }
+
     public enum CleanCardKind
     {
         Monster,
@@ -237,6 +249,32 @@ namespace IcarusGame.CleanDuel
         public readonly List<CleanCard> Banished = new List<CleanCard>();
     }
 
+    public sealed class CleanDuelResult
+    {
+        public CleanDuelResult(
+            CleanDuelEndReason reason,
+            bool hasWinner,
+            CleanPlayerId winner,
+            CleanPlayerId loser,
+            int turnNumber,
+            string summary)
+        {
+            Reason = reason;
+            HasWinner = hasWinner;
+            Winner = winner;
+            Loser = loser;
+            TurnNumber = turnNumber;
+            Summary = summary ?? string.Empty;
+        }
+
+        public CleanDuelEndReason Reason { get; private set; }
+        public bool HasWinner { get; private set; }
+        public CleanPlayerId Winner { get; private set; }
+        public CleanPlayerId Loser { get; private set; }
+        public int TurnNumber { get; private set; }
+        public string Summary { get; private set; }
+    }
+
     public sealed class CleanDuelState
     {
         public readonly CleanPlayerState Local = new CleanPlayerState(CleanPlayerId.Local, "Dr, Wheelie");
@@ -249,6 +287,11 @@ namespace IcarusGame.CleanDuel
         public int TurnNumber = 1;
         public bool GameOver;
         public CleanChoicePrompt PendingChoice;
+        public CleanDuelResult Result;
+        public int RandomSeed;
+        public long StateSequence;
+        public string DeterministicStateHash = string.Empty;
+        public readonly List<CleanDuelEventRecord> EventStream = new List<CleanDuelEventRecord>();
         public string WinnerText = string.Empty;
     }
 }

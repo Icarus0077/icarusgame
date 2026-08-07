@@ -95,10 +95,10 @@ namespace IcarusGame.CleanDuel
         private const int TriggerEffectPromptId = -6001;
         private const int SpecialSummonPromptId = -6002;
         private const int CardEffectPromptId = -6003;
+        private const int SurrenderPromptId = -7001;
         private const int PromptConfirmOptionId = 1;
-        private const int PromptDeclineOptionId = 0;        private const int PendulumFinishOptionId = -1;
-        private const int PendulumHandOptionOffset = 1000;
-        private const int PendulumExtraDeckOptionOffset = 2000;
+        private const int PromptDeclineOptionId = 0;
+        private const int PendulumFinishOptionId = -1;
         private const int ChoiceSourceDeck = 1;
         private const int ChoiceSourceHand = 2;
         private const string TrueLightOnceKey = "true_light_clean";
@@ -162,7 +162,7 @@ namespace IcarusGame.CleanDuel
             public Action Confirm;
             public Action Decline;
         }
-        private readonly System.Random random = new System.Random();
+        private System.Random random;
         private readonly CleanLuaEffectBridge luaBridge = new CleanLuaEffectBridge();
         private int pendingMausoleumTargetZone = -1;
         private int pendingSpiritZone = -1;
@@ -215,15 +215,26 @@ namespace IcarusGame.CleanDuel
 
         public void StartNewDuel()
         {
+            StartNewDuel(CreateMatchSeed());
+        }
+
+        public void StartNewDuel(int randomSeed)
+        {
             ResetPlayer(State.Local);
             ResetPlayer(State.Rival);
             Array.Clear(State.ExtraMonsters, 0, State.ExtraMonsters.Length);
             State.Log.Clear();
+            State.EventStream.Clear();
             State.TurnPlayer = CleanPlayerId.Local;
             State.Phase = CleanDuelPhase.Draw;
             State.TurnNumber = 1;
             State.GameOver = false;
             State.PendingChoice = null;
+            State.Result = null;
+            State.RandomSeed = randomSeed;
+            State.StateSequence = 0;
+            State.DeterministicStateHash = string.Empty;
+            random = new System.Random(randomSeed);
             pendingUiPrompts.Clear();
             pendingTriggerPromptKeys.Clear();
             activeUiPrompt = null;
@@ -252,8 +263,17 @@ namespace IcarusGame.CleanDuel
             {
                 Log("The first player does not draw during the first Draw Phase.");
                 EnterStandbyPhase();
+                EnterMainPhase1();
             }
             NotifyChanged();
+        }
+
+        private static int CreateMatchSeed()
+        {
+            unchecked
+            {
+                return Environment.TickCount * 397 ^ Guid.NewGuid().GetHashCode();
+            }
         }
 
         public CleanPlayerState Player(CleanPlayerId id)
@@ -269,6 +289,52 @@ namespace IcarusGame.CleanDuel
         public bool CanUseLocalActions()
         {
             return !State.GameOver && State.PendingChoice == null && State.TurnPlayer == CleanPlayerId.Local;
+        }
+
+        public void RequestSurrender()
+        {
+            if (State.GameOver)
+            {
+                return;
+            }
+
+            if (State.PendingChoice != null)
+            {
+                Log("Finish the current choice before opening the surrender confirmation.");
+                NotifyChanged();
+                return;
+            }
+
+            State.PendingChoice = new CleanChoicePrompt(
+                SurrenderPromptId,
+                "Surrender duel?",
+                "Surrendering immediately ends the duel and awards the win to your opponent.",
+                new List<CleanChoiceOption>
+                {
+                    new CleanChoiceOption(PromptConfirmOptionId, "Surrender", "End this duel now.", true, string.Empty),
+                    new CleanChoiceOption(PromptDeclineOptionId, "Keep playing", "Return to the duel.", true, string.Empty)
+                },
+                CleanPromptKind.Choice,
+                true);
+            Log("Surrender confirmation opened.");
+            NotifyChanged();
+        }
+
+        public void Surrender(CleanPlayerId actor)
+        {
+            if (State.GameOver)
+            {
+                return;
+            }
+
+            CleanPlayerState loser = Player(actor);
+            CleanPlayerState winner = OpponentOf(actor);
+            EndDuel(
+                CleanDuelEndReason.Surrender,
+                winner,
+                loser,
+                loser.Name + " surrendered. " + winner.Name + " wins.");
+            NotifyChanged();
         }
 
         
@@ -652,7 +718,6 @@ namespace IcarusGame.CleanDuel
                 return;
             }
 
-            State.Local.PendulumSummonUsed = true;
             pendingPendulumSummonCount = 0;
             OpenPendulumSummonChoice(State.Local);
             NotifyChanged();
@@ -842,8 +907,6 @@ namespace IcarusGame.CleanDuel
             List<CleanChoiceOption> options = BuildValidExtraDeckSummonOptions();
             if (options.Count == 0)
             {
-                Log("No Synchro, Xyz, or Link Monster in the Extra Deck can currently be Summoned.");
-                NotifyChanged();
                 return false;
             }
 
@@ -859,38 +922,27 @@ namespace IcarusGame.CleanDuel
             return true;
         }
 
-        public bool OpenXyzExtraDeckSelection()
-        {
-            return OpenExtraDeckSummonSelection();
-        }
-
         private List<CleanChoiceOption> BuildValidExtraDeckSummonOptions()
         {
             List<CleanChoiceOption> options = new List<CleanChoiceOption>();
             for (int i = 0; i < State.Local.ExtraDeck.Count; i++)
             {
                 CleanCard card = State.Local.ExtraDeck[i];
+                List<int> materials;
+                bool toExtraZone;
+                int targetMainZone;
                 string detail;
-                if (CanSynchroSummonFromExtra(i))
+                if (TryPlanSynchroSummon(State.Local, i, out materials, out toExtraZone, out targetMainZone))
                 {
-                    List<int> materials;
-                    bool toExtraZone;
-                    int targetMainZone;
-                    TryPlanSynchroSummon(State.Local, i, out materials, out toExtraZone, out targetMainZone);
                     detail = "Synchro | Level " + card.Definition.Level + " | " + materials.Count + " materials | ATK " + card.CurrentAttack;
                 }
-                else if (CanXyzSummonFromExtra(i))
+                else if (TryPlanXyzSummon(State.Local, i, out materials, out toExtraZone, out targetMainZone))
                 {
                     int rank = XyzRank(card);
-                    int requiredMaterials = XyzMaterialCount(card);
-                    detail = "Xyz | Rank " + rank + " | " + requiredMaterials + " Level " + rank + " materials | ATK " + card.CurrentAttack;
+                    detail = "Xyz | Rank " + rank + " | " + materials.Count + " Level " + rank + " materials | ATK " + card.CurrentAttack;
                 }
-                else if (CanLinkSummonFromExtra(i))
+                else if (TryPlanLinkSummon(State.Local, i, out materials, out toExtraZone, out targetMainZone))
                 {
-                    List<int> materials;
-                    bool toExtraZone;
-                    int targetMainZone;
-                    TryPlanLinkSummon(State.Local, i, out materials, out toExtraZone, out targetMainZone);
                     detail = "Link | Rating " + LinkRating(card) + " | " + materials.Count + " materials | ATK " + card.CurrentAttack;
                 }
                 else
@@ -913,15 +965,8 @@ namespace IcarusGame.CleanDuel
         private void ResolveExtraDeckSummonChoice(int runtimeId)
         {
             State.PendingChoice = null;
-            int extraDeckIndex = -1;
-            for (int i = 0; i < State.Local.ExtraDeck.Count; i++)
-            {
-                if (State.Local.ExtraDeck[i].RuntimeId == runtimeId)
-                {
-                    extraDeckIndex = i;
-                    break;
-                }
-            }
+            CleanCard selected = FindCardByRuntimeId(State.Local.ExtraDeck, runtimeId);
+            int extraDeckIndex = selected == null ? -1 : State.Local.ExtraDeck.IndexOf(selected);
 
             if (extraDeckIndex < 0)
             {
@@ -929,7 +974,6 @@ namespace IcarusGame.CleanDuel
                 return;
             }
 
-            CleanCard selected = State.Local.ExtraDeck[extraDeckIndex];
             Log(State.Local.Name + " selects " + selected.Definition.Name + " from the Extra Deck.");
             if (CanSynchroSummonFromExtra(extraDeckIndex))
             {
@@ -1067,6 +1111,37 @@ namespace IcarusGame.CleanDuel
         public bool CanActivateSetCard(int zoneIndex)
         {
             return CanActivateSetCardInternal(zoneIndex, false);
+        }
+
+        public bool IsLocalQuickEffectWindowOpen()
+        {
+            return State.TurnPlayer == CleanPlayerId.Rival &&
+                   State.PendingChoice != null &&
+                   State.PendingChoice.SourceCardId == QuickEffectChoicePromptId;
+        }
+
+        public bool CanActivateLocalSpellTrapResponse(int zoneIndex)
+        {
+            return IsLocalQuickEffectWindowOpen() && CanActivateLocalSpellTrapResponseInternal(zoneIndex, true);
+        }
+
+        public void ActivateLocalSpellTrapResponse(int zoneIndex)
+        {
+            if (!CanActivateLocalSpellTrapResponse(zoneIndex))
+            {
+                return;
+            }
+
+            State.PendingChoice = null;
+            pendingRivalTurnContinuationAfterResponse = true;
+            if (!ResolveLocalSpellTrapResponse(zoneIndex, true))
+            {
+                pendingRivalTurnContinuationAfterResponse = false;
+                Log("The selected Set card could not be activated in this response window.");
+            }
+
+            ContinueRivalTurnAfterResponseIfReady();
+            NotifyChanged();
         }
 
         private bool CanActivateSetCardInternal(int zoneIndex, bool allowPending)
@@ -1736,6 +1811,24 @@ namespace IcarusGame.CleanDuel
             {
                 ResolvePendulumSummonChoice(State.Local, option.Id);
             }
+            else if (currentPrompt.SourceCardId == SurrenderPromptId)
+            {
+                State.PendingChoice = null;
+                if (option.Id == PromptConfirmOptionId)
+                {
+                    CleanPlayerState loser = State.Local;
+                    CleanPlayerState winner = State.Rival;
+                    EndDuel(
+                        CleanDuelEndReason.Surrender,
+                        winner,
+                        loser,
+                        loser.Name + " surrendered. " + winner.Name + " wins.");
+                }
+                else
+                {
+                    Log("Surrender cancelled.");
+                }
+            }
 
             if (object.ReferenceEquals(State.PendingChoice, currentPrompt))
             {
@@ -1768,6 +1861,14 @@ namespace IcarusGame.CleanDuel
             if (State.PendingChoice.SourceCardId == DictatorAttackTargetChoicePromptId)
             {
                 Log("Dictator of D. requires an attack target choice.");
+                NotifyChanged();
+                return;
+            }
+
+            if (State.PendingChoice.SourceCardId == SurrenderPromptId)
+            {
+                State.PendingChoice = null;
+                Log("Surrender cancelled.");
                 NotifyChanged();
                 return;
             }
@@ -2131,6 +2232,53 @@ namespace IcarusGame.CleanDuel
             }
         }
 
+        public bool CanSelectPhase(CleanDuelPhase targetPhase)
+        {
+            if (!CanUseLocalActions() || targetPhase == State.Phase)
+            {
+                return false;
+            }
+
+            switch (targetPhase)
+            {
+                case CleanDuelPhase.Battle:
+                    return State.Phase == CleanDuelPhase.Main && !IsFirstTurnOfDuel();
+                case CleanDuelPhase.Main2:
+                    return State.Phase == CleanDuelPhase.Battle;
+                case CleanDuelPhase.End:
+                    return State.Phase == CleanDuelPhase.Main ||
+                           State.Phase == CleanDuelPhase.Battle ||
+                           State.Phase == CleanDuelPhase.Main2;
+                default:
+                    return false;
+            }
+        }
+
+        public void SelectPhase(CleanDuelPhase targetPhase)
+        {
+            if (!CanSelectPhase(targetPhase))
+            {
+                return;
+            }
+
+            switch (targetPhase)
+            {
+                case CleanDuelPhase.Battle:
+                    State.Phase = CleanDuelPhase.Battle;
+                    Log("Phase: Battle.");
+                    NotifyChanged();
+                    break;
+                case CleanDuelPhase.Main2:
+                    State.Phase = CleanDuelPhase.Main2;
+                    Log("Phase: Main Phase 2.");
+                    NotifyChanged();
+                    break;
+                case CleanDuelPhase.End:
+                    EnterEndPhaseAndEndTurn();
+                    break;
+            }
+        }
+
         private void EnterStandbyPhase()
         {
             State.Phase = CleanDuelPhase.Standby;
@@ -2257,6 +2405,10 @@ namespace IcarusGame.CleanDuel
 
             Log(CurrentPlayer.Name + " draws " + drawn + " card for turn.");
             EnterStandbyPhase();
+            if (State.TurnPlayer == CleanPlayerId.Local)
+            {
+                EnterMainPhase1();
+            }
             NotifyChanged();
 
             if (!State.GameOver && State.TurnPlayer == CleanPlayerId.Rival)
@@ -6404,7 +6556,7 @@ namespace IcarusGame.CleanDuel
                 }
 
                 options.Add(new CleanChoiceOption(
-                    PendulumHandOptionOffset + i,
+                    card.RuntimeId,
                     card.Definition.Name,
                     "Pendulum | Level " + card.Definition.Level + " | from hand | ATK " + card.CurrentAttack,
                     true,
@@ -6427,7 +6579,7 @@ namespace IcarusGame.CleanDuel
                 }
 
                 options.Add(new CleanChoiceOption(
-                    PendulumExtraDeckOptionOffset + i,
+                    card.RuntimeId,
                     card.Definition.Name,
                     "Pendulum | Level " + card.Definition.Level + " | face-up Extra Deck | ATK " + card.CurrentAttack,
                     true,
@@ -6443,7 +6595,7 @@ namespace IcarusGame.CleanDuel
             if (optionId == PendulumFinishOptionId)
             {
                 State.PendingChoice = null;
-                Log("Pendulum Summon selection finished.");
+                Log(pendingPendulumSummonCount > 0 ? "Pendulum Summon selection finished." : "Pendulum Summon selection cancelled.");
                 return;
             }
 
@@ -6455,13 +6607,13 @@ namespace IcarusGame.CleanDuel
                 return;
             }
 
-            if (optionId >= PendulumExtraDeckOptionOffset)
+            if (FindCardByRuntimeId(player.Hand, optionId) != null)
             {
-                ResolvePendulumSummonFromExtraDeck(player, optionId - PendulumExtraDeckOptionOffset, leftScale, rightScale);
+                ResolvePendulumSummonFromHand(player, optionId, leftScale, rightScale);
             }
-            else if (optionId >= PendulumHandOptionOffset)
+            else if (FindCardByRuntimeId(player.ExtraDeck, optionId) != null)
             {
-                ResolvePendulumSummonFromHand(player, optionId - PendulumHandOptionOffset, leftScale, rightScale);
+                ResolvePendulumSummonFromExtraDeck(player, optionId, leftScale, rightScale);
             }
 
             if (HasPendulumSummonTarget(player))
@@ -6474,14 +6626,14 @@ namespace IcarusGame.CleanDuel
             }
         }
 
-        private void ResolvePendulumSummonFromHand(CleanPlayerState player, int handIndex, int leftScale, int rightScale)
+        private void ResolvePendulumSummonFromHand(CleanPlayerState player, int runtimeId, int leftScale, int rightScale)
         {
-            if (handIndex < 0 || handIndex >= player.Hand.Count)
+            CleanCard card = FindCardByRuntimeId(player.Hand, runtimeId);
+            if (card == null)
             {
                 return;
             }
 
-            CleanCard card = player.Hand[handIndex];
             if (!CanPendulumSummonFromHand(player, card, leftScale, rightScale))
             {
                 return;
@@ -6493,20 +6645,21 @@ namespace IcarusGame.CleanDuel
                 return;
             }
 
-            player.Hand.RemoveAt(handIndex);
+            player.Hand.Remove(card);
             pendingPendulumSummonCount++;
+            player.PendulumSummonUsed = true;
             SummonToZone(player, card, zone, false, CleanMonsterStance.Attack);
             Log(player.Name + " Pendulum Summons " + card.Definition.Name + " from the hand.");
         }
 
-        private void ResolvePendulumSummonFromExtraDeck(CleanPlayerState player, int extraDeckIndex, int leftScale, int rightScale)
+        private void ResolvePendulumSummonFromExtraDeck(CleanPlayerState player, int runtimeId, int leftScale, int rightScale)
         {
-            if (extraDeckIndex < 0 || extraDeckIndex >= player.ExtraDeck.Count)
+            CleanCard card = FindCardByRuntimeId(player.ExtraDeck, runtimeId);
+            if (card == null)
             {
                 return;
             }
 
-            CleanCard card = player.ExtraDeck[extraDeckIndex];
             if (!CanPendulumSummonFromFaceUpExtraDeck(player, card, leftScale, rightScale))
             {
                 return;
@@ -6518,8 +6671,9 @@ namespace IcarusGame.CleanDuel
                 return;
             }
 
-            player.ExtraDeck.RemoveAt(extraDeckIndex);
+            player.ExtraDeck.Remove(card);
             pendingPendulumSummonCount++;
+            player.PendulumSummonUsed = true;
             PrepareExtraDeckMonsterSummon(player, card);
             card.FaceUpExtraDeck = false;
             int extraMonsterZone = ExtraMonsterZoneIndexFor(player);
@@ -8876,15 +9030,8 @@ namespace IcarusGame.CleanDuel
         private void ResolveRitualSummonChoice(int runtimeId)
         {
             State.PendingChoice = null;
-            int ritualIndex = -1;
-            for (int i = 0; i < State.Local.Hand.Count; i++)
-            {
-                if (State.Local.Hand[i].RuntimeId == runtimeId)
-                {
-                    ritualIndex = i;
-                    break;
-                }
-            }
+            CleanCard selected = FindCardByRuntimeId(State.Local.Hand, runtimeId);
+            int ritualIndex = selected == null ? -1 : State.Local.Hand.IndexOf(selected);
 
             List<RitualMaterialCandidate> materials;
             if (ritualIndex < 0 || !TryPlanChaosFormRitualSummon(State.Local, ritualIndex, out materials))
@@ -9499,15 +9646,8 @@ namespace IcarusGame.CleanDuel
             string sourceName = pendingFusionSourceName;
             ClearPendingFusionSummonChoice();
 
-            int extraDeckIndex = -1;
-            for (int i = 0; i < State.Local.ExtraDeck.Count; i++)
-            {
-                if (State.Local.ExtraDeck[i].RuntimeId == runtimeId)
-                {
-                    extraDeckIndex = i;
-                    break;
-                }
-            }
+            CleanCard selected = FindCardByRuntimeId(State.Local.ExtraDeck, runtimeId);
+            int extraDeckIndex = selected == null ? -1 : State.Local.ExtraDeck.IndexOf(selected);
 
             List<FusionMaterialCandidate> materials;
             bool summonToExtraMonsterZone;
@@ -9520,7 +9660,12 @@ namespace IcarusGame.CleanDuel
             }
 
             int fieldBlueEyesMaterialCount;
-            PerformFusionSummon(State.Local, extraDeckIndex, materials, summonToExtraMonsterZone, targetMainZone, materialsToDeck, sourceName, out fieldBlueEyesMaterialCount);
+            if (!PerformFusionSummon(State.Local, extraDeckIndex, materials, summonToExtraMonsterZone, targetMainZone, materialsToDeck, sourceName, out fieldBlueEyesMaterialCount))
+            {
+                Log("The selected Fusion Monster could not be Summoned.");
+                return;
+            }
+
             if (destroyTargets)
             {
                 LuaDestroyTargets(State.Rival, fieldBlueEyesMaterialCount, sourceName);
@@ -10301,10 +10446,13 @@ namespace IcarusGame.CleanDuel
                 if (player.Deck.Count == 0)
                 {
                     player.LifePoints = 0;
-                    State.GameOver = true;
-                    State.WinnerText = OpponentOf(player.Id).Name + " wins by deck-out.";
                     Log(player.Name + " cannot draw because the Deck is empty.");
-                    Log(State.WinnerText);
+                    CleanPlayerState winner = OpponentOf(player.Id);
+                    EndDuel(
+                        CleanDuelEndReason.DeckOut,
+                        winner,
+                        player,
+                        winner.Name + " wins by deck-out.");
                     return drawn;
                 }
 
@@ -10952,10 +11100,57 @@ namespace IcarusGame.CleanDuel
             }
 
             string effectName = string.IsNullOrEmpty(sourceName) ? "card effect" : sourceName;
+            EndDuel(
+                CleanDuelEndReason.CardEffect,
+                winner,
+                OpponentOf(winner.Id),
+                winner.Name + " wins by " + effectName + ".");
+        }
+
+        private void EndDuel(
+            CleanDuelEndReason reason,
+            CleanPlayerState winner,
+            CleanPlayerState loser,
+            string summary)
+        {
+            if (State.GameOver)
+            {
+                return;
+            }
+
             State.GameOver = true;
-            State.WinnerText = winner.Name + " wins by " + effectName + ".";
+            State.PendingChoice = null;
+            State.Result = new CleanDuelResult(
+                reason,
+                winner != null,
+                winner == null ? CleanPlayerId.Local : winner.Id,
+                loser == null ? CleanPlayerId.Local : loser.Id,
+                State.TurnNumber,
+                summary);
+            State.WinnerText = summary ?? string.Empty;
             Log(State.WinnerText);
         }
+
+        private void EndDuelAsDraw(string summary)
+        {
+            if (State.GameOver)
+            {
+                return;
+            }
+
+            State.GameOver = true;
+            State.PendingChoice = null;
+            State.Result = new CleanDuelResult(
+                CleanDuelEndReason.Draw,
+                false,
+                CleanPlayerId.Local,
+                CleanPlayerId.Local,
+                State.TurnNumber,
+                summary);
+            State.WinnerText = summary ?? string.Empty;
+            Log(State.WinnerText);
+        }
+
         private void CheckWin()
         {
             if (State.GameOver)
@@ -10969,31 +11164,35 @@ namespace IcarusGame.CleanDuel
             {
                 State.Local.LifePoints = 0;
                 State.Rival.LifePoints = 0;
-                State.GameOver = true;
-                State.WinnerText = "Duel ends in a draw.";
-                Log(State.WinnerText);
+                EndDuelAsDraw("Duel ends in a draw.");
                 return;
             }
 
             if (localDefeated)
             {
                 State.Local.LifePoints = 0;
-                State.GameOver = true;
-                State.WinnerText = State.Rival.Name + " wins.";
-                Log(State.WinnerText);
+                EndDuel(
+                    CleanDuelEndReason.LifePoints,
+                    State.Rival,
+                    State.Local,
+                    State.Rival.Name + " wins by reducing the opponent's LP to 0.");
             }
             else if (rivalDefeated)
             {
                 State.Rival.LifePoints = 0;
-                State.GameOver = true;
-                State.WinnerText = State.Local.Name + " wins.";
-                Log(State.WinnerText);
+                EndDuel(
+                    CleanDuelEndReason.LifePoints,
+                    State.Local,
+                    State.Rival,
+                    State.Local.Name + " wins by reducing the opponent's LP to 0.");
             }
         }
 
         private void Log(string message)
         {
             State.Log.Add(message);
+            State.StateSequence++;
+            State.EventStream.Add(new CleanDuelEventRecord(State.StateSequence, message));
             while (State.Log.Count > 10)
             {
                 State.Log.RemoveAt(0);
@@ -11002,6 +11201,7 @@ namespace IcarusGame.CleanDuel
 
         private void NotifyChanged()
         {
+            State.DeterministicStateHash = CleanDuelDeterminism.ComputeStateHash(State);
             if (Changed != null)
             {
                 Changed();
@@ -11009,10 +11209,6 @@ namespace IcarusGame.CleanDuel
         }
     }
 }
-
-
-
-
 
 
 

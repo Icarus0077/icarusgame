@@ -9,11 +9,13 @@ namespace IcarusGame.EditorTools
 {
     public static class CleanDuelLuaSmokeTest
     {
+        private const int SmokeTestSeed = 20260807;
+
         [MenuItem("Tools/Icarus/Clean Duel/Run Lua Smoke Test")]
         public static void Run()
         {
             CleanDuelGame game = new CleanDuelGame();
-            game.StartNewDuel();
+            game.StartNewDuel(SmokeTestSeed);
 
             if (game.State.Local.Deck.Count != 36)
             {
@@ -63,8 +65,10 @@ namespace IcarusGame.EditorTools
             AssertPhaseFlow();
             AssertDuelRulebookBasics();
             AssertDeckOutRules();
+            AssertDeterministicDuelStart();
+            AssertSurrenderResultFlow();
             AssertNormalMonsterHasNoActivationAndUsesTributes();
-            Debug.Log("CleanDuel deck smoke test passed. Main=41, Extra=12, filtered Fusion/Ritual/Synchro/Xyz/Pendulum/Link choices, stacked Xyz materials, clean activations, real fusion summons, rulebook Spell/Trap timing, ritual summons, Flip/Trigger rules, Link Summon rules, Synchro Summon rules, Xyz Summon rules, Pendulum rules, True Light rules, phase flow, first-turn battle lock, battle position rules, draw result, card-effect win, deck-out, targeting protection, and tribute rules verified.");
+            Debug.Log("CleanDuel deck smoke test passed. Main=41, Extra=12, filtered Fusion/Ritual/Synchro/Xyz/Pendulum/Link choices, stacked Xyz materials, clean activations, real fusion summons, rulebook Spell/Trap timing, ritual summons, Flip/Trigger rules, Link Summon rules, Synchro Summon rules, Xyz Summon rules, Pendulum rules, True Light rules, phase flow, first-turn battle lock, battle position rules, draw result, card-effect win, deck-out, deterministic seeded starts, structured surrender results, targeting protection, and tribute rules verified.");
         }
 
         private static void AssertScreenshotDeckListFromSummary()
@@ -1515,7 +1519,12 @@ namespace IcarusGame.EditorTools
                 throw new InvalidOperationException("Opponent-turn Trap response failed: True Light should appear in an activate/pass prompt.");
             }
 
-            response.ChoosePendingOption(IndexOfChoiceOption(response, 400));
+            if (!response.CanActivateLocalSpellTrapResponse(0))
+            {
+                throw new InvalidOperationException("Opponent-turn Trap response failed: the Set Trap should be clickable on the field while the response window is open.");
+            }
+
+            response.ActivateLocalSpellTrapResponse(0);
             if (response.State.Local.SpellsTraps[0] == null ||
                 response.State.Local.SpellsTraps[0].FaceDown ||
                 response.State.PendingChoice == null ||
@@ -1912,6 +1921,8 @@ namespace IcarusGame.EditorTools
                 throw new InvalidOperationException("Gateway to Chaos failed: remove exactly 3 counters and allow the Ritual Spell search only once per turn.");
             }
 
+            gateway.State.Rival.Hand.Clear();
+            gateway.State.Rival.Deck.Clear();
             gateway.EndTurn();
             if (gateway.State.Local.GatewayToChaosCounters != 3)
             {
@@ -2537,7 +2548,7 @@ namespace IcarusGame.EditorTools
             game.State.Local.Monsters[0] = materialA;
             game.State.Local.Monsters[1] = materialB;
 
-            if (!game.OpenXyzExtraDeckSelection() || game.State.PendingChoice == null)
+            if (!game.OpenExtraDeckSummonSelection() || game.State.PendingChoice == null)
             {
                 throw new InvalidOperationException("Xyz Extra Deck choice failed: clicking an Extra Deck with valid Xyz monsters should open a choice prompt.");
             }
@@ -2781,6 +2792,17 @@ namespace IcarusGame.EditorTools
                 "Pendulum Scale 3. Face-up Extra Deck test card.",
                 string.Empty);
 
+            CleanDuelGame cancelledPendulum = ReadyCleanGame();
+            cancelledPendulum.State.Local.SpellsTraps[0] = new CleanCard(scaleOne, CleanPlayerId.Local);
+            cancelledPendulum.State.Local.SpellsTraps[CleanPlayerState.ZoneCount - 1] = new CleanCard(scaleEight, CleanPlayerId.Local);
+            cancelledPendulum.State.Local.Hand.Add(new CleanCard(levelFour, CleanPlayerId.Local));
+            cancelledPendulum.PendulumSummon();
+            cancelledPendulum.CancelPendingChoice();
+            if (cancelledPendulum.State.Local.PendulumSummonUsed || !cancelledPendulum.CanPendulumSummon())
+            {
+                throw new InvalidOperationException("Pendulum choice failed: opening and cancelling the chooser must not consume the once-per-turn Pendulum Summon.");
+            }
+
             CleanDuelGame game = ReadyCleanGame();
             game.State.Local.Hand.Add(new CleanCard(scaleOne, CleanPlayerId.Local));
             game.State.Local.Hand.Add(new CleanCard(scaleEight, CleanPlayerId.Local));
@@ -2801,10 +2823,12 @@ namespace IcarusGame.EditorTools
                 throw new InvalidOperationException("Pendulum rule failed: second Pendulum activation should use the right Pendulum Zone.");
             }
 
-            game.State.Local.Hand.Add(new CleanCard(levelFour, CleanPlayerId.Local));
+            CleanCard legalHandPendulumTarget = new CleanCard(levelFour, CleanPlayerId.Local);
+            game.State.Local.Hand.Add(legalHandPendulumTarget);
             CleanCard invalidPendulumTarget = new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local);
             game.State.Local.Hand.Add(invalidPendulumTarget);
-            game.State.Local.ExtraDeck.Add(new CleanCard(faceUpExtra, CleanPlayerId.Local) { FaceUpExtraDeck = true });
+            CleanCard legalExtraDeckPendulumTarget = new CleanCard(faceUpExtra, CleanPlayerId.Local) { FaceUpExtraDeck = true };
+            game.State.Local.ExtraDeck.Add(legalExtraDeckPendulumTarget);
             if (!game.CanPendulumSummon())
             {
                 throw new InvalidOperationException("Pendulum rule failed: scales 1 and 8 should allow Levels 2 through 7 to be Pendulum Summoned.");
@@ -2822,13 +2846,17 @@ namespace IcarusGame.EditorTools
             }
 
             if (game.State.PendingChoice.Options.Count != 3 ||
-                IndexOfChoiceOption(game, 1001) >= 0 ||
-                game.State.PendingChoice.Options[IndexOfChoiceOption(game, 1000)].CardDefinitionId != levelFour.Id)
+                IndexOfChoiceOption(game, invalidPendulumTarget.RuntimeId) >= 0 ||
+                IndexOfChoiceOption(game, legalHandPendulumTarget.RuntimeId) < 0 ||
+                IndexOfChoiceOption(game, legalExtraDeckPendulumTarget.RuntimeId) < 0 ||
+                game.State.PendingChoice.Options[IndexOfChoiceOption(game, legalHandPendulumTarget.RuntimeId)].CardDefinitionId != levelFour.Id)
             {
-                throw new InvalidOperationException("Pendulum choice failed: only legal targets should be shown and their artwork id should be available.");
+                throw new InvalidOperationException("Pendulum choice failed: only legal targets should be shown with stable runtime ids and artwork ids.");
             }
 
-            game.ChoosePendingOption(IndexOfChoiceOption(game, 1000));
+            int handChoiceIndex = IndexOfChoiceOption(game, legalHandPendulumTarget.RuntimeId);
+            game.State.Local.Hand.Reverse();
+            game.ChoosePendingOption(handChoiceIndex);
             if (game.State.Local.Monsters[0] == null || game.State.Local.Monsters[0].Definition.Id != 99002104)
             {
                 throw new InvalidOperationException("Pendulum rule failed: a legal monster should be Pendulum Summoned from the hand to a Main Monster Zone.");
@@ -2839,7 +2867,9 @@ namespace IcarusGame.EditorTools
                 throw new InvalidOperationException("Pendulum rule failed: choice should remain open while more legal Pendulum targets exist.");
             }
 
-            game.ChoosePendingOption(IndexOfChoiceOption(game, 2000));
+            int extraDeckChoiceIndex = IndexOfChoiceOption(game, legalExtraDeckPendulumTarget.RuntimeId);
+            game.State.Local.ExtraDeck.Insert(0, new CleanCard(faceUpExtra, CleanPlayerId.Local));
+            game.ChoosePendingOption(extraDeckChoiceIndex);
             if (game.State.ExtraMonsters[0] == null || game.State.ExtraMonsters[0].Definition.Id != 99002105 || game.State.ExtraMonsters[0].FaceUpExtraDeck)
             {
                 throw new InvalidOperationException("Pendulum rule failed: face-up Pendulum Monsters from the Extra Deck should summon to the Extra Monster Zone when it is open.");
@@ -2858,11 +2888,12 @@ namespace IcarusGame.EditorTools
             CleanDuelGame spiritLimit = ReadyCleanGame();
             spiritLimit.State.Local.SpellsTraps[0] = new CleanCard(scaleOne, CleanPlayerId.Local);
             spiritLimit.State.Local.SpellsTraps[CleanPlayerState.ZoneCount - 1] = new CleanCard(scaleEight, CleanPlayerId.Local);
-            spiritLimit.State.Local.Hand.Add(new CleanCard(levelFour, CleanPlayerId.Local));
+            CleanCard firstSpiritPendulumTarget = new CleanCard(levelFour, CleanPlayerId.Local);
+            spiritLimit.State.Local.Hand.Add(firstSpiritPendulumTarget);
             spiritLimit.State.Local.Hand.Add(new CleanCard(levelFour, CleanPlayerId.Local));
             spiritLimit.State.Rival.Monsters[0] = new CleanCard(CleanCardLibrary.Get(59822133), CleanPlayerId.Rival);
             spiritLimit.PendulumSummon();
-            spiritLimit.ChoosePendingOption(IndexOfChoiceOption(spiritLimit, 1000));
+            spiritLimit.ChoosePendingOption(IndexOfChoiceOption(spiritLimit, firstSpiritPendulumTarget.RuntimeId));
             if (spiritLimit.State.Local.Hand.Count != 1 || spiritLimit.State.PendingChoice != null)
             {
                 throw new InvalidOperationException("Blue-Eyes Spirit Dragon failed: neither player may Special Summon 2 or more monsters simultaneously.");
@@ -3195,6 +3226,11 @@ namespace IcarusGame.EditorTools
         {
             CleanDuelGame firstTurn = new CleanDuelGame();
             firstTurn.StartNewDuel();
+            if (firstTurn.State.Phase != CleanDuelPhase.Main || firstTurn.State.Local.Hand.Count != 5)
+            {
+                throw new InvalidOperationException("Phase flow failed: the opening Draw and Standby Phases should automatically continue to Main Phase 1 without drawing a sixth card.");
+            }
+
             firstTurn.State.Local.Monsters[0] = new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local) { SummonedThisTurn = false };
             firstTurn.State.Phase = CleanDuelPhase.Battle;
             if (firstTurn.CanAttackWith(0))
@@ -3203,52 +3239,31 @@ namespace IcarusGame.EditorTools
             }
 
             firstTurn.State.Phase = CleanDuelPhase.Main;
-            firstTurn.State.Local.Deck.Clear();
-            firstTurn.State.Local.Deck.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
-            firstTurn.State.Rival.Hand.Clear();
-            firstTurn.State.Rival.Deck.Clear();
-            firstTurn.State.Rival.Deck.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Rival));
-            firstTurn.AdvancePhase();
-            if (firstTurn.State.TurnNumber == 1 && firstTurn.State.Phase == CleanDuelPhase.Battle)
+            if (firstTurn.CanSelectPhase(CleanDuelPhase.Battle) || !firstTurn.CanSelectPhase(CleanDuelPhase.End))
             {
-                throw new InvalidOperationException("Phase flow failed: Main Phase 1 should not advance to Battle Phase on the first turn.");
+                throw new InvalidOperationException("Phase menu failed: Battle must be disabled on turn one while End remains selectable.");
             }
 
             CleanDuelGame game = new CleanDuelGame();
             game.StartNewDuel();
-            if (game.State.Phase != CleanDuelPhase.Standby)
-            {
-                throw new InvalidOperationException("Phase flow failed: the first Draw Phase should advance to Standby without drawing a sixth opening card.");
-            }
-
-            if (game.State.Local.Hand.Count != 5)
-            {
-                throw new InvalidOperationException("Phase flow failed: the first player must not draw during their first Draw Phase.");
-            }
-
-            game.AdvancePhase();
-            if (game.State.Phase != CleanDuelPhase.Main)
-            {
-                throw new InvalidOperationException("Phase flow failed: Standby Phase should advance to Main Phase 1.");
-            }
-
             game.State.TurnNumber = 2;
-            game.AdvancePhase();
-            if (game.State.Phase != CleanDuelPhase.Battle)
+            if (!game.CanSelectPhase(CleanDuelPhase.Battle) || game.CanSelectPhase(CleanDuelPhase.Main2))
             {
-                throw new InvalidOperationException("Phase flow failed: Main Phase 1 should advance to Battle Phase after the first turn restriction has passed.");
+                throw new InvalidOperationException("Phase menu failed: Battle should be clickable from Main Phase 1, while Main Phase 2 must remain locked until Battle.");
             }
 
-            game.AdvancePhase();
-            if (game.State.Phase != CleanDuelPhase.Battle || game.State.PendingChoice == null || game.State.PendingChoice.Options.Count != 2)
+            game.SelectPhase(CleanDuelPhase.Battle);
+            if (game.State.Phase != CleanDuelPhase.Battle ||
+                !game.CanSelectPhase(CleanDuelPhase.Main2) ||
+                !game.CanSelectPhase(CleanDuelPhase.End))
             {
-                throw new InvalidOperationException("Phase flow failed: Battle Phase should open a Main Phase 2 / End Turn choice.");
+                throw new InvalidOperationException("Phase menu failed: Battle Phase should offer both Main Phase 2 and End Turn.");
             }
 
-            game.ChoosePendingOption(0);
-            if (game.State.PendingChoice != null || game.State.Phase != CleanDuelPhase.Main2)
+            game.SelectPhase(CleanDuelPhase.Main2);
+            if (game.State.PendingChoice != null || game.State.Phase != CleanDuelPhase.Main2 || !game.CanSelectPhase(CleanDuelPhase.End))
             {
-                throw new InvalidOperationException("Phase flow failed: choosing Main Phase 2 did not enter Main Phase 2.");
+                throw new InvalidOperationException("Phase menu failed: choosing Main Phase 2 did not enter Main Phase 2 with End available.");
             }
 
             CleanDuelGame endFromMain2 = new CleanDuelGame();
@@ -3259,38 +3274,32 @@ namespace IcarusGame.EditorTools
             endFromMain2.State.Local.Deck.Clear();
             endFromMain2.State.Local.Deck.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
             endFromMain2.AdvancePhase();
-            if (endFromMain2.State.TurnPlayer != CleanPlayerId.Local || endFromMain2.State.Phase != CleanDuelPhase.Standby || endFromMain2.State.Local.Hand.Count != 1)
+            if (endFromMain2.State.TurnPlayer != CleanPlayerId.Local || endFromMain2.State.Phase != CleanDuelPhase.Main || endFromMain2.State.Local.Hand.Count != 1)
             {
-                throw new InvalidOperationException("Phase flow failed: Main Phase 2 should go to End Phase, end the turn, draw, and enter Standby Phase.");
-            }
-
-            endFromMain2.AdvancePhase();
-            if (endFromMain2.State.Phase != CleanDuelPhase.Main)
-            {
-                throw new InvalidOperationException("Phase flow failed: the new turn's Standby Phase should advance to Main Phase 1.");
+                throw new InvalidOperationException("Phase flow failed: a new local turn should draw and automatically enter Main Phase 1.");
             }
 
             CleanDuelGame endFromBattle = new CleanDuelGame();
             endFromBattle.StartNewDuel();
-            endFromBattle.State.TurnPlayer = CleanPlayerId.Rival;
+            endFromBattle.State.TurnPlayer = CleanPlayerId.Local;
             endFromBattle.State.Phase = CleanDuelPhase.Battle;
             endFromBattle.State.Local.Hand.Clear();
             endFromBattle.State.Local.Deck.Clear();
             endFromBattle.State.Local.Deck.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
-            endFromBattle.AdvancePhase();
-            if (endFromBattle.State.PendingChoice == null || endFromBattle.State.PendingChoice.Options.Count != 2)
+            if (!endFromBattle.CanSelectPhase(CleanDuelPhase.End))
             {
-                throw new InvalidOperationException("Phase flow failed: Battle Phase end-turn choice did not open.");
+                throw new InvalidOperationException("Phase menu failed: End Turn should be selectable directly from Battle Phase.");
             }
 
-            endFromBattle.ChoosePendingOption(1);
-            if (endFromBattle.State.PendingChoice != null || endFromBattle.State.TurnPlayer != CleanPlayerId.Local || endFromBattle.State.Phase != CleanDuelPhase.Standby || endFromBattle.State.Local.Hand.Count != 1)
+            endFromBattle.SelectPhase(CleanDuelPhase.End);
+            if (endFromBattle.State.PendingChoice != null || endFromBattle.State.TurnPlayer != CleanPlayerId.Local || endFromBattle.State.Phase != CleanDuelPhase.Main || endFromBattle.State.Local.Hand.Count != 1)
             {
-                throw new InvalidOperationException("Phase flow failed: Battle Phase End Turn choice should pass the turn, draw, and enter Standby Phase.");
+                throw new InvalidOperationException("Phase menu failed: End Turn from Battle should pass through the rival turn and return to automatic Main Phase 1.");
             }
 
             CleanDuelGame standbyActions = new CleanDuelGame();
             standbyActions.StartNewDuel();
+            standbyActions.State.Phase = CleanDuelPhase.Standby;
             standbyActions.State.Local.Hand.Clear();
             standbyActions.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(8240199), CleanPlayerId.Local));
             if (standbyActions.CanNormalSummon(0))
@@ -3398,6 +3407,111 @@ namespace IcarusGame.EditorTools
             }
         }
 
+        private static void AssertDeterministicDuelStart()
+        {
+            const int seed = 20260807;
+            CleanDuelGame first = new CleanDuelGame();
+            CleanDuelGame second = new CleanDuelGame();
+            first.StartNewDuel(seed);
+            second.StartNewDuel(seed);
+
+            if (first.State.RandomSeed != seed || second.State.RandomSeed != seed)
+            {
+                throw new InvalidOperationException("Determinism test failed: the authoritative match seed was not retained in duel state.");
+            }
+
+            if (string.IsNullOrEmpty(first.State.DeterministicStateHash) || first.State.DeterministicStateHash != second.State.DeterministicStateHash)
+            {
+                throw new InvalidOperationException("Determinism test failed: identical seeds and inputs must produce the same initial state hash.");
+            }
+
+            if (first.State.StateSequence != first.State.EventStream.Count || second.State.StateSequence != second.State.EventStream.Count)
+            {
+                throw new InvalidOperationException("Event stream test failed: every recorded event needs one monotonic state sequence number.");
+            }
+
+            AssertCardOrderEquals(first.State.Local.Deck, second.State.Local.Deck, "local Main Deck");
+            AssertCardOrderEquals(first.State.Local.Hand, second.State.Local.Hand, "local opening hand");
+            AssertCardOrderEquals(first.State.Rival.Deck, second.State.Rival.Deck, "rival Main Deck");
+            AssertCardOrderEquals(first.State.Rival.Hand, second.State.Rival.Hand, "rival opening hand");
+
+            first.StartNewDuel(seed);
+            if (first.State.DeterministicStateHash != second.State.DeterministicStateHash)
+            {
+                throw new InvalidOperationException("Determinism test failed: restarting the same runtime with the same seed must not depend on global runtime card IDs.");
+            }
+        }
+
+        private static void AssertSurrenderResultFlow()
+        {
+            CleanDuelGame game = new CleanDuelGame();
+            game.StartNewDuel(77);
+            game.RequestSurrender();
+            if (game.State.PendingChoice == null || game.State.PendingChoice.Title != "Surrender duel?" || game.State.GameOver)
+            {
+                throw new InvalidOperationException("Surrender flow failed: opening the duel menu action should require confirmation before ending the duel.");
+            }
+
+            game.CancelPendingChoice();
+            if (game.State.GameOver || game.State.Result != null || game.State.PendingChoice != null)
+            {
+                throw new InvalidOperationException("Surrender flow failed: cancelling confirmation must preserve the active duel.");
+            }
+
+            game.RequestSurrender();
+            int surrenderOption = FindChoiceOption(game.State.PendingChoice, "Surrender");
+            game.ChoosePendingOption(surrenderOption);
+            if (!game.State.GameOver || game.State.Result == null ||
+                game.State.Result.Reason != CleanDuelEndReason.Surrender ||
+                !game.State.Result.HasWinner ||
+                game.State.Result.Winner != CleanPlayerId.Rival ||
+                game.State.Result.Loser != CleanPlayerId.Local ||
+                game.State.PendingChoice != null)
+            {
+                throw new InvalidOperationException("Surrender flow failed: confirmation must create a structured Rival-win result and close all prompts.");
+            }
+
+            game.StartNewDuel(78);
+            if (game.State.GameOver || game.State.Result != null || game.State.StateSequence != game.State.EventStream.Count)
+            {
+                throw new InvalidOperationException("Surrender flow failed: Play Again must start a clean, auditable duel state.");
+            }
+        }
+
+        private static void AssertCardOrderEquals(List<CleanCard> first, List<CleanCard> second, string label)
+        {
+            if (first.Count != second.Count)
+            {
+                throw new InvalidOperationException("Determinism test failed: " + label + " counts differ.");
+            }
+
+            for (int i = 0; i < first.Count; i++)
+            {
+                if (first[i].Definition.Id != second[i].Definition.Id)
+                {
+                    throw new InvalidOperationException("Determinism test failed: " + label + " differs at position " + i + ".");
+                }
+            }
+        }
+
+        private static int FindChoiceOption(CleanChoicePrompt prompt, string label)
+        {
+            if (prompt == null)
+            {
+                return -1;
+            }
+
+            for (int i = 0; i < prompt.Options.Count; i++)
+            {
+                if (prompt.Options[i].Label == label)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
         private static void InvokeCheckWin(CleanDuelGame game)
         {
             MethodInfo method = typeof(CleanDuelGame).GetMethod("CheckWin", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -3499,7 +3613,7 @@ namespace IcarusGame.EditorTools
         private static CleanDuelGame ReadyCleanGame()
         {
             CleanDuelGame game = new CleanDuelGame();
-            game.StartNewDuel();
+            game.StartNewDuel(SmokeTestSeed);
             game.State.Local.Hand.Clear();
             game.State.Local.Deck.Clear();
             game.State.Local.ExtraDeck.Clear();

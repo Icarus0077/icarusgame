@@ -12,8 +12,10 @@ namespace IcarusGame.CleanDuel
         private readonly CleanDuelArtCache artCache;
         private Font font;
         private RectTransform inspectorPanel;
+        private Image inspectorArtwork;
         private Text inspectorTitle;
         private Text inspectorStats;
+        private Text inspectorType;
         private Text inspectorBody;
         private Text localLpText;
         private Text rivalLpText;
@@ -25,9 +27,15 @@ namespace IcarusGame.CleanDuel
         private RectTransform phaseMicroMenu;
         private Image phaseMenuBackground;
         private Text phaseMenuTitle;
+        private Button duelMenuButton;
+        private RectTransform duelMenuPanel;
         private Sprite phaseCircleSprite;
+        private Sprite roundedPanelSprite;
+        private Sprite roundedButtonSprite;
         private bool phaseMenuOpen;
+        private bool duelMenuOpen;
         private readonly List<Image> phaseStepImages = new List<Image>();
+        private readonly List<Button> phaseStepButtons = new List<Button>();
         private Text logText;
         private RectTransform canvasRect;
         private RectTransform handLayer;
@@ -44,6 +52,7 @@ namespace IcarusGame.CleanDuel
         private Text gameOverTitle;
         private Text gameOverSubtitle;
         private Text gameOverHint;
+        private Button gameOverRestartButton;
         private readonly List<Button> choiceButtons = new List<Button>();
         private readonly List<Text> choiceButtonLabels = new List<Text>();
         private readonly List<Image> choiceButtonArtwork = new List<Image>();
@@ -52,7 +61,6 @@ namespace IcarusGame.CleanDuel
         private Button primaryActionButton;
         private Button secondaryActionButton;
         private Button pendulumButton;
-        private Button nextPhaseButton;
 
         public CleanDuelHudView(CleanDuelBootstrap runtime, CleanDuelArtCache artCache)
         {
@@ -68,6 +76,10 @@ namespace IcarusGame.CleanDuel
                 font = Resources.GetBuiltinResource<Font>("Arial.ttf");
             }
 
+            phaseCircleSprite = CreateCircleSprite(96);
+            roundedPanelSprite = CreateRoundedRectSprite(64, 13f);
+            roundedButtonSprite = CreateRoundedRectSprite(64, 20f);
+
             GameObject canvasObject = new GameObject("Master Duel HUD Rebuild", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             Canvas canvas = canvasObject.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -82,6 +94,7 @@ namespace IcarusGame.CleanDuel
             Stretch(canvasRect);
 
             BuildTopChrome(canvasRect);
+            BuildDuelMenu(canvasRect);
             BuildPlayerPanel(canvasRect);
             BuildPhaseOrb(canvasRect);
             BuildInspector(canvasRect);
@@ -113,15 +126,17 @@ namespace IcarusGame.CleanDuel
             localLpText.text = "LP  " + state.Local.LifePoints;
             rivalNameText.text = state.Rival.Name;
             rivalLpText.text = "LP  " + state.Rival.LifePoints;
-            RenderPhaseControl(state);
+            RenderPhaseControl(game);
 
             RenderInspector(selectedCard, revealSelectedFaceDownCard, state, game);
             RenderRivalHand(game);
             RenderHand(game, selectedHand);
             RenderLog(state);
+            RenderDuelMenu(state);
             RenderChoicePrompt(state.GameOver ? null : state.PendingChoice);
             RenderGameOverOverlay(state);
-            bool allowActions = !state.GameOver && state.PendingChoice == null;
+            bool allowActions = !state.GameOver &&
+                                (state.PendingChoice == null || game.IsLocalQuickEffectWindowOpen());
             bool selectedFaceDownMonster = selectedMonster >= 0 &&
                                            selectedMonster < CleanPlayerState.ZoneCount &&
                                            state.Local.Monsters[selectedMonster] != null &&
@@ -136,7 +151,10 @@ namespace IcarusGame.CleanDuel
             bool canNormalSummon = allowActions && selectedHand >= 0 && game.CanNormalSummon(selectedHand);
             bool canSetMonster = allowActions && selectedHand >= 0 && game.CanSetMonster(selectedHand);
             bool canSetSpellTrap = allowActions && selectedHand >= 0 && game.CanSetSpellTrap(selectedHand);
-            bool canActivateSpellTrapZone = allowActions && selectedSpellTrap >= 0 && game.CanActivateSetCard(selectedSpellTrap);
+            bool canActivateSpellTrapZone = allowActions &&
+                                                selectedSpellTrap >= 0 &&
+                                                (game.CanActivateSetCard(selectedSpellTrap) ||
+                                                 game.CanActivateLocalSpellTrapResponse(selectedSpellTrap));
             bool canChangeStance = allowActions &&
                                    selectedMonster >= 0 &&
                                    !selectedFaceDownMonster &&
@@ -221,12 +239,6 @@ namespace IcarusGame.CleanDuel
             PositionActionLayer(selectedHand, state.Local.Hand.Count, hasBoardActionAnchor, boardActionAnchor);
             pendulumButton.gameObject.SetActive(canPendulumSummon);
             pendulumButton.interactable = canPendulumSummon;
-            nextPhaseButton.interactable = game.CanUseLocalActions() || state.GameOver;
-            Text nextPhaseLabel = nextPhaseButton.GetComponentInChildren<Text>();
-            if (nextPhaseLabel != null)
-            {
-                nextPhaseLabel.text = state.GameOver ? "Restart" : PhaseButtonLabel(state.Phase);
-            }
         }
 
         private string ExtraDeckSummonLabel(CleanDuelGame game, int extraDeckIndex)
@@ -245,58 +257,87 @@ namespace IcarusGame.CleanDuel
         }
         private void BuildTopChrome(RectTransform canvas)
         {
-            RectTransform gear = Panel("Gear", canvas, new Color(0.01f, 0.02f, 0.04f, 0.78f));
-            Anchor(gear, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(26f, -92f), new Vector2(92f, -26f));
-            Text gearText = Label("Gear Text", gear, 42, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.28f, 0.85f, 1f, 1f));
-            gearText.text = "O";
+            RectTransform gear = Panel("Gear", canvas, new Color(0.01f, 0.045f, 0.09f, 0.94f));
+            Anchor(gear, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -80f), new Vector2(80f, -20f));
+            Image gearImage = gear.GetComponent<Image>();
+            gearImage.sprite = phaseCircleSprite;
+            gearImage.type = Image.Type.Simple;
+            duelMenuButton = gear.gameObject.AddComponent<Button>();
+            duelMenuButton.targetGraphic = gearImage;
+            duelMenuButton.navigation = new Navigation { mode = Navigation.Mode.None };
+            duelMenuButton.onClick.AddListener(ToggleDuelMenu);
+            Text gearText = Label("Gear Text", gear, 16, FontStyle.Bold, TextAnchor.MiddleCenter, CleanDuelVisualTheme.LocalGlow);
+            gearText.text = "MENU";
+            gearText.raycastTarget = false;
             Stretch(gearText.rectTransform);
 
-            RectTransform rival = Panel("Rival LP Panel", canvas, new Color(0.015f, 0.012f, 0.025f, 0.92f));
-            Anchor(rival, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-444f, -116f), new Vector2(-28f, -28f));
-            AddVertical(rival.gameObject, 14, 18, 8, 8, 0f, TextAnchor.MiddleRight);
-            rivalNameText = Label("Rival Name", rival, 26, FontStyle.Bold, TextAnchor.MiddleRight, Color.white);
-            AddLayout(rivalNameText.gameObject, -1f, 32f, 1f, 0f);
-            rivalLpText = Label("Rival LP", rival, 45, FontStyle.Bold, TextAnchor.MiddleRight, Color.white);
-            AddLayout(rivalLpText.gameObject, -1f, 48f, 1f, 0f);
+            RectTransform rival = Panel("Rival LP Panel", canvas, CleanDuelVisualTheme.Panel);
+            Anchor(rival, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-350f, -98f), new Vector2(-20f, -18f));
+            AddVertical(rival.gameObject, 14, 18, 7, 7, 0f, TextAnchor.MiddleRight);
+            rivalNameText = Label("Rival Name", rival, 20, FontStyle.Bold, TextAnchor.MiddleRight, CleanDuelVisualTheme.TextPrimary);
+            AddLayout(rivalNameText.gameObject, -1f, 26f, 1f, 0f);
+            rivalLpText = Label("Rival LP", rival, 36, FontStyle.Bold, TextAnchor.MiddleRight, Color.white);
+            AddLayout(rivalLpText.gameObject, -1f, 40f, 1f, 0f);
+        }
+
+        private void BuildDuelMenu(RectTransform canvas)
+        {
+            duelMenuPanel = Panel("Duel Menu", canvas, new Color(0.012f, 0.04f, 0.08f, 0.98f));
+            Anchor(duelMenuPanel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -278f), new Vector2(282f, -92f));
+            AddVertical(duelMenuPanel.gameObject, 14, 14, 14, 14, 8f, TextAnchor.UpperCenter);
+
+            Text title = Label("Duel Menu Title", duelMenuPanel, 19, FontStyle.Bold, TextAnchor.MiddleCenter, CleanDuelVisualTheme.TextPrimary);
+            title.text = "DUEL MENU";
+            AddLayout(title.gameObject, -1f, 30f, 1f, 0f);
+
+            Button surrenderButton = AddChoiceButton("Surrender Duel", duelMenuPanel, RequestSurrenderFromMenu);
+            surrenderButton.GetComponent<Image>().color = CleanDuelVisualTheme.AlertCoral;
+            surrenderButton.GetComponentInChildren<Text>().text = "Surrender Duel";
+
+            Button closeButton = AddChoiceButton("Close Duel Menu", duelMenuPanel, CloseDuelMenu);
+            closeButton.GetComponent<Image>().color = new Color(0.08f, 0.3f, 0.48f, 0.97f);
+            closeButton.GetComponentInChildren<Text>().text = "Close";
+            duelMenuPanel.gameObject.SetActive(false);
         }
 
         private void BuildPlayerPanel(RectTransform canvas)
         {
-            RectTransform panel = Panel("Player LP Panel", canvas, new Color(0.015f, 0.012f, 0.025f, 0.92f));
-            Anchor(panel, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(40f, 24f), new Vector2(428f, 126f));
-            AddVertical(panel.gameObject, 92, 18, 8, 8, 0f, TextAnchor.MiddleLeft);
-            localNameText = Label("Player Name", panel, 25, FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
-            AddLayout(localNameText.gameObject, -1f, 32f, 1f, 0f);
-            localLpText = Label("Player LP", panel, 44, FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
-            AddLayout(localLpText.gameObject, -1f, 50f, 1f, 0f);
+            RectTransform panel = Panel("Player LP Panel", canvas, CleanDuelVisualTheme.Panel);
+            Anchor(panel, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(20f, 16f), new Vector2(350f, 100f));
+            AddVertical(panel.gameObject, 82, 14, 7, 7, 0f, TextAnchor.MiddleLeft);
+            localNameText = Label("Player Name", panel, 20, FontStyle.Bold, TextAnchor.MiddleLeft, CleanDuelVisualTheme.TextPrimary);
+            AddLayout(localNameText.gameObject, -1f, 26f, 1f, 0f);
+            localLpText = Label("Player LP", panel, 36, FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
+            AddLayout(localLpText.gameObject, -1f, 42f, 1f, 0f);
 
-            RectTransform avatar = Panel("Player Avatar", canvas, new Color(0.58f, 0.86f, 0.42f, 1f));
-            Anchor(avatar, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(54f, 40f), new Vector2(122f, 108f));
-            Text skull = Label("Avatar Icon", avatar, 36, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.02f, 0.02f, 0.02f, 1f));
-            skull.text = "X";
+            RectTransform avatar = Panel("Player Avatar", canvas, new Color(0.22f, 0.62f, 0.28f, 1f));
+            Anchor(avatar, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(28f, 24f), new Vector2(92f, 88f));
+            Image avatarImage = avatar.GetComponent<Image>();
+            avatarImage.sprite = phaseCircleSprite;
+            avatarImage.type = Image.Type.Simple;
+            Text skull = Label("Avatar Icon", avatar, 26, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+            skull.text = "DW";
             Stretch(skull.rectTransform);
         }
 
         private void BuildPhaseOrb(RectTransform canvas)
         {
-            phaseCircleSprite = CreateCircleSprite(96);
-
             GameObject orbObject = new GameObject("Round Phase Button", typeof(RectTransform), typeof(Image), typeof(Button), typeof(Outline));
             orbObject.transform.SetParent(canvas, false);
             RectTransform orb = orbObject.GetComponent<RectTransform>();
             orb.anchorMin = new Vector2(1f, 0.5f);
             orb.anchorMax = new Vector2(1f, 0.5f);
             orb.pivot = new Vector2(0.5f, 0.5f);
-            orb.sizeDelta = new Vector2(104f, 104f);
-            orb.anchoredPosition = new Vector2(-145f, 120f);
+            orb.sizeDelta = new Vector2(98f, 98f);
+            orb.anchoredPosition = new Vector2(-226f, 54f);
 
             phaseOrbImage = orbObject.GetComponent<Image>();
             phaseOrbImage.sprite = phaseCircleSprite;
-            phaseOrbImage.color = new Color(0.02f, 0.42f, 0.92f, 0.98f);
+            phaseOrbImage.color = CleanDuelVisualTheme.GoldAccent;
             phaseOrbImage.alphaHitTestMinimumThreshold = 0.1f;
 
             Outline outline = orbObject.GetComponent<Outline>();
-            outline.effectColor = new Color(0.74f, 0.94f, 1f, 0.95f);
+            outline.effectColor = new Color(1f, 0.94f, 0.62f, 0.95f);
             outline.effectDistance = new Vector2(3f, -3f);
 
             phaseOrbButton = orbObject.GetComponent<Button>();
@@ -304,7 +345,7 @@ namespace IcarusGame.CleanDuel
             phaseOrbButton.navigation = new Navigation { mode = Navigation.Mode.None };
             phaseOrbButton.onClick.AddListener(TogglePhaseMenu);
 
-            phaseOrbText = Label("Phase Text", orb, 18, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+            phaseOrbText = Label("Phase Text", orb, 17, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
             phaseOrbText.raycastTarget = false;
             phaseOrbText.resizeTextForBestFit = true;
             phaseOrbText.resizeTextMinSize = 12;
@@ -318,7 +359,7 @@ namespace IcarusGame.CleanDuel
             phaseMicroMenu.anchorMax = new Vector2(1f, 0.5f);
             phaseMicroMenu.pivot = new Vector2(0.5f, 0.5f);
             phaseMicroMenu.sizeDelta = new Vector2(360f, 230f);
-            phaseMicroMenu.anchoredPosition = new Vector2(-390f, 120f);
+            phaseMicroMenu.anchoredPosition = new Vector2(-420f, 54f);
 
             phaseMenuBackground = menuObject.GetComponent<Image>();
             phaseMenuBackground.color = new Color(0.015f, 0.055f, 0.13f, 0.97f);
@@ -335,7 +376,7 @@ namespace IcarusGame.CleanDuel
             string[] phaseNames = { "DRAW", "STANDBY", "MAIN 1", "BATTLE", "MAIN 2", "END" };
             for (int i = 0; i < phaseCodes.Length; i++)
             {
-                GameObject stepObject = new GameObject(phaseCodes[i], typeof(RectTransform), typeof(Image));
+                GameObject stepObject = new GameObject(phaseCodes[i], typeof(RectTransform), typeof(Image), typeof(Button));
                 stepObject.transform.SetParent(phaseMicroMenu, false);
                 RectTransform stepRect = stepObject.GetComponent<RectTransform>();
                 stepRect.anchorMin = new Vector2(0.5f, 0.5f);
@@ -348,8 +389,14 @@ namespace IcarusGame.CleanDuel
 
                 Image stepImage = stepObject.GetComponent<Image>();
                 stepImage.sprite = phaseCircleSprite;
-                stepImage.raycastTarget = false;
+                stepImage.raycastTarget = true;
                 phaseStepImages.Add(stepImage);
+                Button stepButton = stepObject.GetComponent<Button>();
+                stepButton.targetGraphic = stepImage;
+                stepButton.navigation = new Navigation { mode = Navigation.Mode.None };
+                CleanDuelPhase targetPhase = (CleanDuelPhase)i;
+                stepButton.onClick.AddListener(delegate { SelectPhaseFromMenu(targetPhase); });
+                phaseStepButtons.Add(stepButton);
 
                 Text stepLabel = Label("Label", stepObject.transform, 13, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
                 stepLabel.text = phaseCodes[i] + "\n" + phaseNames[i];
@@ -366,16 +413,39 @@ namespace IcarusGame.CleanDuel
 
         private void BuildInspector(RectTransform canvas)
         {
-            inspectorPanel = Panel("Card Inspector", canvas, new Color(0.02f, 0.035f, 0.065f, 0.94f));
-            Anchor(inspectorPanel, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(24f, -356f), new Vector2(422f, 356f));
-            AddVertical(inspectorPanel.gameObject, 16, 16, 14, 14, 8f, TextAnchor.UpperLeft);
+            inspectorPanel = Panel("Card Inspector", canvas, CleanDuelVisualTheme.Panel);
+            Anchor(inspectorPanel, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(14f, -310f), new Vector2(328f, 310f));
+            Outline outline = inspectorPanel.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(0.28f, 0.64f, 0.9f, 0.72f);
+            outline.effectDistance = new Vector2(2f, -2f);
 
-            inspectorTitle = Label("Inspector Title", inspectorPanel, 30, FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
-            AddLayout(inspectorTitle.gameObject, -1f, 42f, 1f, 0f);
-            inspectorStats = Label("Inspector Stats", inspectorPanel, 21, FontStyle.Bold, TextAnchor.UpperLeft, new Color(1f, 0.82f, 0.54f, 1f));
-            AddLayout(inspectorStats.gameObject, -1f, 86f, 1f, 0f);
-            inspectorBody = Label("Inspector Body", inspectorPanel, 21, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.72f, 0.96f, 1f, 1f));
-            AddLayout(inspectorBody.gameObject, -1f, -1f, 1f, 1f);
+            inspectorTitle = Label("Inspector Title", inspectorPanel, 24, FontStyle.Bold, TextAnchor.MiddleLeft, CleanDuelVisualTheme.TextPrimary);
+            inspectorTitle.resizeTextForBestFit = true;
+            inspectorTitle.resizeTextMinSize = 17;
+            inspectorTitle.resizeTextMaxSize = 24;
+            Anchor(inspectorTitle.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(12f, -48f), new Vector2(-12f, -8f));
+
+            RectTransform artworkFrame = Panel("Inspector Artwork Frame", inspectorPanel, new Color(0.15f, 0.27f, 0.42f, 1f));
+            Anchor(artworkFrame, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(12f, -218f), new Vector2(130f, -54f));
+            GameObject artworkObject = new GameObject("Inspector Artwork", typeof(RectTransform), typeof(Image));
+            artworkObject.transform.SetParent(artworkFrame, false);
+            inspectorArtwork = artworkObject.GetComponent<Image>();
+            inspectorArtwork.preserveAspect = true;
+            inspectorArtwork.raycastTarget = false;
+            Anchor(inspectorArtwork.rectTransform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
+
+            inspectorStats = Label("Inspector Stats", inspectorPanel, 18, FontStyle.Bold, TextAnchor.UpperLeft, new Color(1f, 0.9f, 0.66f, 1f));
+            Anchor(inspectorStats.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(144f, -214f), new Vector2(-10f, -62f));
+
+            inspectorType = Label("Inspector Type", inspectorPanel, 14, FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
+            inspectorType.resizeTextForBestFit = true;
+            inspectorType.resizeTextMinSize = 11;
+            inspectorType.resizeTextMaxSize = 14;
+            Anchor(inspectorType.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(12f, -252f), new Vector2(-12f, -222f));
+
+            inspectorBody = Label("Inspector Body", inspectorPanel, 16, FontStyle.Normal, TextAnchor.UpperLeft, CleanDuelVisualTheme.TextSecondary);
+            inspectorBody.lineSpacing = 0.92f;
+            Anchor(inspectorBody.rectTransform, Vector2.zero, Vector2.one, new Vector2(12f, 12f), new Vector2(-12f, -260f));
         }
 
         private void BuildRivalHand(RectTransform canvas)
@@ -383,7 +453,7 @@ namespace IcarusGame.CleanDuel
             GameObject layer = new GameObject("Rival Hand Layer", typeof(RectTransform));
             layer.transform.SetParent(canvas, false);
             rivalHandLayer = layer.GetComponent<RectTransform>();
-            Anchor(rivalHandLayer, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-440f, -150f), new Vector2(440f, -34f));
+            Anchor(rivalHandLayer, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-470f, -145f), new Vector2(470f, -12f));
         }
 
         private void BuildHand(RectTransform canvas)
@@ -391,7 +461,7 @@ namespace IcarusGame.CleanDuel
             GameObject layer = new GameObject("Hand Layer", typeof(RectTransform));
             layer.transform.SetParent(canvas, false);
             handLayer = layer.GetComponent<RectTransform>();
-            Anchor(handLayer, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-480f, 0f), new Vector2(480f, 225f));
+            Anchor(handLayer, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(-500f, -10f), new Vector2(500f, 188f));
         }
 
         private void BuildActions(RectTransform canvas)
@@ -408,15 +478,13 @@ namespace IcarusGame.CleanDuel
 
         private void BuildQuickButtons(RectTransform canvas)
         {
-            pendulumButton = AddCornerButton("Pendulum", canvas, new Vector2(1f, 0f), new Vector2(-468f, 30f), runtime.PendulumSummon);
-            nextPhaseButton = AddCornerButton("Next", canvas, new Vector2(1f, 0f), new Vector2(-144f, 30f), runtime.AdvancePhase);
-            AddCornerButton("Restart", canvas, new Vector2(1f, 0f), new Vector2(-36f, 30f), runtime.RestartDuel);
+            pendulumButton = AddCornerButton("Pendulum", canvas, new Vector2(1f, 0f), new Vector2(-390f, 22f), runtime.PendulumSummon);
         }
         private void BuildLog(RectTransform canvas)
         {
-            RectTransform log = Panel("Duel Log", canvas, new Color(0.01f, 0.015f, 0.026f, 0.62f));
-            Anchor(log, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-396f, -304f), new Vector2(-30f, -132f));
-            logText = Label("Log Text", log, 16, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.8f, 0.92f, 1f, 1f));
+            RectTransform log = Panel("Duel Log", canvas, new Color(0.008f, 0.018f, 0.034f, 0.76f));
+            Anchor(log, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-340f, -218f), new Vector2(-20f, -112f));
+            logText = Label("Log Text", log, 13, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.76f, 0.9f, 1f, 0.9f));
             Anchor(logText.rectTransform, Vector2.zero, Vector2.one, new Vector2(10f, 8f), new Vector2(-10f, -8f));
         }
 
@@ -482,9 +550,17 @@ namespace IcarusGame.CleanDuel
             Anchor(gameOverSubtitle.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(46f, -34f), new Vector2(-46f, 34f));
 
             gameOverHint = Label("Result Hint", gameOverBanner.transform, 21, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.9f, 0.62f, 1f));
-            gameOverHint.text = "Restart om opnieuw te spelen";
+            gameOverHint.text = "Duel complete";
             gameOverHint.raycastTarget = false;
-            Anchor(gameOverHint.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(40f, 34f), new Vector2(-40f, 78f));
+            Anchor(gameOverHint.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(40f, 76f), new Vector2(-40f, 116f));
+
+            gameOverRestartButton = AddActionButton(
+                "Play Again",
+                gameOverBanner.transform,
+                new Vector2(0f, -126f),
+                runtime.RestartDuel,
+                new Color(0.05f, 0.48f, 0.68f, 0.98f));
+            gameOverRestartButton.GetComponent<RectTransform>().sizeDelta = new Vector2(184f, 46f);
 
             gameOverOverlay.gameObject.SetActive(false);
         }
@@ -493,7 +569,7 @@ namespace IcarusGame.CleanDuel
         {
             ClearChildren(rivalHandLayer);
             int count = game.State.Rival.Hand.Count;
-            float spacing = Mathf.Min(70f, 560f / Mathf.Max(1, count));
+            float spacing = Mathf.Min(82f, 650f / Mathf.Max(1, count));
             float start = -spacing * (count - 1) * 0.5f;
             for (int i = 0; i < count; i++)
             {
@@ -506,7 +582,7 @@ namespace IcarusGame.CleanDuel
             GameObject go = new GameObject("Rival Hand Card", typeof(RectTransform), typeof(Image));
             go.transform.SetParent(parent, false);
             RectTransform rect = go.GetComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(58f, 84f);
+            rect.sizeDelta = new Vector2(72f, 104f);
             rect.anchorMin = new Vector2(0.5f, 0.5f);
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
@@ -534,7 +610,7 @@ namespace IcarusGame.CleanDuel
         {
             ClearChildren(handLayer);
             int count = game.State.Local.Hand.Count;
-            float spacing = Mathf.Min(126f, 700f / Mathf.Max(1, count));
+            float spacing = Mathf.Min(112f, 660f / Mathf.Max(1, count));
             float start = -spacing * (count - 1) * 0.5f;
             for (int i = 0; i < count; i++)
             {
@@ -542,8 +618,8 @@ namespace IcarusGame.CleanDuel
                 int index = i;
                 Button button = CardButton(card, handLayer, i == selectedHand);
                 RectTransform rect = button.GetComponent<RectTransform>();
-                rect.anchoredPosition = new Vector2(start + spacing * i, i == selectedHand ? 42f : 14f);
-                rect.localRotation = Quaternion.Euler(0f, 0f, (i - (count - 1) * 0.5f) * -4.5f);
+                rect.anchoredPosition = new Vector2(start + spacing * i, i == selectedHand ? 30f : 4f);
+                rect.localRotation = Quaternion.Euler(0f, 0f, (i - (count - 1) * 0.5f) * -3.2f);
                 button.onClick.AddListener(delegate { runtime.SelectHand(index); });
             }
         }
@@ -553,7 +629,7 @@ namespace IcarusGame.CleanDuel
             GameObject go = new GameObject(card.Definition.Name, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(parent, false);
             RectTransform rect = go.GetComponent<RectTransform>();
-            rect.sizeDelta = selected ? new Vector2(130f, 190f) : new Vector2(112f, 164f);
+            rect.sizeDelta = selected ? new Vector2(120f, 176f) : new Vector2(102f, 150f);
             rect.anchorMin = new Vector2(0.5f, 0f);
             rect.anchorMax = new Vector2(0.5f, 0f);
             rect.pivot = new Vector2(0.5f, 0f);
@@ -590,8 +666,10 @@ namespace IcarusGame.CleanDuel
             inspectorPanel.gameObject.SetActive(card != null || state.GameOver);
             if (state.GameOver)
             {
+                inspectorArtwork.gameObject.SetActive(false);
                 inspectorTitle.text = state.WinnerText;
                 inspectorStats.text = "DUEL COMPLETE";
+                inspectorType.text = string.Empty;
                 inspectorBody.text = "Restart om opnieuw te spelen.";
                 return;
             }
@@ -602,25 +680,40 @@ namespace IcarusGame.CleanDuel
             }
 
             bool concealCard = card.FaceDown && !revealFaceDownCard;
+            Sprite artworkSprite = concealCard ? artCache.GetCardBackSprite() : artCache.GetSprite(card.Definition.Id);
+            inspectorArtwork.gameObject.SetActive(artworkSprite != null);
+            inspectorArtwork.sprite = artworkSprite;
+            inspectorArtwork.color = Color.white;
             inspectorTitle.text = concealCard ? card.PublicName : card.Definition.Name;
             inspectorStats.text = concealCard
-                ? card.Definition.Kind == CleanCardKind.Monster ? "Face-down Defense" : "Set Spell/Trap"
-                : card.FaceDown
-                    ? (card.Definition.Kind == CleanCardKind.Monster ? "Your Set Monster  |  " : "Your Set Spell/Trap  |  ") + FullStats(card)
-                    : FullStats(card);
+                ? card.Definition.Kind == CleanCardKind.Monster ? "FACE-DOWN\nDEFENSE" : "SET\nSPELL / TRAP"
+                : InspectorStats(card);
+            inspectorType.text = concealCard ? "[ HIDDEN CARD ]" : "[ " + (card.Definition.TypeLine ?? card.Definition.Kind.ToString()) + " ]";
             inspectorBody.text = concealCard ? "Hidden opponent card." : BodyText(card, game);
         }
 
         private void RenderLog(CleanDuelState state)
         {
             StringBuilder builder = new StringBuilder();
-            for (int i = Mathf.Max(0, state.Log.Count - 6); i < state.Log.Count; i++)
+            for (int i = Mathf.Max(0, state.Log.Count - 4); i < state.Log.Count; i++)
             {
-                builder.Append("- ");
                 builder.AppendLine(state.Log[i]);
             }
             logText.text = builder.ToString();
         }
+
+        private void RenderDuelMenu(CleanDuelState state)
+        {
+            bool canOpen = state != null && !state.GameOver && state.PendingChoice == null;
+            duelMenuButton.interactable = canOpen;
+            if (!canOpen)
+            {
+                duelMenuOpen = false;
+            }
+
+            duelMenuPanel.gameObject.SetActive(duelMenuOpen && canOpen);
+        }
+
         private void RenderGameOverOverlay(CleanDuelState state)
         {
             bool visible = state != null && state.GameOver;
@@ -630,8 +723,8 @@ namespace IcarusGame.CleanDuel
                 return;
             }
 
-            bool localWon = IsWinnerTextForPlayer(state, state.Local);
-            bool rivalWon = IsWinnerTextForPlayer(state, state.Rival);
+            bool localWon = state.Result != null && state.Result.HasWinner && state.Result.Winner == CleanPlayerId.Local;
+            bool rivalWon = state.Result != null && state.Result.HasWinner && state.Result.Winner == CleanPlayerId.Rival;
             if (localWon)
             {
                 gameOverTitle.text = "YOU WIN";
@@ -658,13 +751,9 @@ namespace IcarusGame.CleanDuel
             }
 
             gameOverSubtitle.text = string.IsNullOrEmpty(state.WinnerText) ? "Duel complete." : state.WinnerText;
-            gameOverHint.text = "Restart om opnieuw te spelen";
-        }
-
-        private bool IsWinnerTextForPlayer(CleanDuelState state, CleanPlayerState player)
-        {
-            return state != null && player != null && !string.IsNullOrEmpty(state.WinnerText) &&
-                   state.WinnerText.StartsWith(player.Name + " wins", System.StringComparison.OrdinalIgnoreCase);
+            gameOverHint.text = state.Result == null
+                ? "Duel complete"
+                : ResultReasonLabel(state.Result.Reason) + "  •  TURN " + state.Result.TurnNumber;
         }
 
         private void RenderChoicePrompt(CleanChoicePrompt prompt)
@@ -789,8 +878,8 @@ namespace IcarusGame.CleanDuel
 
             if (actionCount == 2)
             {
-                primaryActionButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(-64f, 0f);
-                secondaryActionButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(64f, 0f);
+                primaryActionButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(-58f, 0f);
+                secondaryActionButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(58f, 0f);
             }
         }
 
@@ -803,10 +892,10 @@ namespace IcarusGame.CleanDuel
 
             if (selectedHand >= 0)
             {
-                float spacing = Mathf.Min(126f, 700f / Mathf.Max(1, handCount));
+                float spacing = Mathf.Min(112f, 660f / Mathf.Max(1, handCount));
                 float start = -spacing * (handCount - 1) * 0.5f;
                 float x = start + spacing * selectedHand;
-                actionLayer.anchoredPosition = new Vector2(x, -canvasRect.rect.height * 0.5f + 278f);
+                actionLayer.anchoredPosition = new Vector2(x, -canvasRect.rect.height * 0.5f + 226f);
                 return;
             }
 
@@ -827,7 +916,19 @@ namespace IcarusGame.CleanDuel
 
         private float ActionButtonGroupWidth()
         {
-            return secondaryActionButton.gameObject.activeSelf ? 252f : 124f;
+            return secondaryActionButton.gameObject.activeSelf ? 230f : 112f;
+        }
+
+        private string InspectorStats(CleanCard card)
+        {
+            if (card.Definition.Kind != CleanCardKind.Monster)
+            {
+                return card.Definition.Kind.ToString().ToUpperInvariant();
+            }
+
+            string typeLine = card.Definition.TypeLine ?? string.Empty;
+            string levelLabel = typeLine.IndexOf("Xyz", System.StringComparison.OrdinalIgnoreCase) >= 0 ? "RANK" : "LEVEL";
+            return levelLabel + "  " + card.Definition.Level + "\nATK  " + card.CurrentAttack + "\nDEF  " + card.CurrentDefense;
         }
 
         private string FullStats(CleanCard card)
@@ -868,6 +969,7 @@ namespace IcarusGame.CleanDuel
 
         private void TogglePhaseMenu()
         {
+            duelMenuOpen = false;
             phaseMenuOpen = !phaseMenuOpen;
             if (phaseMicroMenu != null)
             {
@@ -875,18 +977,42 @@ namespace IcarusGame.CleanDuel
             }
         }
 
-        private void RenderPhaseControl(CleanDuelState state)
+        private void ToggleDuelMenu()
         {
+            phaseMenuOpen = false;
+            duelMenuOpen = !duelMenuOpen;
+            duelMenuPanel.gameObject.SetActive(duelMenuOpen);
+        }
+
+        private void CloseDuelMenu()
+        {
+            duelMenuOpen = false;
+            duelMenuPanel.gameObject.SetActive(false);
+        }
+
+        private void RequestSurrenderFromMenu()
+        {
+            CloseDuelMenu();
+            runtime.RequestSurrender();
+        }
+
+        private void SelectPhaseFromMenu(CleanDuelPhase targetPhase)
+        {
+            phaseMenuOpen = false;
+            runtime.SelectPhase(targetPhase);
+        }
+
+        private void RenderPhaseControl(CleanDuelGame game)
+        {
+            CleanDuelState state = game.State;
             bool localTurn = state.TurnPlayer == CleanPlayerId.Local;
-            Color accent = localTurn
-                ? new Color(0.02f, 0.48f, 1f, 0.98f)
-                : new Color(0.92f, 0.1f, 0.08f, 0.98f);
+            Color accent = localTurn ? CleanDuelVisualTheme.GoldAccent : CleanDuelVisualTheme.RivalAccent;
             Color completed = new Color(accent.r * 0.56f, accent.g * 0.56f, accent.b * 0.56f, 0.94f);
             Color upcoming = new Color(accent.r * 0.2f, accent.g * 0.2f, accent.b * 0.2f, 0.9f);
             int currentPhase = Mathf.Clamp((int)state.Phase, 0, phaseStepImages.Count - 1);
 
             phaseOrbImage.color = accent;
-            phaseOrbText.text = (localTurn ? "YOUR TURN" : "RIVAL TURN") + "\nT" + state.TurnNumber + "  " + PhaseCode(state.Phase);
+            phaseOrbText.text = "Turn " + state.TurnNumber + "\n" + PhaseLabel(state.Phase);
             phaseOrbText.color = Color.white;
             phaseOrbButton.interactable = !state.GameOver;
 
@@ -894,7 +1020,7 @@ namespace IcarusGame.CleanDuel
             if (outline != null)
             {
                 outline.effectColor = localTurn
-                    ? new Color(0.68f, 0.92f, 1f, 0.96f)
+                    ? new Color(1f, 0.94f, 0.62f, 0.96f)
                     : new Color(1f, 0.58f, 0.48f, 0.96f);
             }
 
@@ -920,20 +1046,21 @@ namespace IcarusGame.CleanDuel
             for (int i = 0; i < phaseStepImages.Count; i++)
             {
                 bool current = i == currentPhase;
-                phaseStepImages[i].color = current ? accent : i < currentPhase ? completed : upcoming;
+                bool selectable = game.CanSelectPhase((CleanDuelPhase)i);
+                phaseStepButtons[i].interactable = selectable;
+                phaseStepImages[i].color = current
+                    ? accent
+                    : i < currentPhase
+                        ? completed
+                        : selectable
+                            ? Color.Lerp(upcoming, accent, 0.48f)
+                            : upcoming;
                 phaseStepLabels[i].color = current
                     ? Color.white
                     : new Color(0.76f + accent.r * 0.2f, 0.76f + accent.g * 0.2f, 0.76f + accent.b * 0.2f, 0.92f);
                 phaseStepImages[i].rectTransform.localScale = current ? Vector3.one * 1.08f : Vector3.one * 0.94f;
             }
 
-            Image nextPhaseImage = nextPhaseButton != null ? nextPhaseButton.GetComponent<Image>() : null;
-            if (nextPhaseImage != null)
-            {
-                nextPhaseImage.color = localTurn
-                    ? new Color(0.02f, 0.35f, 0.72f, 0.96f)
-                    : new Color(0.62f, 0.08f, 0.06f, 0.96f);
-            }
         }
 
         private string PhaseCode(CleanDuelPhase phase)
@@ -985,6 +1112,67 @@ namespace IcarusGame.CleanDuel
             return sprite;
         }
 
+        private string ResultReasonLabel(CleanDuelEndReason reason)
+        {
+            switch (reason)
+            {
+                case CleanDuelEndReason.LifePoints:
+                    return "LP REACHED ZERO";
+                case CleanDuelEndReason.DeckOut:
+                    return "DECK-OUT";
+                case CleanDuelEndReason.CardEffect:
+                    return "CARD EFFECT";
+                case CleanDuelEndReason.Surrender:
+                    return "SURRENDER";
+                case CleanDuelEndReason.Disconnect:
+                    return "DISCONNECT";
+                case CleanDuelEndReason.ServerCancelled:
+                    return "MATCH CANCELLED";
+                case CleanDuelEndReason.Draw:
+                    return "DRAW";
+                default:
+                    return "DUEL COMPLETE";
+            }
+        }
+
+        private Sprite CreateRoundedRectSprite(int size, float radius)
+        {
+            Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            texture.name = "Runtime Rounded UI";
+            texture.wrapMode = TextureWrapMode.Clamp;
+            texture.filterMode = FilterMode.Bilinear;
+            texture.hideFlags = HideFlags.HideAndDontSave;
+
+            Color32[] pixels = new Color32[size * size];
+            float half = size * 0.5f;
+            float inset = half - radius;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = Mathf.Max(Mathf.Abs(x + 0.5f - half) - inset, 0f);
+                    float dy = Mathf.Max(Mathf.Abs(y + 0.5f - half) - inset, 0f);
+                    float distance = Mathf.Sqrt(dx * dx + dy * dy);
+                    byte alpha = (byte)Mathf.RoundToInt(Mathf.Clamp01(radius - distance + 0.75f) * 255f);
+                    pixels[y * size + x] = new Color32(255, 255, 255, alpha);
+                }
+            }
+
+            texture.SetPixels32(pixels);
+            texture.Apply(false, false);
+            float border = Mathf.Ceil(radius + 1f);
+            Sprite sprite = Sprite.Create(
+                texture,
+                new Rect(0f, 0f, size, size),
+                new Vector2(0.5f, 0.5f),
+                size,
+                0,
+                SpriteMeshType.FullRect,
+                new Vector4(border, border, border, border));
+            sprite.name = "Runtime Rounded UI";
+            return sprite;
+        }
+
         private string PhaseLabel(CleanDuelPhase phase)
         {
             switch (phase)
@@ -1006,26 +1194,6 @@ namespace IcarusGame.CleanDuel
             }
         }
 
-        private string PhaseButtonLabel(CleanDuelPhase phase)
-        {
-            switch (phase)
-            {
-                case CleanDuelPhase.Draw:
-                    return "Standby";
-                case CleanDuelPhase.Standby:
-                    return "Main 1";
-                case CleanDuelPhase.Main:
-                    return "Battle";
-                case CleanDuelPhase.Battle:
-                    return "Choose";
-                case CleanDuelPhase.Main2:
-                    return "End";
-                case CleanDuelPhase.End:
-                    return "End";
-                default:
-                    return "Next";
-            }
-        }
 
         private string ShortName(string value, int max)
         {
@@ -1037,12 +1205,14 @@ namespace IcarusGame.CleanDuel
             GameObject go = new GameObject(text, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(parent, false);
             RectTransform rect = go.GetComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(120f, 52f);
+            rect.sizeDelta = new Vector2(110f, 44f);
             rect.anchorMin = new Vector2(0.5f, 0.5f);
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = position;
             Image image = go.GetComponent<Image>();
             image.color = color;
+            image.sprite = roundedButtonSprite;
+            image.type = Image.Type.Sliced;
             Button button = go.GetComponent<Button>();
             if (action != null)
             {
@@ -1089,6 +1259,8 @@ namespace IcarusGame.CleanDuel
             rect.sizeDelta = new Vector2(0f, 52f);
             Image image = go.GetComponent<Image>();
             image.color = new Color(0.08f, 0.35f, 0.72f, 0.96f);
+            image.sprite = roundedButtonSprite;
+            image.type = Image.Type.Sliced;
             Button button = go.GetComponent<Button>();
             button.onClick.AddListener(action);
             Text label = Label("Label", go.transform, 15, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
@@ -1112,6 +1284,8 @@ namespace IcarusGame.CleanDuel
             rect.anchoredPosition = position;
             Image image = go.GetComponent<Image>();
             image.color = new Color(0.02f, 0.35f, 0.62f, 0.94f);
+            image.sprite = roundedButtonSprite;
+            image.type = Image.Type.Sliced;
             Button button = go.GetComponent<Button>();
             button.onClick.AddListener(action);
             Text label = Label("Label", go.transform, 17, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
@@ -1126,6 +1300,8 @@ namespace IcarusGame.CleanDuel
             go.transform.SetParent(parent, false);
             Image image = go.GetComponent<Image>();
             image.color = color;
+            image.sprite = roundedPanelSprite;
+            image.type = Image.Type.Sliced;
             image.raycastTarget = color.a > 0.05f;
             return go.GetComponent<RectTransform>();
         }

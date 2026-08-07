@@ -261,7 +261,14 @@ namespace IcarusGame.CleanDuel
             }
             else
             {
-                game.RequestActivateSetCard(spellTrapIndex);
+                if (game.CanActivateLocalSpellTrapResponse(spellTrapIndex))
+                {
+                    game.ActivateLocalSpellTrapResponse(spellTrapIndex);
+                }
+                else
+                {
+                    game.RequestActivateSetCard(spellTrapIndex);
+                }
             }
             Refresh();
         }
@@ -346,10 +353,29 @@ namespace IcarusGame.CleanDuel
             Refresh();
         }
 
+        public void SelectPhase(CleanDuelPhase targetPhase)
+        {
+            if (!game.CanSelectPhase(targetPhase))
+            {
+                return;
+            }
+
+            ClearSelection();
+            game.SelectPhase(targetPhase);
+            Refresh();
+        }
+
         public void RestartDuel()
         {
             ClearSelection();
             game.StartNewDuel();
+            Refresh();
+        }
+
+        public void RequestSurrender()
+        {
+            ClearSelection();
+            game.RequestSurrender();
             Refresh();
         }
 
@@ -639,14 +665,14 @@ namespace IcarusGame.CleanDuel
                 camera = cameraObject.GetComponent<Camera>();
             }
 
-            camera.transform.position = new Vector3(0f, 14.8f, 0f);
-            camera.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-            camera.orthographic = true;
-            camera.orthographicSize = 5.25f;
+            camera.transform.position = new Vector3(0f, 13.5f, -9f);
+            camera.transform.LookAt(new Vector3(0f, 0f, 0.35f));
+            camera.orthographic = false;
+            camera.fieldOfView = 35f;
             camera.nearClipPlane = 0.1f;
             camera.farClipPlane = 80f;
             camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = new Color(0.006f, 0.008f, 0.016f, 1f);
+            camera.backgroundColor = CleanDuelVisualTheme.ArenaVoid;
             DisableCameraPostProcessing(camera);
             return camera;
         }
@@ -680,20 +706,29 @@ namespace IcarusGame.CleanDuel
         {
             GameObject key = new GameObject("Clean Duel Key Light", typeof(Light));
             key.transform.SetParent(runtimeRoot, false);
-            key.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            key.transform.rotation = Quaternion.Euler(58f, -24f, 0f);
             Light light = key.GetComponent<Light>();
             light.type = LightType.Directional;
-            light.intensity = 1.15f;
-            light.color = new Color(0.78f, 0.95f, 1f, 1f);
+            light.intensity = 1.35f;
+            light.color = new Color(0.72f, 0.9f, 1f, 1f);
 
             GameObject fill = new GameObject("Clean Duel Fill Light", typeof(Light));
             fill.transform.SetParent(runtimeRoot, false);
-            fill.transform.position = new Vector3(0f, 3.6f, 0f);
+            fill.transform.position = new Vector3(0f, 5.2f, -1.5f);
             Light fillLight = fill.GetComponent<Light>();
             fillLight.type = LightType.Point;
-            fillLight.intensity = 1.85f;
-            fillLight.range = 14f;
-            fillLight.color = new Color(0.5f, 0.74f, 1f, 1f);
+            fillLight.intensity = 2.2f;
+            fillLight.range = 16f;
+            fillLight.color = new Color(0.42f, 0.72f, 1f, 1f);
+
+            GameObject rim = new GameObject("Clean Duel Rival Rim Light", typeof(Light));
+            rim.transform.SetParent(runtimeRoot, false);
+            rim.transform.position = new Vector3(0f, 3.4f, 4.6f);
+            Light rimLight = rim.GetComponent<Light>();
+            rimLight.type = LightType.Point;
+            rimLight.intensity = 1.25f;
+            rimLight.range = 9f;
+            rimLight.color = new Color(1f, 0.24f, 0.16f, 1f);
         }
 
         private void EnsureEventSystem()
