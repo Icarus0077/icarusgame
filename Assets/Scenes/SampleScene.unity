@@ -434,7 +434,7 @@ GameObject:
   - component: {fileID: 1900000003}
   - component: {fileID: 1900000002}
   m_Layer: 0
-  m_Name: Master Duel Runtime
+  m_Name: Clean Duel Bootstrap
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -449,9 +449,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1900000001}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9e95c233aadc4df596d9bdd0c7c9d44a, type: 3}
+  m_Script: {fileID: 11500000, guid: 4158fb9d6c06ce7468610d5521321786, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: 
+  m_EditorClassIdentifier: Assembly-CSharp::IcarusGame.CleanDuel.CleanDuelBootstrap
 --- !u!4 &1900000003
 Transform:
   m_ObjectHideFlags: 0

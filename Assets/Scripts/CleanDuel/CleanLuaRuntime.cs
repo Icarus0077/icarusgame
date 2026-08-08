@@ -1,0 +1,808 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using System.Text.RegularExpressions;
+using UnityEngine;
+
+namespace IcarusGame.CleanDuel
+{
+    public sealed class CleanLuaScriptRepository
+    {
+        public const string DefaultScriptFolder = @"D:\unity\script";
+
+        private static readonly Regex CardScriptNameRegex =
+            new Regex(@"^c(?<id>\d+)\.lua$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        private static readonly Regex CategoryRegex =
+            new Regex(@"\bCATEGORY_[A-Z0-9_]+", RegexOptions.Compiled);
+
+        private static readonly Regex EventRegex =
+            new Regex(@"\bEVENT_[A-Z0-9_]+", RegexOptions.Compiled);
+
+        private static readonly Regex DuelCallRegex =
+            new Regex(@"\bDuel\.(?<call>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.Compiled);
+
+        private static readonly Regex CardCallRegex =
+            new Regex(@"\bCard\.(?<call>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.Compiled);
+
+        private static readonly Dictionary<int, string> sharedScriptPaths = new Dictionary<int, string>();
+        private static bool sharedScriptPathsInitialized;
+
+        public static bool HasCardScript(int cardId)
+        {
+            EnsureSharedScriptPaths();
+            return sharedScriptPaths.ContainsKey(cardId);
+        }
+
+        private static void EnsureSharedScriptPaths()
+        {
+            if (sharedScriptPathsInitialized)
+            {
+                return;
+            }
+
+            sharedScriptPathsInitialized = true;
+            sharedScriptPaths.Clear();
+            if (!Directory.Exists(DefaultScriptFolder))
+            {
+                return;
+            }
+
+            try
+            {
+                string[] files = Directory.GetFiles(DefaultScriptFolder, "*.lua", SearchOption.AllDirectories);
+                for (int i = 0; i < files.Length; i++)
+                {
+                    string fileName = Path.GetFileName(files[i]);
+                    Match match = CardScriptNameRegex.Match(fileName);
+                    if (!match.Success)
+                    {
+                        continue;
+                    }
+
+                    int cardId;
+                    if (int.TryParse(match.Groups["id"].Value, out cardId))
+                    {
+                        sharedScriptPaths[cardId] = files[i];
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("Failed to scan Lua scripts for EffectKey generation: " + exception.Message);
+            }
+        }
+        private readonly Dictionary<int, string> scriptPaths = new Dictionary<int, string>();
+        private readonly Dictionary<int, CleanLuaScriptInfo> cache = new Dictionary<int, CleanLuaScriptInfo>();
+        private bool initialized;
+        private string status = "Lua script source has not been scanned yet.";
+
+        public string Status
+        {
+            get
+            {
+                EnsureInitialized();
+                return status;
+            }
+        }
+
+        public void Initialize()
+        {
+            if (initialized)
+            {
+                return;
+            }
+
+            initialized = true;
+            scriptPaths.Clear();
+            cache.Clear();
+
+            if (!Directory.Exists(DefaultScriptFolder))
+            {
+                status = "Lua source missing: " + DefaultScriptFolder;
+                return;
+            }
+
+            int luaFiles = 0;
+            int cardScripts = 0;
+            try
+            {
+                string[] files = Directory.GetFiles(DefaultScriptFolder, "*.lua", SearchOption.AllDirectories);
+                luaFiles = files.Length;
+                for (int i = 0; i < files.Length; i++)
+                {
+                    string fileName = Path.GetFileName(files[i]);
+                    Match match = CardScriptNameRegex.Match(fileName);
+                    if (!match.Success)
+                    {
+                        continue;
+                    }
+
+                    int cardId;
+                    if (!int.TryParse(match.Groups["id"].Value, out cardId))
+                    {
+                        continue;
+                    }
+
+                    scriptPaths[cardId] = files[i];
+                    cardScripts++;
+                }
+            }
+            catch (Exception exception)
+            {
+                status = "Lua scan failed: " + exception.Message;
+                return;
+            }
+
+            status = "Lua source loaded: " + cardScripts + " card scripts / " + luaFiles + " lua files from " + DefaultScriptFolder;
+        }
+
+        public bool TryGet(int cardId, out CleanLuaScriptInfo info)
+        {
+            EnsureInitialized();
+            if (cache.TryGetValue(cardId, out info))
+            {
+                return info != null;
+            }
+
+            string path;
+            if (!scriptPaths.TryGetValue(cardId, out path) || string.IsNullOrEmpty(path))
+            {
+                cache[cardId] = null;
+                info = null;
+                return false;
+            }
+
+            try
+            {
+                string text = File.ReadAllText(path, Encoding.UTF8);
+                info = Analyze(cardId, path, text);
+                cache[cardId] = info;
+                return true;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("Failed to read Lua script " + path + ": " + exception.Message);
+                cache[cardId] = null;
+                info = null;
+                return false;
+            }
+        }
+
+        public string Describe(int cardId)
+        {
+            CleanLuaScriptInfo info;
+            if (!TryGet(cardId, out info))
+            {
+                return "Lua: no c" + cardId + ".lua found";
+            }
+
+            return "Lua: " + info.FileName + " [" + info.FamilySummary + "]";
+        }
+
+        private void EnsureInitialized()
+        {
+            if (!initialized)
+            {
+                Initialize();
+            }
+        }
+
+        private CleanLuaScriptInfo Analyze(int cardId, string path, string text)
+        {
+            CleanLuaScriptInfo info = new CleanLuaScriptInfo
+            {
+                CardId = cardId,
+                FileName = Path.GetFileName(path),
+                SourcePath = path,
+                Text = text,
+                CardName = ReadLeadingCardName(text),
+                LineCount = CountLines(text),
+                EffectCreateCount = CountOccurrences(text, "Effect.CreateEffect")
+            };
+
+            info.Categories = UniqueTokenMatches(CategoryRegex, text);
+            info.Events = UniqueTokenMatches(EventRegex, text);
+            info.DuelCalls = UniqueNamedMatches(DuelCallRegex, text, "call");
+            info.CardCalls = UniqueNamedMatches(CardCallRegex, text, "call");
+            info.EffectFamilies = ClassifyFamilies(info);
+            return info;
+        }
+
+        private static string ReadLeadingCardName(string text)
+        {
+            using (StringReader reader = new StringReader(text))
+            {
+                string line;
+                while ((line = reader.ReadLine()) != null)
+                {
+                    string trimmed = line.Trim();
+                    if (trimmed.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    if (!trimmed.StartsWith("--", StringComparison.Ordinal))
+                    {
+                        return string.Empty;
+                    }
+
+                    return trimmed.Substring(2).Trim().TrimStart('-').Trim();
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private static List<string> ClassifyFamilies(CleanLuaScriptInfo info)
+        {
+            List<string> families = new List<string>();
+            AddFamilyIfCategory(info, "CATEGORY_DRAW", families, "draw");
+            AddFamilyIfCategory(info, "CATEGORY_DESTROY", families, "destroy");
+            AddFamilyIfCategory(info, "CATEGORY_SPECIAL_SUMMON", families, "special_summon");
+            AddFamilyIfCategory(info, "CATEGORY_FUSION_SUMMON", families, "fusion_summon");
+            if (info.ContainsText("Synchro"))
+            {
+                AddFamily(families, "synchro_summon");
+            }
+
+            AddFamilyIfCategory(info, "CATEGORY_TOHAND", families, "search_or_recover");
+            AddFamilyIfCategory(info, "CATEGORY_SEARCH", families, "search_or_recover");
+            AddFamilyIfCategory(info, "CATEGORY_DAMAGE", families, "burn");
+            AddFamilyIfCategory(info, "CATEGORY_RECOVER", families, "recover");
+            AddFamilyIfCategory(info, "CATEGORY_ATKCHANGE", families, "stat_change");
+            AddFamilyIfCategory(info, "CATEGORY_DEFCHANGE", families, "stat_change");
+            AddFamilyIfCategory(info, "CATEGORY_TOGRAVE", families, "send_to_grave");
+            AddFamilyIfCategory(info, "CATEGORY_GRAVE_ACTION", families, "graveyard_action");
+            AddFamilyIfCategory(info, "CATEGORY_POSITION", families, "position");
+            AddFamilyIfCategory(info, "CATEGORY_REMOVE", families, "banish");
+            AddFamilyIfCategory(info, "CATEGORY_DECKDES", families, "mill");
+            AddFamilyIfCategory(info, "CATEGORY_CONTROL", families, "control_change");
+            if (info.HasDuelCall("Win"))
+            {
+                AddFamily(families, "win_condition");
+            }
+
+            if (families.Count == 0)
+            {
+                families.Add("loaded");
+            }
+
+            return families;
+        }
+
+        private static void AddFamilyIfCategory(CleanLuaScriptInfo info, string category, List<string> families, string family)
+        {
+            if (info.HasCategory(category))
+            {
+                AddFamily(families, family);
+            }
+        }
+
+        private static void AddFamily(List<string> families, string family)
+        {
+            if (!families.Contains(family))
+            {
+                families.Add(family);
+            }
+        }
+
+        private static List<string> UniqueTokenMatches(Regex regex, string text)
+        {
+            SortedSet<string> values = new SortedSet<string>(StringComparer.Ordinal);
+            foreach (Match match in regex.Matches(text))
+            {
+                values.Add(match.Value);
+            }
+
+            return new List<string>(values);
+        }
+
+        private static List<string> UniqueNamedMatches(Regex regex, string text, string groupName)
+        {
+            SortedSet<string> values = new SortedSet<string>(StringComparer.Ordinal);
+            foreach (Match match in regex.Matches(text))
+            {
+                values.Add(match.Groups[groupName].Value);
+            }
+
+            return new List<string>(values);
+        }
+
+        private static int CountLines(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return 0;
+            }
+
+            int count = 1;
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (text[i] == '\n')
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        private static int CountOccurrences(string text, string token)
+        {
+            int count = 0;
+            int index = 0;
+            while ((index = text.IndexOf(token, index, StringComparison.Ordinal)) >= 0)
+            {
+                count++;
+                index += token.Length;
+            }
+
+            return count;
+        }
+    }
+
+    public sealed class CleanLuaScriptInfo
+    {
+        private static readonly Regex SetTargetParamRegex =
+            new Regex(@"SetTargetParam\s*\(\s*(?<amount>\d+)\s*\)", RegexOptions.Compiled);
+
+        private static readonly Regex DamageRegex =
+            new Regex(@"Duel\.(?:Damage|Recover)\s*\([^,]+,\s*(?<amount>\d+)", RegexOptions.Compiled);
+
+        public int CardId;
+        public string FileName;
+        public string SourcePath;
+        public string Text;
+        public string CardName;
+        public int LineCount;
+        public int EffectCreateCount;
+        public List<string> Categories = new List<string>();
+        public List<string> Events = new List<string>();
+        public List<string> DuelCalls = new List<string>();
+        public List<string> CardCalls = new List<string>();
+        public List<string> EffectFamilies = new List<string>();
+
+        public string FamilySummary
+        {
+            get { return EffectFamilies == null || EffectFamilies.Count == 0 ? "loaded" : string.Join(", ", EffectFamilies.ToArray()); }
+        }
+
+        public bool HasCategory(string token)
+        {
+            return Contains(Categories, token);
+        }
+
+        public bool HasFamily(string token)
+        {
+            return Contains(EffectFamilies, token);
+        }
+
+        public bool HasDuelCall(string call)
+        {
+            return Contains(DuelCalls, call);
+        }
+
+        public bool ContainsText(string token)
+        {
+            return !string.IsNullOrEmpty(Text) && Text.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        public int EstimateDrawAmount(int fallback)
+        {
+            Match match = SetTargetParamRegex.Match(Text ?? string.Empty);
+            if (match.Success)
+            {
+                int amount;
+                if (int.TryParse(match.Groups["amount"].Value, out amount))
+                {
+                    return Mathf.Clamp(amount, 1, 5);
+                }
+            }
+
+            return Mathf.Clamp(fallback, 1, 5);
+        }
+
+        public int EstimateEffectAmount(int fallback)
+        {
+            Match match = DamageRegex.Match(Text ?? string.Empty);
+            if (match.Success)
+            {
+                int amount;
+                if (int.TryParse(match.Groups["amount"].Value, out amount))
+                {
+                    return Mathf.Clamp(amount, 100, 5000);
+                }
+            }
+
+            return fallback;
+        }
+
+        private static bool Contains(List<string> values, string token)
+        {
+            if (values == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < values.Count; i++)
+            {
+                if (string.Equals(values[i], token, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    public sealed class CleanLuaEffectBridge
+    {
+        private readonly CleanLuaScriptRepository repository = new CleanLuaScriptRepository();
+
+        public string Status
+        {
+            get { return repository.Status; }
+        }
+
+        public void Initialize()
+        {
+            repository.Initialize();
+        }
+
+        public string Describe(CleanCard card)
+        {
+            return card == null ? string.Empty : repository.Describe(card.Definition.Id);
+        }
+
+        public bool CanResolve(CleanDuelGame game, CleanPlayerState controller, CleanPlayerState rival, CleanCard card)
+        {
+            CleanLuaScriptInfo script;
+            if (card == null || controller == null || rival == null || !repository.TryGet(card.Definition.Id, out script))
+            {
+                return false;
+            }
+
+            if (CanResolveExactCard(game, controller, rival, card))
+            {
+                return true;
+            }
+
+            if (script.HasFamily("draw"))
+            {
+                return controller.Deck.Count >= Math.Max(1, script.EstimateDrawAmount(1));
+            }
+
+            if (script.HasFamily("burn") || script.HasFamily("recover"))
+            {
+                return true;
+            }
+
+            if (script.HasFamily("destroy"))
+            {
+                return HasMonster(rival);
+            }
+
+            if (script.HasFamily("synchro_summon"))
+            {
+                return game != null && game.LuaCanSynchroSummonBestAvailable(controller, 0);
+            }
+
+            if (script.HasFamily("fusion_summon"))
+            {
+                return game != null && game.LuaCanFusionSummonBestAvailable(controller, 0);
+            }
+
+            if (script.HasFamily("special_summon") || script.HasFamily("graveyard_action"))
+            {
+                return HasEmptyMonsterZone(controller) && (HasMonster(controller.Hand) || HasMonster(controller.Graveyard));
+            }
+
+            if (script.HasFamily("search_or_recover"))
+            {
+                return controller.Deck.Count > 0;
+            }
+
+            if (script.HasFamily("send_to_grave") || script.HasFamily("mill"))
+            {
+                return HasMonster(controller.Deck);
+            }
+
+            if (script.HasFamily("stat_change"))
+            {
+                return HasMonster(controller);
+            }
+
+            if (script.HasFamily("position"))
+            {
+                return HasMonster(rival);
+            }
+
+            return false;
+        }
+
+        private bool CanResolveExactCard(CleanDuelGame game, CleanPlayerState controller, CleanPlayerState rival, CleanCard card)
+        {
+            switch (card.Definition.Id)
+            {
+                case 17947697:
+                    return HasEmptySpellTrapZone(controller) &&
+                           (ContainsCard(controller.Hand, 62089826) ||
+                            ContainsCard(controller.Deck, 62089826) ||
+                            ContainsCard(controller.Graveyard, 62089826));
+                case 55144522:
+                    return controller.Deck.Count >= 2;
+                case 12580477:
+                    return HasMonster(rival);
+                case 71143015:
+                    return game != null && game.LuaCanFusionSummonBestAvailable(controller, 12381100);
+                case 62089826:
+                    return (HasEmptyMonsterZone(controller) && HasMonster(controller.Graveyard)) || controller.Deck.Count > 0;
+                case 41620959:
+                    return HasMonster(controller.Deck);
+                case 93437091:
+                case 80326401:
+                    return controller.Deck.Count > 0;
+                case 43845801:
+                    return HasMonster(controller);
+                default:
+                    return false;
+            }
+        }
+
+        private static bool HasEmptyMonsterZone(CleanPlayerState player)
+        {
+            if (player == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < player.Monsters.Length; i++)
+            {
+                if (player.Monsters[i] == null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool HasEmptySpellTrapZone(CleanPlayerState player)
+        {
+            if (player == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < player.SpellsTraps.Length; i++)
+            {
+                if (player.SpellsTraps[i] == null)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool HasMonster(CleanPlayerState player)
+        {
+            return player != null && HasMonster(player.Monsters);
+        }
+
+        private static bool HasMonster(CleanCard[] cards)
+        {
+            if (cards == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < cards.Length; i++)
+            {
+                CleanCard card = cards[i];
+                if (card != null && card.Definition.Kind == CleanCardKind.Monster)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool HasMonster(List<CleanCard> cards)
+        {
+            if (cards == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < cards.Count; i++)
+            {
+                CleanCard card = cards[i];
+                if (card != null && card.Definition.Kind == CleanCardKind.Monster)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool ContainsCard(List<CleanCard> cards, int id)
+        {
+            if (cards == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < cards.Count; i++)
+            {
+                CleanCard card = cards[i];
+                if (card != null && card.Definition.Id == id)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool TryResolve(CleanDuelGame game, CleanPlayerState controller, CleanPlayerState rival, CleanCard card)
+        {
+            CleanLuaScriptInfo script;
+            if (card == null || !repository.TryGet(card.Definition.Id, out script))
+            {
+                return false;
+            }
+
+            game.LuaLog("Lua " + script.FileName + " -> " + script.FamilySummary + ".");
+
+            if (ResolveExactCard(game, controller, rival, card, script))
+            {
+                return true;
+            }
+
+            if (script.HasFamily("draw"))
+            {
+                game.LuaDraw(controller, script.EstimateDrawAmount(1));
+                return true;
+            }
+
+            if (script.HasFamily("burn"))
+            {
+                game.LuaDamage(rival, script.EstimateEffectAmount(800));
+                return true;
+            }
+
+            if (script.HasFamily("recover"))
+            {
+                game.LuaRecover(controller, script.EstimateEffectAmount(1000));
+                return true;
+            }
+
+            if (script.HasFamily("destroy"))
+            {
+                if (script.HasDuelCall("GetMatchingGroup") && script.ContainsText("LOCATION_MZONE"))
+                {
+                    return game.LuaDestroyAllMonsters(rival) > 0;
+                }
+
+                return game.LuaDestroyStrongest(rival) > 0;
+            }
+
+            if (script.HasFamily("synchro_summon"))
+            {
+                if (game.LuaSynchroSummonBestAvailable(controller, 0))
+                {
+                    return true;
+                }
+            }
+
+            if (script.HasFamily("fusion_summon"))
+            {
+                if (game.LuaFusionSummonBestAvailable(controller, 0, false))
+                {
+                    return true;
+                }
+            }
+
+            if (script.HasFamily("special_summon") || script.HasFamily("graveyard_action"))
+            {
+                if (script.ContainsText("LOCATION_GRAVE") && game.LuaReviveStrongest(controller))
+                {
+                    return true;
+                }
+
+                return game.LuaSpecialSummonBestAvailable(controller);
+            }
+
+            if (script.HasFamily("search_or_recover"))
+            {
+                return game.LuaSearchBestCard(controller);
+            }
+
+            if (script.HasFamily("send_to_grave") || script.HasFamily("mill"))
+            {
+                return game.LuaSendDeckMonsterToGrave(controller);
+            }
+
+            if (script.HasFamily("stat_change"))
+            {
+                game.LuaBoostTeam(controller, 500);
+                return true;
+            }
+
+            if (script.HasFamily("position"))
+            {
+                return game.LuaChangeStrongestMonsterToDefense(rival);
+            }
+
+            if (script.HasFamily("win_condition"))
+            {
+                game.WinByCardEffect(controller, ScriptSourceName(card, script));
+                return true;
+            }
+
+            game.LuaLog("Lua script loaded, but no CleanDuel operation is mapped for this family yet.");
+            return false;
+        }
+
+        private static string ScriptSourceName(CleanCard card, CleanLuaScriptInfo script)
+        {
+            string scriptName = script == null ? string.Empty : script.CardName;
+            if (card != null && card.Definition != null && !string.IsNullOrEmpty(card.Definition.Name))
+            {
+                bool generatedFallbackName = card.Definition.Name.StartsWith("Card ", StringComparison.Ordinal);
+                if (!generatedFallbackName || string.IsNullOrEmpty(scriptName))
+                {
+                    return card.Definition.Name;
+                }
+            }
+
+            return string.IsNullOrEmpty(scriptName) ? "card effect" : scriptName;
+        }
+
+        private bool ResolveExactCard(CleanDuelGame game, CleanPlayerState controller, CleanPlayerState rival, CleanCard card, CleanLuaScriptInfo script)
+        {
+            switch (card.Definition.Id)
+            {
+                case 17947697:
+                    game.LuaPlaceTrueLight(controller);
+                    return true;
+                case 55144522:
+                    game.LuaDraw(controller, 2);
+                    return true;
+                case 12580477:
+                    return game.LuaDestroyAllMonsters(rival) > 0;
+                case 71143015:
+                    int fieldBlueEyesMaterialCount;
+                    if (game.LuaFusionSummonBestAvailable(controller, 12381100, true, out fieldBlueEyesMaterialCount))
+                    {
+                        for (int i = 0; i < fieldBlueEyesMaterialCount; i++)
+                        {
+                            game.LuaDestroyStrongest(rival);
+                        }
+
+                        return true;
+                    }
+
+                    return false;
+                case 62089826:
+                    return game.LuaReviveStrongest(controller) || game.LuaSearchBestCard(controller);
+                case 41620959:
+                    return game.LuaSendDeckMonsterToGrave(controller);
+                case 93437091:
+                case 80326401:
+                    return game.LuaSearchBestCard(controller);
+                case 43845801:
+                    game.LuaBoostTeam(controller, 1000);
+                    return true;
+                default:
+                    return false;
+            }
+        }
+    }
+}

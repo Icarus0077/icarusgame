@@ -170,8 +170,11 @@ namespace IcarusGame.MasterDuel
     public sealed class PlayerState
     {
         public const int ZoneCount = 5;
-        public const int MainDeckSize = 40;
-        public const int ExtraDeckSize = 15;
+        public const int MainDeckMinimumSize = 40;
+        public const int MainDeckMaximumSize = 60;
+        public const int MainDeckSize = MainDeckMinimumSize;
+        public const int ExtraDeckMaximumSize = 15;
+        public const int ExtraDeckSize = ExtraDeckMaximumSize;
 
         public PlayerState(PlayerId id, string name)
         {
@@ -1174,18 +1177,37 @@ namespace IcarusGame.MasterDuel
         {
             List<CardData> blueEyes = SampleCards.BlueEyesMainDeck();
             List<CardData> sforce = SampleCards.SForceMainDeck();
-            AddDeck(State.Player, blueEyes, PlayerId.Player);
-            AddDeck(State.Opponent, sforce, PlayerId.Opponent);
-            AddExtra(State.Player, SampleCards.BlueEyesExtraDeck(), PlayerId.Player);
-            AddExtra(State.Opponent, SampleCards.SForceExtraDeck(), PlayerId.Opponent);
+            AddDeck(State.Player, blueEyes, PlayerId.Player, true);
+            AddDeck(State.Opponent, sforce, PlayerId.Opponent, false);
+            AddExtra(State.Player, SampleCards.BlueEyesExtraDeck(), PlayerId.Player, true);
+            AddExtra(State.Opponent, SampleCards.SForceExtraDeck(), PlayerId.Opponent, false);
         }
 
-        private void AddDeck(PlayerState player, List<CardData> cards, PlayerId owner)
+        private void AddDeck(PlayerState player, List<CardData> cards, PlayerId owner, bool preserveComposition)
         {
             List<CardData> mainDeckCards = cards.FindAll(card => card != null && !card.IsExtraDeckMonster);
             if (mainDeckCards.Count == 0)
             {
                 throw new InvalidOperationException("A Main Deck requires at least one non-Extra Deck card.");
+            }
+
+            if (preserveComposition)
+            {
+                if (mainDeckCards.Count < PlayerState.MainDeckMinimumSize ||
+                    mainDeckCards.Count > PlayerState.MainDeckMaximumSize)
+                {
+                    throw new InvalidOperationException(
+                        "A preserved Main Deck must contain between " +
+                        PlayerState.MainDeckMinimumSize + " and " +
+                        PlayerState.MainDeckMaximumSize + " cards.");
+                }
+
+                for (int i = 0; i < mainDeckCards.Count; i++)
+                {
+                    player.Deck.Add(new CardInstance(mainDeckCards[i], owner));
+                }
+
+                return;
             }
 
             int index = 0;
@@ -1196,12 +1218,30 @@ namespace IcarusGame.MasterDuel
             }
         }
 
-        private void AddExtra(PlayerState player, List<CardData> cards, PlayerId owner)
+        private void AddExtra(PlayerState player, List<CardData> cards, PlayerId owner, bool preserveComposition)
         {
             List<CardData> extraDeckCards = cards.FindAll(card => card != null && card.IsExtraDeckMonster);
             if (extraDeckCards.Count == 0)
             {
                 throw new InvalidOperationException("An Extra Deck requires at least one Fusion, Synchro, Xyz, or Link monster.");
+            }
+
+            if (preserveComposition)
+            {
+                if (extraDeckCards.Count > PlayerState.ExtraDeckMaximumSize)
+                {
+                    throw new InvalidOperationException(
+                        "An Extra Deck cannot contain more than " + PlayerState.ExtraDeckMaximumSize + " cards.");
+                }
+
+                for (int i = 0; i < extraDeckCards.Count; i++)
+                {
+                    CardInstance card = new CardInstance(extraDeckCards[i], owner);
+                    card.Location = CardLocation.ExtraDeck;
+                    player.ExtraDeck.Add(card);
+                }
+
+                return;
             }
 
             int index = 0;
@@ -1357,35 +1397,47 @@ namespace IcarusGame.MasterDuel
     {
         public static List<CardData> BlueEyesMainDeck()
         {
-            return new List<CardData>
-            {
-                Monster(8240199, "Sage with Eyes of Blue", MonsterFrame.Effect, 1, 0, 1500, "Spellcaster / Tuner / Effect", "When this card is Normal Summoned: add 1 Blue-Eyes monster from your Deck to your hand.", "Blue-Eyes", "search_blueeyes"),
-                Monster(36734924, "Priestess with Eyes of Blue", MonsterFrame.Effect, 1, 0, 0, "Spellcaster / Tuner / Effect", "Quick Effect: send an Effect Monster you control to the GY; add Blue-Eyes cards from your Deck to your hand.", "Blue-Eyes", "search_blueeyes"),
-                Monster(89631139, "Blue-Eyes White Dragon", MonsterFrame.Normal, 8, 3000, 2500, "Dragon / Normal", "This legendary dragon is a powerful engine piece for Fusion and Synchro plays.", "Blue-Eyes", ""),
-                Monster(30576089, "Blue-Eyes Jet Dragon", MonsterFrame.Effect, 8, 3000, 0, "Dragon / Effect", "If a card is destroyed: Special Summon this card. Your other cards are protected from destruction.", "Blue-Eyes", "special_blueeyes"),
-                Monster(66961194, "Dictator of D.", MonsterFrame.Effect, 4, 1200, 1100, "Spellcaster / Effect", "Send a Blue-Eyes monster from Deck to GY; Special Summon this card from your hand.", "Blue-Eyes", "special_blueeyes"),
-                Spell(71143015, "Ultimate Fusion", "Quick-Play Spell", "Fusion Summon using monsters from your hand or field. Prototype: Special Summon a Blue-Eyes monster from hand.", "Blue-Eyes", "quick_special"),
-                Spell(41620959, "Dragon Shrine", "Normal Spell", "Send a Dragon monster from Deck to GY, then set up a Blue-Eyes line.", "Blue-Eyes", "search_blueeyes"),
-                Spell(48800175, "The Melody of Awakening Dragon", "Normal Spell", "Discard 1 card; add high-Level Dragons from your Deck to your hand.", "Blue-Eyes", "search_blueeyes"),
-                Spell(38120068, "Trade-In", "Normal Spell", "Discard 1 Level 8 monster; draw 2 cards.", "Blue-Eyes", "draw_two"),
-                Spell(17655904, "Burst Stream of Destruction", "Normal Spell", "Your monsters gain ATK for this turn.", "Blue-Eyes", "boost_team"),
-                Trap(62089826, "True Light", "Continuous Trap", "Special Summon a Blue-Eyes White Dragon or Set support from Deck.", "Blue-Eyes", "special_blueeyes"),
-                Trap(56920308, "The Ultimate Creature of Destruction", "Normal Trap", "Negate an attack or protect a Blue-Eyes monster.", "Blue-Eyes", "counter"),
-                Monster(88241506, "Maiden with Eyes of Blue", MonsterFrame.Effect, 1, 0, 0, "Spellcaster / Tuner / Effect", "When targeted for an attack or effect: Special Summon a Blue-Eyes monster.", "Blue-Eyes", "special_blueeyes"),
-                Monster(48048590, "Keeper of Dragon Magic", MonsterFrame.Effect, 4, 1800, 1300, "Dragon / Effect", "Searches Fusion cards and helps setup Extra Deck plays.", "Blue-Eyes", "search_blueeyes")
-            };
+            List<CardData> deck = new List<CardData>();
+
+            AddCopies(deck, Monster(89631139, "Blue-Eyes White Dragon", MonsterFrame.Normal, 8, 3000, 2500, "Dragon / Normal", "This legendary dragon is a powerful engine of destruction. Virtually invincible, very few have faced this awesome creature and lived to tell the tale.", "Blue-Eyes", ""), 3);
+            AddCopies(deck, Monster(54332792, "Neo Kaiser Sea Horse", MonsterFrame.Effect, 4, 1700, 1650, "Dragon / Tuner / Effect", "If you control \"Blue-Eyes White Dragon\": You can Special Summon this card from your hand. You can target 1 LIGHT Tuner you control; increase or decrease its Level by 1. If this card is sent from the field to the GY: You can send 1 \"Blue-Eyes\" monster or 1 monster that mentions \"Blue-Eyes White Dragon\" from your Deck to the GY, except \"Neo Kaiser Sea Horse\". You can only use each effect of \"Neo Kaiser Sea Horse\" once per turn.", "Blue-Eyes", "special_blueeyes"), 3);
+            AddCopies(deck, Monster(8240199, "Sage with Eyes of Blue", MonsterFrame.Effect, 1, 0, 1500, "Spellcaster / Tuner / Effect", "When this card is Normal Summoned: You can add 1 Level 1 LIGHT Tuner from your Deck to your hand, except \"Sage with Eyes of Blue\". You can discard this card, then target 1 Effect Monster you control; send it to the GY, and if you do, Special Summon 1 \"Blue-Eyes\" monster from your Deck. You can only use this effect of \"Sage with Eyes of Blue\" once per turn.", "Blue-Eyes", "search_blueeyes"), 3);
+            AddCopies(deck, Monster(71039903, "The White Stone of Ancients", MonsterFrame.Effect, 1, 600, 500, "Dragon / Tuner / Effect", "Once per turn, during the End Phase, if this card is in the GY because it was sent there this turn: You can Special Summon 1 \"Blue-Eyes\" monster from your Deck. You can banish this card from your GY, then target 1 \"Blue-Eyes\" monster in your GY; add it to your hand. You can only use this effect of \"The White Stone of Ancients\" once per turn.", "Blue-Eyes", "special_blueeyes"), 3);
+            AddCopies(deck, Monster(17947697, "Maiden of White", MonsterFrame.Effect, 1, 0, 0, "Spellcaster / Tuner / Effect", "You can send this card from your hand or field to the GY; place 1 \"True Light\" from your hand, Deck, or GY, face-up in your Spell & Trap Zone. If you Special Summon \"Blue-Eyes White Dragon\" while this card is in your GY (except during the Damage Step): You can Special Summon this card. When a card or effect is activated that targets this card on the field, or when this card is targeted for an attack (Quick Effect): You can Special Summon 1 \"Blue-Eyes White Dragon\" or 1 Level 1 LIGHT Tuner from your GY. You can only use each effect of \"Maiden of White\" once per turn.", "Blue-Eyes", "special_blueeyes"), 2);
+            AddCopies(deck, Monster(23434538, "Maxx \"C\"", MonsterFrame.Effect, 2, 500, 200, "Insect / Effect", "During either player's turn: You can send this card from your hand to the Graveyard; this turn, each time your opponent Special Summons a monster(s), immediately draw 1 card. You can only use 1 \"Maxx C\" per turn.", "Generic", ""), 1);
+            AddCopies(deck, Monster(14558127, "Ash Blossom & Joyous Spring", MonsterFrame.Effect, 3, 0, 1800, "Zombie / Tuner / Effect", "When a card or effect is activated that would add from the Deck, Special Summon from the Deck, or send from the Deck to the GY (Quick Effect): You can discard this card; negate that effect. You can only use this effect once per turn.", "Generic", "counter"), 1);
+            AddCopies(deck, Monster(59438930, "Ghost Ogre & Snow Rabbit", MonsterFrame.Effect, 3, 0, 1800, "Psychic / Tuner / Effect", "When a monster on the field activates its effect, or when a face-up Spell/Trap activates its effect (Quick Effect): You can send this card from your hand or field to the GY; destroy that card. You can only use this effect once per turn.", "Generic", "counter"), 1);
+            AddCopies(deck, Monster(97268402, "Effect Veiler", MonsterFrame.Effect, 1, 0, 0, "Spellcaster / Tuner / Effect", "During your opponent's Main Phase (Quick Effect): You can send this card from your hand to the GY, then target 1 Effect Monster your opponent controls; negate its effects until the end of this turn.", "Generic", "counter"), 1);
+            AddCopies(deck, Monster(66961194, "Dictator of D.", MonsterFrame.Effect, 4, 1200, 1100, "Spellcaster / Effect", "While you control a \"Blue-Eyes\" monster, you choose the attack targets for your opponent's attacks. You can send 1 \"Blue-Eyes White Dragon\" from your hand or Deck to the GY; Special Summon this card from your hand. You can discard 1 card that is or mentions \"Blue-Eyes White Dragon\", then target 1 \"Blue-Eyes\" monster in your GY; Special Summon it. You can only use each effect once per turn.", "Blue-Eyes", "special_blueeyes"), 1);
+            AddCopies(deck, Monster(30576089, "Blue-Eyes Jet Dragon", MonsterFrame.Effect, 8, 3000, 0, "Dragon / Effect", "Other cards you control cannot be destroyed by your opponent's card effects. While \"Blue-Eyes White Dragon\" is on your field or in your GY, this card can Special Summon itself from the hand or GY after a card on the field is destroyed, and can return an opponent's card to the hand when it battles. You can only use each effect once per turn.", "Blue-Eyes", "special_blueeyes"), 2);
+            AddCopies(deck, Monster(38517737, "Blue-Eyes Alternative White Dragon", MonsterFrame.Effect, 8, 3000, 2500, "Dragon / Effect", "Cannot be Normal Summoned/Set. Must first be Special Summoned from your hand by revealing \"Blue-Eyes White Dragon\" in your hand. Its name becomes \"Blue-Eyes White Dragon\" on the field or in the GY. Once per turn: You can target 1 monster your opponent controls; destroy it, but this card cannot attack that turn.", "Blue-Eyes", "special_blueeyes"), 1);
+            AddCopies(deck, Monster(64202399, "Blue-Eyes Abyss Dragon", MonsterFrame.Effect, 8, 2500, 2500, "Dragon / Effect", "If this card is Special Summoned: You can add 1 Ritual Spell or 1 \"Polymerization\" from your Deck to your hand. During your End Phase: You can add 1 Level 8 or higher Dragon monster from your Deck to your hand. You can banish this card from your GY; all Level 8 or higher Dragon monsters you control gain 1000 ATK.", "Blue-Eyes", "search_blueeyes"), 1);
+            AddCopies(deck, Monster(55410871, "Blue-Eyes Chaos MAX Dragon", MonsterFrame.Ritual, 8, 4000, 0, "Dragon / Ritual / Effect", "You can Ritual Summon this card with \"Chaos Form\". Must be Ritual Summoned. Your opponent cannot target this card with card effects, and it cannot be destroyed by your opponent's card effects. If it attacks a Defense Position monster, inflict double piercing battle damage.", "Blue-Eyes", ""), 1);
+            AddCopies(deck, Spell(83764719, "Monster Reborn", "Normal Spell", "Target 1 monster in either GY; Special Summon it.", "Generic", ""), 1);
+            AddCopies(deck, Spell(93437091, "Bingo Machine, Go!!!", "Normal Spell", "Reveal 3 cards from your Deck that are \"Blue-Eyes\" monsters or Spells/Traps that specifically list \"Blue-Eyes White Dragon\" or \"Blue-Eyes Ultimate Dragon\". Your opponent randomly picks 1 for you to add to your hand, and you shuffle the rest into your Deck. You can only activate 1 copy per turn.", "Blue-Eyes", "search_blueeyes"), 1);
+            AddCopies(deck, Spell(80326401, "Wishes for Eyes of Blue", "Normal Spell", "Discard 1 card; add 1 Level 1 LIGHT Tuner and 1 Spell/Trap that mentions \"Blue-Eyes White Dragon\" from your Deck to your hand, except \"Wishes for Eyes of Blue\". You can banish this card from your GY, then equip 1 \"Blue-Eyes\" monster from your Extra Deck to a \"Blue-Eyes White Dragon\" you control. You can only use each effect once per turn.", "Blue-Eyes", "search_blueeyes"), 2);
+            AddCopies(deck, Spell(17725109, "Roar of the Blue-Eyed Dragons", "Normal Spell", "Special Summon 1 \"Blue-Eyes\" monster in Defense Position from your Deck, GY, or banishment, subject to its \"Blue-Eyes White Dragon\" restriction. You can banish this card from your GY to Fusion Summon using monsters from your hand or field, including a \"Blue-Eyes\" monster. You can only use 1 effect per turn.", "Blue-Eyes", "quick_special"), 3);
+            AddCopies(deck, Spell(12580477, "Raigeki", "Normal Spell", "Destroy all monsters your opponent controls.", "Generic", ""), 1);
+            AddCopies(deck, Spell(24094653, "Polymerization", "Normal Spell", "Fusion Summon 1 Fusion Monster from your Extra Deck, using monsters from your hand or field as Fusion Material.", "Fusion", ""), 1);
+            AddCopies(deck, Spell(21082832, "Chaos Form", "Ritual Spell", "This card can be used to Ritual Summon any \"Chaos\" or \"Black Luster Soldier\" Ritual Monster. Tribute monsters from your hand or field and/or banish \"Blue-Eyes White Dragon\" or \"Dark Magician\" from your GY whose total Levels exactly equal the Ritual Monster's Level.", "Blue-Eyes", ""), 1);
+            AddCopies(deck, Spell(41620959, "Dragon Shrine", "Normal Spell", "Send 1 Dragon monster from your Deck to the GY, then, if it was a Dragon Normal Monster, you can send 1 more Dragon monster from your Deck to the GY. You can only activate 1 \"Dragon Shrine\" per turn.", "Blue-Eyes", "search_blueeyes"), 1);
+            AddCopies(deck, Spell(71143015, "Ultimate Fusion", "Quick-Play Spell", "During the Main Phase: Fusion Summon a monster that mentions \"Blue-Eyes White Dragon\" or \"Blue-Eyes Ultimate Dragon\" by shuffling its materials from your hand, field, and/or GY into the Deck, then you can destroy opposing face-up cards based on the materials used from the field. You can only activate 1 copy per turn.", "Blue-Eyes", "quick_special"), 3);
+            AddCopies(deck, Trap(62089826, "True Light", "Continuous Trap", "Your opponent cannot target \"Blue-Eyes White Dragon\" in your Monster Zone with card effects. Once per turn, Special Summon 1 \"Blue-Eyes White Dragon\" from your hand or GY, or Set a qualifying Spell/Trap directly from your Deck. If this face-up card is sent to the GY, destroy all monsters you control.", "Blue-Eyes", "special_blueeyes"), 3);
+
+            return deck;
         }
 
         public static List<CardData> BlueEyesExtraDeck()
         {
-            return new List<CardData>
-            {
-                Monster(59822133, "Blue-Eyes Spirit Dragon", MonsterFrame.Synchro, 9, 2500, 3000, "Dragon / Synchro / Effect", "1 Tuner + 1+ non-Tuner Blue-Eyes monsters. Can negate GY effects.", "Blue-Eyes", "counter"),
-                Monster(89604813, "Blue-Eyes Ultimate Spirit Dragon", MonsterFrame.Synchro, 12, 3500, 4000, "Dragon / Synchro / Effect", "A large Synchro boss monster for the prototype summon animation.", "Blue-Eyes", ""),
-                Monster(2129638, "Blue-Eyes Twin Burst Dragon", MonsterFrame.Fusion, 10, 3000, 2500, "Dragon / Fusion / Effect", "2 Blue-Eyes White Dragon. Can make multiple attacks.", "Blue-Eyes", ""),
-                Monster(63767246, "Number 38: Hope Harbinger Dragon Titanic Galaxy", MonsterFrame.Xyz, 8, 3000, 2500, "Dragon / Xyz / Effect", "2 Level 8 monsters. Negates Spell effects.", "Blue-Eyes", "counter"),
-                Monster(24361622, "Hieratic Seal of the Heavenly Spheres", MonsterFrame.Link, 0, 0, 0, "Dragon / Link / Effect", "2 Dragon monsters. Bounces cards and summons Dragons.", "Blue-Eyes", "special_blueeyes")
-            };
+            List<CardData> deck = new List<CardData>();
+
+            AddCopies(deck, Monster(23995346, "Blue-Eyes Ultimate Dragon", MonsterFrame.Fusion, 12, 4500, 3800, "Dragon / Fusion", "\"Blue-Eyes White Dragon\" + \"Blue-Eyes White Dragon\" + \"Blue-Eyes White Dragon\"", "Blue-Eyes", ""), 1);
+            AddCopies(deck, Monster(12381100, "Dragon Master Magia", MonsterFrame.Fusion, 12, 5000, 4000, "Dragon / Fusion / Effect", "\"Blue-Eyes Ultimate Dragon\" or 3 \"Blue-Eyes\" monsters + 1 \"Chaos\" or \"Black Luster Soldier\" Ritual Monster. Must be Fusion Summoned. It can negate each card type once per turn and, if it leaves the field because of an opponent's card, Special Summon an eligible monster from your Extra Deck or GY.", "Blue-Eyes", "counter"), 3);
+            AddCopies(deck, Monster(59822133, "Blue-Eyes Spirit Dragon", MonsterFrame.Synchro, 9, 2500, 3000, "Dragon / Synchro / Effect", "1 Tuner + 1+ non-Tuner \"Blue-Eyes\" monsters. Neither player can Special Summon 2 or more monsters at the same time. Once per turn, it can negate a GY effect, and it can Tribute itself to Special Summon another LIGHT Dragon Synchro Monster that is destroyed during the End Phase.", "Blue-Eyes", "counter"), 2);
+            AddCopies(deck, Monster(89604813, "Blue-Eyes Ultimate Spirit Dragon", MonsterFrame.Synchro, 12, 3500, 4000, "Dragon / Synchro / Effect", "2+ Tuners + 1 non-Tuner \"Blue-Eyes\" monster. Your opponent cannot banish cards from your GY. Once per turn, it can negate an activation on the field and gain 1000 ATK. If destroyed, it can Special Summon a LIGHT Dragon from your GY.", "Blue-Eyes", "counter"), 1);
+            AddCopies(deck, Monster(42097666, "Spirit with Eyes of Blue", MonsterFrame.Link, 0, 300, 0, "Dragon / Link / Effect", "1 Level 4 or lower Dragon or Spellcaster monster. You cannot Special Summon except Dragon monsters. If Link Summoned, it can add or send \"Mausoleum of White\" from the Deck, and it can Tribute itself to Special Summon a \"Blue-Eyes\" monster from your hand or GY.", "Blue-Eyes", "special_blueeyes"), 3);
+
+            return deck;
         }
 
         public static List<CardData> SForceMainDeck()
@@ -1434,6 +1486,14 @@ namespace IcarusGame.MasterDuel
         private static CardData Trap(int id, string name, string typeLine, string text, string archetype, string effectId)
         {
             return new CardData(id, name, CardKind.Trap, MonsterFrame.Normal, 0, 0, 0, typeLine, text, archetype, effectId);
+        }
+
+        private static void AddCopies(List<CardData> deck, CardData card, int copies)
+        {
+            for (int i = 0; i < copies; i++)
+            {
+                deck.Add(card);
+            }
         }
     }
 
@@ -2308,7 +2368,7 @@ namespace IcarusGame.MasterDuel
         private void RefreshDeckPile(DeckPileVisual pile, PlayerState player)
         {
             int count = pile.ExtraDeck ? player.ExtraDeck.Count : player.Deck.Count;
-            int capacity = pile.ExtraDeck ? PlayerState.ExtraDeckSize : PlayerState.MainDeckSize;
+            int capacity = pile.ExtraDeck ? PlayerState.ExtraDeckMaximumSize : PlayerState.MainDeckMaximumSize;
             float stackHeight = 0.055f + count * 0.006f;
             pile.Stack.gameObject.SetActive(count > 0);
             pile.Stack.transform.localScale = new Vector3(1.08f, stackHeight, 1.5f);
