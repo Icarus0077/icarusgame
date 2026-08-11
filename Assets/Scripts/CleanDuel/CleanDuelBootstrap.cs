@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 #if ENABLE_INPUT_SYSTEM
@@ -12,6 +14,9 @@ namespace IcarusGame.CleanDuel
         private CleanDuelArtCache artCache;
         private CleanDuelBoardView boardView;
         private CleanDuelHudView hudView;
+        private CleanDuelCinematicView cinematicView;
+        private readonly Queue<CleanDuelCinematicEvent> pendingCinematics = new Queue<CleanDuelCinematicEvent>();
+        private Coroutine cinematicRoutine;
         private Transform runtimeRoot;
         private Camera arenaCamera;
         private int selectedHand = -1;
@@ -25,6 +30,23 @@ namespace IcarusGame.CleanDuel
         private CleanPlayerId inspectedOwner;
         private CleanZoneKind inspectedZone;
         private int inspectedIndex = -1;
+
+        public CleanDuelAiDifficulty RivalAiDifficulty
+        {
+            get { return game.RivalAiDifficulty; }
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void EnsureDuelRuntimeExists()
+        {
+            if (Object.FindFirstObjectByType<CleanDuelBootstrap>(FindObjectsInactive.Include) != null ||
+                Object.FindFirstObjectByType<IcarusGame.MasterDuel.MasterDuelRuntime>(FindObjectsInactive.Include) != null)
+            {
+                return;
+            }
+
+            new GameObject("Clean Duel Bootstrap (Automatic)").AddComponent<CleanDuelBootstrap>();
+        }
 
         private void Start()
         {
@@ -41,8 +63,23 @@ namespace IcarusGame.CleanDuel
             hudView = new CleanDuelHudView(this, artCache);
             hudView.Build();
 
+            cinematicView = new CleanDuelCinematicView(artCache);
+            cinematicView.Build();
+
             game.Changed += Refresh;
+            game.CinematicRequested += QueueCinematic;
             game.StartNewDuel();
+        }
+
+        private void OnDestroy()
+        {
+            game.Changed -= Refresh;
+            game.CinematicRequested -= QueueCinematic;
+            if (cinematicView != null)
+            {
+                cinematicView.Dispose();
+                cinematicView = null;
+            }
         }
 
         public void SelectHand(int index)
@@ -367,6 +404,7 @@ namespace IcarusGame.CleanDuel
 
         public void RestartDuel()
         {
+            CancelCinematics();
             ClearSelection();
             game.StartNewDuel();
             Refresh();
@@ -379,6 +417,12 @@ namespace IcarusGame.CleanDuel
             Refresh();
         }
 
+        public void CycleRivalAiDifficulty()
+        {
+            game.CycleRivalAiDifficulty();
+            Refresh();
+        }
+
         private void RemoveExistingRuntimeObjects()
         {
             DestroyNamedObject("Clean Duel Runtime Objects");
@@ -387,6 +431,8 @@ namespace IcarusGame.CleanDuel
             DestroyNamedObject("Top Down Field Surface");
             DestroyNamedObject("Top Down Clear Field Surface");
             DestroyNamedObject("Glass Duel Surface");
+            DestroyNamedObject("Master Duel HUD Rebuild");
+            DestroyNamedObject("Duel Cinematic Layer");
         }
 
         private void DestroyNamedObject(string objectName)
@@ -431,6 +477,75 @@ namespace IcarusGame.CleanDuel
                     selectingAttackTarget,
                     hasBoardActionAnchor,
                     boardActionAnchor);
+            }
+        }
+
+        private void QueueCinematic(CleanDuelCinematicEvent cinematicEvent)
+        {
+            if (cinematicEvent == null || cinematicView == null)
+            {
+                return;
+            }
+
+            pendingCinematics.Enqueue(cinematicEvent);
+            if (cinematicRoutine == null && isActiveAndEnabled)
+            {
+                cinematicRoutine = StartCoroutine(PlayQueuedCinematics());
+            }
+        }
+
+        private IEnumerator PlayQueuedCinematics()
+        {
+            try
+            {
+                while (pendingCinematics.Count > 0)
+                {
+                    CleanDuelCinematicEvent cinematicEvent = pendingCinematics.Dequeue();
+                    IEnumerator playback = cinematicView.Play(cinematicEvent);
+                    bool playbackRunning = true;
+                    while (playbackRunning)
+                    {
+                        object current = null;
+                        try
+                        {
+                            playbackRunning = playback.MoveNext();
+                            if (playbackRunning)
+                            {
+                                current = playback.Current;
+                            }
+                        }
+                        catch (System.Exception exception)
+                        {
+                            playbackRunning = false;
+                            cinematicView.HideImmediate();
+                            Debug.LogException(exception);
+                        }
+
+                        if (playbackRunning)
+                        {
+                            yield return current;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                cinematicRoutine = null;
+            }
+        }
+
+        private void CancelCinematics()
+        {
+            pendingCinematics.Clear();
+            if (cinematicRoutine != null)
+            {
+                StopCoroutine(cinematicRoutine);
+                cinematicRoutine = null;
+            }
+
+            if (cinematicView != null)
+            {
+                cinematicView.HideImmediate();
             }
         }
 

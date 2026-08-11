@@ -35,6 +35,8 @@ namespace IcarusGame.CleanDuel
             Add(ref hash, (int)state.Phase);
             Add(ref hash, state.TurnNumber);
             Add(ref hash, state.GameOver);
+            Add(ref hash, state.CinematicSequence);
+            Add(ref hash, state.RivalryClimaxShown);
             AddPlayer(ref hash, state.Local, stableLocations);
             AddPlayer(ref hash, state.Rival, stableLocations);
             AddCards(ref hash, state.ExtraMonsters, stableLocations);

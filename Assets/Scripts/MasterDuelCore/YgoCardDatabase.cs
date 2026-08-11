@@ -183,8 +183,8 @@ namespace IcarusGame.MasterDuel
             CardKind kind = KindFromType(record.Type);
             MonsterFrame frame = FrameFromType(record.Type);
             int level = record.Level & 0xff;
-            int attack = NormalizeStat(record.Attack);
-            int defense = HasType(record.Type, TypeLink) ? 0 : NormalizeStat(record.Defense);
+            int attack = record.Attack;
+            int defense = HasType(record.Type, TypeLink) ? int.MinValue : record.Defense;
             string typeLine = BuildTypeLine(record);
 
             return new CardData(
@@ -344,11 +344,6 @@ namespace IcarusGame.MasterDuel
         private static bool HasType(int type, int flag)
         {
             return (type & flag) != 0;
-        }
-
-        private static int NormalizeStat(int value)
-        {
-            return value < 0 ? 0 : value;
         }
 
         private static string RaceLabel(int race)

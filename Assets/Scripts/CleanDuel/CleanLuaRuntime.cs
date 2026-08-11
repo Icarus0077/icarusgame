@@ -441,6 +441,27 @@ namespace IcarusGame.CleanDuel
     public sealed class CleanLuaEffectBridge
     {
         private readonly CleanLuaScriptRepository repository = new CleanLuaScriptRepository();
+        private readonly Dictionary<int, Func<CleanDuelGame, CleanPlayerState, CleanPlayerState, CleanCard, bool>> exactCardHandlers =
+            new Dictionary<int, Func<CleanDuelGame, CleanPlayerState, CleanPlayerState, CleanCard, bool>>();
+
+        public CleanLuaEffectBridge()
+        {
+            RegisterExactCardHandler(
+                17947697,
+                (game, controller, rival, card) =>
+                    HasEmptySpellTrapZone(controller) &&
+                    (ContainsCard(controller.Hand, 62089826) ||
+                     ContainsCard(controller.Deck, 62089826) ||
+                     ContainsCard(controller.Graveyard, 62089826)));
+            RegisterExactCardHandler(55144522, (game, controller, rival, card) => controller.Deck.Count >= 2);
+            RegisterExactCardHandler(12580477, (game, controller, rival, card) => HasMonster(rival));
+            RegisterExactCardHandler(71143015, (game, controller, rival, card) => game != null && game.LuaCanFusionSummonBestAvailable(controller, 12381100));
+            RegisterExactCardHandler(62089826, (game, controller, rival, card) => (HasEmptyMonsterZone(controller) && HasMonster(controller.Graveyard)) || controller.Deck.Count > 0);
+            RegisterExactCardHandler(41620959, (game, controller, rival, card) => HasMonster(controller.Deck));
+            RegisterExactCardHandler(93437091, (game, controller, rival, card) => controller.Deck.Count > 0);
+            RegisterExactCardHandler(80326401, (game, controller, rival, card) => controller.Deck.Count > 0);
+            RegisterExactCardHandler(43845801, (game, controller, rival, card) => HasMonster(controller));
+        }
 
         public string Status
         {
@@ -525,31 +546,27 @@ namespace IcarusGame.CleanDuel
 
         private bool CanResolveExactCard(CleanDuelGame game, CleanPlayerState controller, CleanPlayerState rival, CleanCard card)
         {
-            switch (card.Definition.Id)
+            Func<CleanDuelGame, CleanPlayerState, CleanPlayerState, CleanCard, bool> handler;
+            return card != null &&
+                   exactCardHandlers.TryGetValue(card.Definition.Id, out handler) &&
+                   handler(game, controller, rival, card);
+        }
+
+        public void RegisterExactCardHandler(
+            int cardId,
+            Func<CleanDuelGame, CleanPlayerState, CleanPlayerState, CleanCard, bool> handler)
+        {
+            if (cardId <= 0)
             {
-                case 17947697:
-                    return HasEmptySpellTrapZone(controller) &&
-                           (ContainsCard(controller.Hand, 62089826) ||
-                            ContainsCard(controller.Deck, 62089826) ||
-                            ContainsCard(controller.Graveyard, 62089826));
-                case 55144522:
-                    return controller.Deck.Count >= 2;
-                case 12580477:
-                    return HasMonster(rival);
-                case 71143015:
-                    return game != null && game.LuaCanFusionSummonBestAvailable(controller, 12381100);
-                case 62089826:
-                    return (HasEmptyMonsterZone(controller) && HasMonster(controller.Graveyard)) || controller.Deck.Count > 0;
-                case 41620959:
-                    return HasMonster(controller.Deck);
-                case 93437091:
-                case 80326401:
-                    return controller.Deck.Count > 0;
-                case 43845801:
-                    return HasMonster(controller);
-                default:
-                    return false;
+                throw new ArgumentOutOfRangeException("cardId");
             }
+
+            if (handler == null)
+            {
+                throw new ArgumentNullException("handler");
+            }
+
+            exactCardHandlers[cardId] = handler;
         }
 
         private static bool HasEmptyMonsterZone(CleanPlayerState player)

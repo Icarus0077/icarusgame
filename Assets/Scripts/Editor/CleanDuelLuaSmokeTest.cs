@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using IcarusGame.CleanDuel;
+using IcarusGame.MasterDuel;
 using UnityEditor;
 using UnityEngine;
 
@@ -18,6 +19,10 @@ namespace IcarusGame.EditorTools
             game.StartNewDuel(SmokeTestSeed);
 
             AssertBothPlayersStartWithFullLifePoints(game);
+            AssertAnimationPresentationCatalogAndEvents();
+            AssertSignatureBattleCinematics();
+            AssertSignatureCinematicViewBuilds();
+            AssertMasterDuelCatalogImport();
 
             if (game.State.Local.Deck.Count != 36)
             {
@@ -32,12 +37,14 @@ namespace IcarusGame.EditorTools
             AssertScreenshotDeckListFromSummary();
             AssertEveryCardHasCleanEffect(CleanCardLibrary.BuildDeck(CleanPlayerId.Local), "Main Deck");
             AssertEveryCardHasCleanEffect(CleanCardLibrary.BuildExtraDeck(CleanPlayerId.Local), "Extra Deck");
+            AssertEveryDeckCardHasArtwork();
             AssertOfficialCardTextLoaded();
             AssertLuaScriptsAreDiagnosticsOnly();
             AssertLuaDestroyTargetChoiceAllowsManualTarget();
             AssertWishesSearchesBlueEyes();
             AssertDocumentSpellEffects();
             AssertDocumentMonsterEffects();
+            AssertHighPriorityBlueEyesRules();
             AssertCorrectedDeckEffectSemantics();
             AssertRestoredScreenshotCardEffects();
             AssertGatewayAndSpiritScreenshotRules();
@@ -65,13 +72,135 @@ namespace IcarusGame.EditorTools
             AssertTrueLightChoicePopupSetsSpellTrap();
             AssertTrueLightProtectsBlueEyesFromTargeting();
             AssertTrueLightLeavingFieldDestroysOwnMonsters();
+            AssertAutonomousOpponentAiDifficulties();
             AssertPhaseFlow();
             AssertDuelRulebookBasics();
             AssertDeckOutRules();
             AssertDeterministicDuelStart();
             AssertSurrenderResultFlow();
             AssertNormalMonsterHasNoActivationAndUsesTributes();
-            Debug.Log("CleanDuel deck smoke test passed. Main=41, Extra=10, exact screenshot recipe, all restored Blue-Eyes effects, filtered Fusion/Ritual/Synchro/Link choices, clean activations, real fusion summons, rulebook Spell/Trap timing, ritual summons, Trigger rules, Link Summon rules, Synchro Summon rules, True Light rules, phase flow, battle rules, deterministic starts, surrender results, targeting protection, and tribute rules verified.");
+            Debug.Log("CleanDuel deck smoke test passed. Main=41, Extra=10, exact screenshot recipe, complete current deck artwork, animation catalog and presentation events, all restored Blue-Eyes effects, autonomous Beginner/Intermediate/Expert opponent AI, filtered Fusion/Ritual/Synchro/Xyz/Link choices, clean activations, real fusion summons, rulebook Spell/Trap timing, ritual summons, Trigger rules, Link Summon rules, Synchro Summon rules, True Light rules, phase flow, battle rules, deterministic starts, surrender results, targeting protection, and tribute rules verified.");
+        }
+
+        private static void AssertAutonomousOpponentAiDifficulties()
+        {
+            CleanDuelGame cycle = new CleanDuelGame();
+            cycle.StartNewDuel(SmokeTestSeed);
+            cycle.SetRivalAiDifficulty(CleanDuelAiDifficulty.Beginner);
+            cycle.CycleRivalAiDifficulty();
+            if (cycle.RivalAiDifficulty != CleanDuelAiDifficulty.Intermediate)
+            {
+                throw new InvalidOperationException("Opponent AI menu failed: Beginner should cycle to Intermediate.");
+            }
+            cycle.CycleRivalAiDifficulty();
+            if (cycle.RivalAiDifficulty != CleanDuelAiDifficulty.Expert)
+            {
+                throw new InvalidOperationException("Opponent AI menu failed: Intermediate should cycle to Expert.");
+            }
+
+            CleanDuelGame beginner = BuildOpponentAiScenario(CleanDuelAiDifficulty.Beginner);
+            RunOpponentAiMainPhase(beginner);
+            AssertOpponentAiCompletedTurn(beginner, "Beginner");
+
+            CleanDuelGame intermediate = BuildOpponentAiScenario(CleanDuelAiDifficulty.Intermediate);
+            RunOpponentAiMainPhase(intermediate);
+            AssertOpponentAiCompletedTurn(intermediate, "Intermediate");
+
+            CleanDuelGame expert = BuildOpponentAiScenario(CleanDuelAiDifficulty.Expert);
+            RunOpponentAiMainPhase(expert);
+            AssertOpponentAiCompletedTurn(expert, "Expert");
+            if (expert.State.Local.Monsters[0] != null)
+            {
+                throw new InvalidOperationException("Expert opponent AI failed: it should prioritize Raigeki against an occupied field.");
+            }
+            if (expert.State.Rival.Monsters[0] == null)
+            {
+                throw new InvalidOperationException("Expert opponent AI failed: it should make a legal Normal Summon without player input.");
+            }
+            if (expert.State.Rival.SpellsTraps[0] == null || expert.State.Rival.SpellsTraps[0].FaceDown)
+            {
+                throw new InvalidOperationException("Expert opponent AI failed: it should Set and later activate True Light without asking the player to operate the Trap.");
+            }
+
+            CleanDuelGame repeat = BuildOpponentAiScenario(CleanDuelAiDifficulty.Expert);
+            RunOpponentAiMainPhase(repeat);
+            if (repeat.State.Local.LifePoints != expert.State.Local.LifePoints ||
+                (repeat.State.Local.Monsters[0] == null) != (expert.State.Local.Monsters[0] == null) ||
+                CountOccupiedZones(repeat.State.Rival.Monsters) != CountOccupiedZones(expert.State.Rival.Monsters) ||
+                CountOccupiedZones(repeat.State.Rival.SpellsTraps) != CountOccupiedZones(expert.State.Rival.SpellsTraps))
+            {
+                throw new InvalidOperationException("Opponent AI determinism failed: the same seed and difficulty produced a different turn.");
+            }
+        }
+
+        private static CleanDuelGame BuildOpponentAiScenario(CleanDuelAiDifficulty difficulty)
+        {
+            CleanDuelGame game = new CleanDuelGame();
+            game.StartNewDuel(SmokeTestSeed);
+            game.SetRivalAiDifficulty(difficulty);
+
+            game.State.Local.Hand.Clear();
+            game.State.Local.Deck.Clear();
+            game.State.Local.Deck.Add(new CleanCard(CleanCardLibrary.Get(8240199), CleanPlayerId.Local));
+            game.State.Local.Graveyard.Clear();
+            Array.Clear(game.State.Local.Monsters, 0, game.State.Local.Monsters.Length);
+            Array.Clear(game.State.Local.SpellsTraps, 0, game.State.Local.SpellsTraps.Length);
+            game.State.Local.Monsters[0] = new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local);
+
+            game.State.Rival.Hand.Clear();
+            game.State.Rival.Deck.Clear();
+            game.State.Rival.ExtraDeck.Clear();
+            game.State.Rival.Graveyard.Clear();
+            game.State.Rival.Banished.Clear();
+            game.State.Rival.FieldSpell = null;
+            game.State.Rival.NormalSummonUsed = false;
+            game.State.Rival.UsedOncePerTurn.Clear();
+            Array.Clear(game.State.Rival.Monsters, 0, game.State.Rival.Monsters.Length);
+            Array.Clear(game.State.Rival.SpellsTraps, 0, game.State.Rival.SpellsTraps.Length);
+            game.State.Rival.Hand.Add(new CleanCard(CleanCardLibrary.Get(12580477), CleanPlayerId.Rival));
+            game.State.Rival.Hand.Add(new CleanCard(CleanCardLibrary.Get(71039903), CleanPlayerId.Rival));
+            game.State.Rival.Hand.Add(new CleanCard(CleanCardLibrary.Get(62089826), CleanPlayerId.Rival));
+
+            game.State.TurnPlayer = CleanPlayerId.Rival;
+            game.State.TurnNumber = 2;
+            game.State.Phase = CleanDuelPhase.Main;
+            game.State.PendingChoice = null;
+            return game;
+        }
+
+        private static void RunOpponentAiMainPhase(CleanDuelGame game)
+        {
+            MethodInfo method = typeof(CleanDuelGame).GetMethod("ContinueRivalTurnAfterQuickWindow", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (method == null)
+            {
+                throw new InvalidOperationException("Opponent AI main-phase helper was not found.");
+            }
+            method.Invoke(game, null);
+        }
+
+        private static void AssertOpponentAiCompletedTurn(CleanDuelGame game, string difficulty)
+        {
+            if (game.State.PendingChoice != null)
+            {
+                throw new InvalidOperationException(difficulty + " opponent AI failed: it left a card choice for the player.");
+            }
+            if (!game.State.GameOver && (game.State.TurnPlayer != CleanPlayerId.Local || game.State.Phase != CleanDuelPhase.Main))
+            {
+                throw new InvalidOperationException(difficulty + " opponent AI failed: it did not autonomously finish its turn.");
+            }
+        }
+
+        private static int CountOccupiedZones(CleanCard[] zones)
+        {
+            int count = 0;
+            for (int i = 0; i < zones.Length; i++)
+            {
+                if (zones[i] != null)
+                {
+                    count++;
+                }
+            }
+            return count;
         }
 
         private static void AssertBothPlayersStartWithFullLifePoints(CleanDuelGame game)
@@ -82,6 +211,467 @@ namespace IcarusGame.EditorTools
                 throw new InvalidOperationException(
                     "Duel start failed: player and opponent must both start with 8000 LP.");
             }
+        }
+
+        private static void AssertAnimationPresentationCatalogAndEvents()
+        {
+            int[] ownSummonCardIds = { 89631139, 46986414, 30576089, 55410871, 12381100, 89604813 };
+            for (int i = 0; i < ownSummonCardIds.Length; i++)
+            {
+                if (!CleanDuelAnimationCatalog.HasOwnSummonAnimation(ownSummonCardIds[i]))
+                {
+                    throw new InvalidOperationException("Animation catalog failed: expected an own summon animation for card " + ownSummonCardIds[i] + ".");
+                }
+            }
+
+            int[] effectCardIds = { 97268402, 14558127, 83764719, 12580477 };
+            for (int i = 0; i < effectCardIds.Length; i++)
+            {
+                if (!CleanDuelAnimationCatalog.HasEffectAnimation(effectCardIds[i]))
+                {
+                    throw new InvalidOperationException("Animation catalog failed: expected an effect animation for card " + effectCardIds[i] + ".");
+                }
+            }
+
+            int[] finalBlowCardIds = { 89631139, 46986414 };
+            for (int i = 0; i < finalBlowCardIds.Length; i++)
+            {
+                if (!CleanDuelAnimationCatalog.HasFinalBlowAnimation(finalBlowCardIds[i]))
+                {
+                    throw new InvalidOperationException("Animation catalog failed: expected a Final Blow animation for card " + finalBlowCardIds[i] + ".");
+                }
+            }
+
+            int[] excludedCardIds =
+            {
+                63767246, // Number 38: Hope Harbinger Dragon Titanic Galaxy
+                18963306, // Galaxy-Eyes Cipher Dragon
+                40908371  // Azure-Eyes Silver Dragon
+            };
+            for (int i = 0; i < excludedCardIds.Length; i++)
+            {
+                int cardId = excludedCardIds[i];
+                if (CleanDuelAnimationCatalog.HasOwnSummonAnimation(cardId) ||
+                    CleanDuelAnimationCatalog.HasEffectAnimation(cardId) ||
+                    CleanDuelAnimationCatalog.HasFinalBlowAnimation(cardId))
+                {
+                    throw new InvalidOperationException("Animation catalog failed: excluded card " + cardId + " must not be marked yes in a card-specific animation category.");
+                }
+            }
+
+            CleanSummonPresentationKind[] genericSummons =
+            {
+                CleanSummonPresentationKind.Ritual,
+                CleanSummonPresentationKind.Fusion,
+                CleanSummonPresentationKind.Synchro,
+                CleanSummonPresentationKind.Xyz,
+                CleanSummonPresentationKind.Pendulum,
+                CleanSummonPresentationKind.Link
+            };
+            for (int i = 0; i < genericSummons.Length; i++)
+            {
+                if (!CleanDuelAnimationCatalog.HasGenericSummonAnimation(genericSummons[i]))
+                {
+                    throw new InvalidOperationException("Animation catalog failed: expected a generic " + genericSummons[i] + " Summon animation.");
+                }
+            }
+
+            if (CleanDuelAnimationCatalog.HasGenericSummonAnimation(CleanSummonPresentationKind.None))
+            {
+                throw new InvalidOperationException("Animation catalog failed: an unspecified summon method must not emit a generic summon animation.");
+            }
+
+            CleanDuelGame ritual = ReadyCleanGame();
+            List<CleanDuelCinematicEvent> ritualEvents = new List<CleanDuelCinematicEvent>();
+            ritual.CinematicRequested += ritualEvents.Add;
+            InvokeSummonToZoneForAnimation(
+                ritual,
+                new CleanCard(CleanCardLibrary.Get(55410871), CleanPlayerId.Local),
+                CleanSummonPresentationKind.Ritual);
+            if (ritualEvents.Count != 2 ||
+                ritualEvents[0].Kind != CleanDuelCinematicKind.GenericSummon ||
+                ritualEvents[0].SummonKind != CleanSummonPresentationKind.Ritual ||
+                ritualEvents[1].Kind != CleanDuelCinematicKind.SignatureSummon ||
+                ritualEvents[0].AttackerCardId != 55410871 ||
+                ritualEvents[1].AttackerCardId != 55410871)
+            {
+                throw new InvalidOperationException("Animation event flow failed: Chaos MAX must play the generic Ritual Summon before its own summon cut-in.");
+            }
+
+            CleanDuelGame genericOnly = ReadyCleanGame();
+            List<CleanDuelCinematicEvent> genericEvents = new List<CleanDuelCinematicEvent>();
+            genericOnly.CinematicRequested += genericEvents.Add;
+            InvokeSummonToZoneForAnimation(
+                genericOnly,
+                new CleanCard(CleanCardLibrary.Get(20654247), CleanPlayerId.Local),
+                CleanSummonPresentationKind.Ritual);
+            if (genericEvents.Count != 1 ||
+                genericEvents[0].Kind != CleanDuelCinematicKind.GenericSummon ||
+                genericEvents[0].SummonKind != CleanSummonPresentationKind.Ritual)
+            {
+                throw new InvalidOperationException("Animation event flow failed: a Ritual Monster without its own cut-in must receive only the generic Ritual animation.");
+            }
+
+            CleanDuelGame ownOnly = ReadyCleanGame();
+            List<CleanDuelCinematicEvent> ownEvents = new List<CleanDuelCinematicEvent>();
+            ownOnly.CinematicRequested += ownEvents.Add;
+            InvokeSummonToZoneForAnimation(
+                ownOnly,
+                new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local),
+                CleanSummonPresentationKind.None);
+            if (ownEvents.Count != 1 || ownEvents[0].Kind != CleanDuelCinematicKind.SignatureSummon)
+            {
+                throw new InvalidOperationException("Animation event flow failed: Blue-Eyes must receive its own summon cut-in without a false generic summon method.");
+            }
+
+            CleanDuelGame effect = ReadyCleanGame();
+            Array.Clear(effect.State.Rival.Monsters, 0, effect.State.Rival.Monsters.Length);
+            effect.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(12580477), CleanPlayerId.Local));
+            effect.State.Rival.Monsters[0] = new CleanCard(CleanCardLibrary.Get(66961194), CleanPlayerId.Rival);
+            List<CleanDuelCinematicEvent> effectEvents = new List<CleanDuelCinematicEvent>();
+            effect.CinematicRequested += effectEvents.Add;
+            effect.ActivateHandCard(0);
+            if (effectEvents.Count != 1 ||
+                effectEvents[0].Kind != CleanDuelCinematicKind.EffectActivation ||
+                effectEvents[0].AttackerCardId != 12580477)
+            {
+                throw new InvalidOperationException("Animation event flow failed: Raigeki must emit its effect animation when its effect resolves.");
+            }
+        }
+
+        private static void InvokeSummonToZoneForAnimation(
+            CleanDuelGame game,
+            CleanCard card,
+            CleanSummonPresentationKind summonKind)
+        {
+            MethodInfo summonMethod = typeof(CleanDuelGame).GetMethod(
+                "SummonToZone",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            if (summonMethod == null)
+            {
+                throw new InvalidOperationException("Animation event test failed: SummonToZone was not found.");
+            }
+
+            summonMethod.Invoke(
+                game,
+                new object[]
+                {
+                    game.State.Local,
+                    card,
+                    0,
+                    false,
+                    CleanMonsterStance.Attack,
+                    false,
+                    summonKind
+                });
+        }
+
+        private static void AssertMasterDuelCatalogImport()
+        {
+            MasterDuelCardCatalog catalog;
+            string error;
+            if (!MasterDuelCardCatalog.TryLoadDefault(out catalog, out error))
+            {
+                throw new InvalidOperationException("Master Duel catalog failed to load: " + error);
+            }
+
+            if (catalog.Count != 13820)
+            {
+                throw new InvalidOperationException("Master Duel catalog import failed: expected 13,820 immutable card definitions, got " + catalog.Count + ".");
+            }
+
+            MasterDuelCardDefinition link;
+            if (!catalog.TryGet(4731783, out link) ||
+                link.DatabaseId != "04731783" ||
+                link.LinkRating != 4 ||
+                link.Level.HasValue ||
+                link.Rank.HasValue ||
+                link.Defense.Kind != MasterDuelStatKind.NotApplicable ||
+                link.LinkMarkers != "W,E,SW,SE")
+            {
+                throw new InvalidOperationException("Master Duel catalog import failed: leading-zero IDs, Link Rating, DEF N/A, or Link Markers were flattened.");
+            }
+
+            MasterDuelCardDefinition xyz;
+            if (!catalog.TryGet(63767246, out xyz) || xyz.Rank != 8 || xyz.Level.HasValue || xyz.LinkRating.HasValue)
+            {
+                throw new InvalidOperationException("Master Duel catalog import failed: Xyz Rank was not kept separate from Level and Link Rating.");
+            }
+
+            MasterDuelCardDefinition pendulum;
+            if (!catalog.TryGet(16178681, out pendulum) || pendulum.PendulumScale != 4)
+            {
+                throw new InvalidOperationException("Master Duel catalog import failed: Pendulum Scale was not preserved.");
+            }
+
+            MasterDuelCardDefinition variableStats;
+            if (!catalog.TryGet(10000020, out variableStats) ||
+                variableStats.Attack.Kind != MasterDuelStatKind.Variable ||
+                variableStats.Defense.Kind != MasterDuelStatKind.Variable)
+            {
+                throw new InvalidOperationException("Master Duel catalog import failed: variable ATK/DEF must not be converted to zero-valued fixed stats.");
+            }
+
+            CleanCardDefinition cleanXyz = CleanCardLibrary.Get(63767246);
+            if (cleanXyz.CanonicalDefinition == null || cleanXyz.Level != 0 || cleanXyz.Rank != 8)
+            {
+                throw new InvalidOperationException("Shared card definition failed: Clean Duel did not consume the canonical Xyz Rank.");
+            }
+        }
+
+        private static void AssertSignatureBattleCinematics()
+        {
+            CleanDuelGame rivalry = ReadySignatureBattle(
+                89631139,
+                46986414,
+                CleanDuelGame.SignatureClimaxLifePointThreshold,
+                CleanPlayerState.StartingLifePoints);
+            List<CleanDuelCinematicEvent> rivalryEvents = new List<CleanDuelCinematicEvent>();
+            rivalry.CinematicRequested += rivalryEvents.Add;
+            rivalry.Attack(0, 0);
+            if (rivalryEvents.Count != 1 ||
+                rivalryEvents[0].Sequence != 1 ||
+                rivalryEvents[0].Kind != CleanDuelCinematicKind.RivalryClimax ||
+                rivalryEvents[0].AttackerCardId != 89631139 ||
+                rivalryEvents[0].DefenderCardId != 46986414 ||
+                rivalryEvents[0].Value != CleanDuelGame.SignatureClimaxLifePointThreshold ||
+                !rivalry.State.RivalryClimaxShown)
+            {
+                throw new InvalidOperationException("Signature cinematic failed: a low-LP Blue-Eyes versus Dark Magician battle must emit exactly one stable Rivalry Climax event.");
+            }
+
+            rivalry.State.Local.Monsters[0] = new CleanCard(CleanCardLibrary.Get(46986414), CleanPlayerId.Local);
+            rivalry.State.Rival.Monsters[0] = new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Rival);
+            rivalry.Attack(0, 0);
+            if (rivalryEvents.Count != 1)
+            {
+                throw new InvalidOperationException("Signature cinematic failed: Rivalry Climax may only play once per duel.");
+            }
+
+            CleanDuelGame blueEyesFinal = ReadySignatureBattle(89631139, 0, 8000, 3000);
+            List<CleanDuelCinematicEvent> blueEyesEvents = new List<CleanDuelCinematicEvent>();
+            blueEyesFinal.CinematicRequested += blueEyesEvents.Add;
+            blueEyesFinal.Attack(0, -1);
+            AssertFinalBlowEvent(blueEyesFinal, blueEyesEvents, 89631139, 3000, "Blue-Eyes White Dragon");
+
+            CleanDuelGame darkMagicianFinal = ReadySignatureBattle(46986414, 0, 8000, 2500);
+            List<CleanDuelCinematicEvent> darkMagicianEvents = new List<CleanDuelCinematicEvent>();
+            darkMagicianFinal.CinematicRequested += darkMagicianEvents.Add;
+            darkMagicianFinal.Attack(0, -1);
+            AssertFinalBlowEvent(darkMagicianFinal, darkMagicianEvents, 46986414, 2500, "Dark Magician");
+
+            CleanDuelGame nonLethal = ReadySignatureBattle(89631139, 0, 8000, 8000);
+            List<CleanDuelCinematicEvent> nonLethalEvents = new List<CleanDuelCinematicEvent>();
+            nonLethal.CinematicRequested += nonLethalEvents.Add;
+            nonLethal.Attack(0, -1);
+            if (nonLethalEvents.Count != 0)
+            {
+                throw new InvalidOperationException("Signature cinematic failed: a non-lethal direct attack must not emit Final Blow.");
+            }
+        }
+
+        private static CleanDuelGame ReadySignatureBattle(int attackerCardId, int defenderCardId, int localLifePoints, int rivalLifePoints)
+        {
+            CleanDuelGame game = ReadyCleanGame();
+            game.State.TurnNumber = 2;
+            game.State.TurnPlayer = CleanPlayerId.Local;
+            game.State.Phase = CleanDuelPhase.Battle;
+            game.State.Local.LifePoints = localLifePoints;
+            game.State.Rival.LifePoints = rivalLifePoints;
+            game.State.Rival.Hand.Clear();
+            game.State.Rival.Deck.Clear();
+            game.State.Rival.Graveyard.Clear();
+            game.State.Rival.Banished.Clear();
+            Array.Clear(game.State.Rival.Monsters, 0, game.State.Rival.Monsters.Length);
+            Array.Clear(game.State.Rival.SpellsTraps, 0, game.State.Rival.SpellsTraps.Length);
+            game.State.Local.Monsters[0] = new CleanCard(CleanCardLibrary.Get(attackerCardId), CleanPlayerId.Local);
+            if (defenderCardId > 0)
+            {
+                game.State.Rival.Monsters[0] = new CleanCard(CleanCardLibrary.Get(defenderCardId), CleanPlayerId.Rival);
+            }
+
+            return game;
+        }
+
+        private static void AssertFinalBlowEvent(
+            CleanDuelGame game,
+            List<CleanDuelCinematicEvent> events,
+            int expectedCardId,
+            int expectedDamage,
+            string label)
+        {
+            if (events.Count != 1 ||
+                events[0].Sequence != 1 ||
+                events[0].Kind != CleanDuelCinematicKind.SignatureFinalBlow ||
+                events[0].AttackerCardId != expectedCardId ||
+                events[0].DefenderCardId != 0 ||
+                events[0].Value != expectedDamage ||
+                !game.State.GameOver ||
+                game.State.Rival.LifePoints != 0)
+            {
+                throw new InvalidOperationException("Signature cinematic failed: " + label + " must emit Final Blow only when its direct attack reduces the opponent to 0 LP.");
+            }
+        }
+
+        private static void AssertSignatureCinematicViewBuilds()
+        {
+            CleanDuelCinematicView view = new CleanDuelCinematicView(new CleanDuelArtCache());
+            view.Build();
+            GameObject canvas = GameObject.Find("Duel Cinematic Layer");
+            if (canvas == null)
+            {
+                throw new InvalidOperationException("Signature cinematic view failed: the top-level Canvas was not created.");
+            }
+
+            Transform overlay = canvas.transform.Find("Cinematic Overlay");
+            Transform bluePortrait = overlay != null ? overlay.Find("Blue-Eyes Portrait") : null;
+            Transform darkPortrait = overlay != null ? overlay.Find("Dark Magician Portrait") : null;
+            Transform blueEyesModel = overlay != null ? overlay.Find("Blue-Eyes 3D Summon Model") : null;
+            Transform titleTransform = overlay != null ? overlay.Find("Cinematic Title") : null;
+            if (overlay == null ||
+                bluePortrait == null ||
+                darkPortrait == null ||
+                blueEyesModel == null ||
+                titleTransform == null)
+            {
+                UnityEngine.Object.DestroyImmediate(canvas);
+                throw new InvalidOperationException("Signature cinematic view failed: one or more required overlay elements are missing.");
+            }
+
+            CleanDuelCinematicEvent rivalryEvent = new CleanDuelCinematicEvent(
+                1,
+                CleanDuelCinematicKind.RivalryClimax,
+                CleanPlayerId.Local,
+                89631139,
+                "Blue-Eyes White Dragon",
+                46986414,
+                "Dark Magician",
+                CleanDuelGame.SignatureClimaxLifePointThreshold);
+            System.Collections.IEnumerator rivalryPlayback = view.Play(rivalryEvent);
+            if (!rivalryPlayback.MoveNext() ||
+                !bluePortrait.gameObject.activeSelf ||
+                !darkPortrait.gameObject.activeSelf ||
+                titleTransform.GetComponent<UnityEngine.UI.Text>().text != "RIVALRY CLIMAX")
+            {
+                UnityEngine.Object.DestroyImmediate(canvas);
+                throw new InvalidOperationException("Signature cinematic view failed: Rivalry Climax must show both signature portraits.");
+            }
+
+            view.HideImmediate();
+            CleanDuelCinematicEvent finalBlowEvent = new CleanDuelCinematicEvent(
+                2,
+                CleanDuelCinematicKind.SignatureFinalBlow,
+                CleanPlayerId.Local,
+                89631139,
+                "Blue-Eyes White Dragon",
+                0,
+                string.Empty,
+                3000);
+            System.Collections.IEnumerator finalPlayback = view.Play(finalBlowEvent);
+            if (!finalPlayback.MoveNext() ||
+                !bluePortrait.gameObject.activeSelf ||
+                darkPortrait.gameObject.activeSelf ||
+                titleTransform.GetComponent<UnityEngine.UI.Text>().text != "FINAL BLOW")
+            {
+                UnityEngine.Object.DestroyImmediate(canvas);
+                throw new InvalidOperationException("Signature cinematic view failed: Blue-Eyes Final Blow must focus on the attacking signature monster.");
+            }
+
+            view.HideImmediate();
+            CleanDuelCinematicEvent blueEyesSummonEvent = new CleanDuelCinematicEvent(
+                3,
+                CleanDuelCinematicKind.SignatureSummon,
+                CleanPlayerId.Local,
+                89631139,
+                "Blue-Eyes White Dragon",
+                0,
+                string.Empty,
+                0);
+            System.Collections.IEnumerator blueEyesSummonPlayback = view.Play(blueEyesSummonEvent);
+            bool startedBlueEyesSummon = blueEyesSummonPlayback.MoveNext();
+            Transform blueEyesPreviewStage = canvas.transform.Find("Blue-Eyes 3D Preview Stage");
+            if (!startedBlueEyesSummon ||
+                bluePortrait.gameObject.activeSelf ||
+                !blueEyesModel.gameObject.activeSelf ||
+                blueEyesModel.GetComponent<UnityEngine.UI.RawImage>().texture == null ||
+                blueEyesPreviewStage == null ||
+                !blueEyesPreviewStage.gameObject.activeSelf ||
+                darkPortrait.gameObject.activeSelf ||
+                titleTransform.GetComponent<UnityEngine.UI.Text>().text != "SIGNATURE SUMMON")
+            {
+                view.Dispose();
+                UnityEngine.Object.DestroyImmediate(canvas);
+                throw new InvalidOperationException("Signature cinematic view failed: Blue-Eyes White Dragon must replace its card portrait with the 3D summon model.");
+            }
+
+            view.HideImmediate();
+            CleanDuelCinematicEvent summonEvent = new CleanDuelCinematicEvent(
+                4,
+                CleanDuelCinematicKind.SignatureSummon,
+                CleanPlayerId.Local,
+                30576089,
+                "Blue-Eyes Jet Dragon",
+                0,
+                string.Empty,
+                0);
+            System.Collections.IEnumerator summonPlayback = view.Play(summonEvent);
+            if (!summonPlayback.MoveNext() ||
+                !bluePortrait.gameObject.activeSelf ||
+                blueEyesModel.gameObject.activeSelf ||
+                blueEyesPreviewStage.gameObject.activeSelf ||
+                darkPortrait.gameObject.activeSelf ||
+                titleTransform.GetComponent<UnityEngine.UI.Text>().text != "SIGNATURE SUMMON")
+            {
+                UnityEngine.Object.DestroyImmediate(canvas);
+                throw new InvalidOperationException("Signature cinematic view failed: an own summon cut-in must focus on the summoned monster.");
+            }
+
+            view.HideImmediate();
+            CleanDuelCinematicEvent effectEvent = new CleanDuelCinematicEvent(
+                5,
+                CleanDuelCinematicKind.EffectActivation,
+                CleanPlayerId.Local,
+                12580477,
+                "Raigeki",
+                0,
+                string.Empty,
+                0);
+            System.Collections.IEnumerator effectPlayback = view.Play(effectEvent);
+            if (!effectPlayback.MoveNext() ||
+                !bluePortrait.gameObject.activeSelf ||
+                blueEyesModel.gameObject.activeSelf ||
+                darkPortrait.gameObject.activeSelf ||
+                titleTransform.GetComponent<UnityEngine.UI.Text>().text != "CARD EFFECT")
+            {
+                UnityEngine.Object.DestroyImmediate(canvas);
+                throw new InvalidOperationException("Signature cinematic view failed: a listed card effect must use the effect presentation.");
+            }
+
+            view.HideImmediate();
+            CleanDuelCinematicEvent genericSummonEvent = new CleanDuelCinematicEvent(
+                6,
+                CleanDuelCinematicKind.GenericSummon,
+                CleanPlayerId.Local,
+                12381100,
+                "Dragon Master Magia",
+                0,
+                string.Empty,
+                0,
+                CleanSummonPresentationKind.Fusion);
+            System.Collections.IEnumerator genericSummonPlayback = view.Play(genericSummonEvent);
+            if (!genericSummonPlayback.MoveNext() ||
+                !bluePortrait.gameObject.activeSelf ||
+                blueEyesModel.gameObject.activeSelf ||
+                darkPortrait.gameObject.activeSelf ||
+                titleTransform.GetComponent<UnityEngine.UI.Text>().text != "FUSION SUMMON")
+            {
+                UnityEngine.Object.DestroyImmediate(canvas);
+                throw new InvalidOperationException("Signature cinematic view failed: a Fusion Summon must use the generic Fusion presentation.");
+            }
+
+            view.HideImmediate();
+            view.Dispose();
+            UnityEngine.Object.DestroyImmediate(canvas);
         }
 
         private static void AssertScreenshotDeckListFromSummary()
@@ -481,6 +1071,14 @@ namespace IcarusGame.EditorTools
                 throw new InvalidOperationException("Maxx C failed: it should draw exactly when the opponent Special Summons.");
             }
 
+            CleanDuelGame ownTurnMaxx = ReadyCleanGame();
+            ownTurnMaxx.State.TurnPlayer = CleanPlayerId.Local;
+            ownTurnMaxx.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(23434538), CleanPlayerId.Local));
+            if (!ownTurnMaxx.CanActivateLocalQuickEffectHandCard(0))
+            {
+                throw new InvalidOperationException("Maxx C failed: its Quick Effect is legal during either player's turn, including its controller's turn.");
+            }
+
             CleanDuelGame ghost = ReadyCleanGame();
             CleanCard activatedMonster = new CleanCard(CleanCardLibrary.Get(66961194), CleanPlayerId.Rival);
             ghost.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(59438930), CleanPlayerId.Local));
@@ -724,15 +1322,9 @@ namespace IcarusGame.EditorTools
             banishLock.State.Rival.Monsters[0] = new CleanCard(CleanCardLibrary.Get(89604813), CleanPlayerId.Rival);
             banishLock.State.Local.Graveyard.Add(new CleanCard(CleanCardLibrary.Get(24382602), CleanPlayerId.Local));
             banishLock.State.Local.Deck.Add(new CleanCard(CleanCardLibrary.Get(17655904), CleanPlayerId.Local));
-            if (banishLock.CanActivateGraveyardCard(0))
-            {
-                throw new InvalidOperationException("Blue-Eyes Ultimate Spirit Dragon failed: its opponent must not be able to banish cards from their GY.");
-            }
-
-            banishLock.State.Rival.Monsters[0].EffectsNegated = true;
             if (!banishLock.CanActivateGraveyardCard(0))
             {
-                throw new InvalidOperationException("Blue-Eyes Ultimate Spirit Dragon failed: its GY banish lock should stop while its effects are negated.");
+                throw new InvalidOperationException("Blue-Eyes Ultimate Spirit Dragon failed: it protects its controller's GY, not the opponent's own GY.");
             }
 
             CleanDuelGame trueLight = ReadyCleanGame();
@@ -3412,7 +4004,7 @@ namespace IcarusGame.EditorTools
         private static void AssertPhaseFlow()
         {
             CleanDuelGame firstTurn = new CleanDuelGame();
-            firstTurn.StartNewDuel();
+            firstTurn.StartNewDuel(SmokeTestSeed);
             if (firstTurn.State.Phase != CleanDuelPhase.Main || firstTurn.State.Local.Hand.Count != 5)
             {
                 throw new InvalidOperationException("Phase flow failed: the opening Draw and Standby Phases should automatically continue to Main Phase 1 without drawing a sixth card.");
@@ -3432,7 +4024,7 @@ namespace IcarusGame.EditorTools
             }
 
             CleanDuelGame game = new CleanDuelGame();
-            game.StartNewDuel();
+            game.StartNewDuel(SmokeTestSeed);
             game.State.TurnNumber = 2;
             if (!game.CanSelectPhase(CleanDuelPhase.Battle) || game.CanSelectPhase(CleanDuelPhase.Main2))
             {
@@ -3454,7 +4046,7 @@ namespace IcarusGame.EditorTools
             }
 
             CleanDuelGame endFromMain2 = new CleanDuelGame();
-            endFromMain2.StartNewDuel();
+            endFromMain2.StartNewDuel(SmokeTestSeed);
             endFromMain2.State.TurnPlayer = CleanPlayerId.Rival;
             endFromMain2.State.Phase = CleanDuelPhase.Main2;
             endFromMain2.State.Local.Hand.Clear();
@@ -3467,7 +4059,7 @@ namespace IcarusGame.EditorTools
             }
 
             CleanDuelGame endFromBattle = new CleanDuelGame();
-            endFromBattle.StartNewDuel();
+            endFromBattle.StartNewDuel(SmokeTestSeed);
             endFromBattle.State.TurnPlayer = CleanPlayerId.Local;
             endFromBattle.State.Phase = CleanDuelPhase.Battle;
             endFromBattle.State.Local.Hand.Clear();
@@ -3485,7 +4077,7 @@ namespace IcarusGame.EditorTools
             }
 
             CleanDuelGame standbyActions = new CleanDuelGame();
-            standbyActions.StartNewDuel();
+            standbyActions.StartNewDuel(SmokeTestSeed);
             standbyActions.State.Phase = CleanDuelPhase.Standby;
             standbyActions.State.Local.Hand.Clear();
             standbyActions.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(8240199), CleanPlayerId.Local));
@@ -3797,6 +4389,82 @@ namespace IcarusGame.EditorTools
 
             return false;
         }
+        private static void AssertHighPriorityBlueEyesRules()
+        {
+            CleanDuelGame legalBingo = ReadyCleanGame();
+            legalBingo.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(93437091), CleanPlayerId.Local));
+            legalBingo.State.Local.Deck.Add(new CleanCard(CleanCardLibrary.Get(55410871), CleanPlayerId.Local));
+            legalBingo.State.Local.Deck.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
+            legalBingo.State.Local.Deck.Add(new CleanCard(CleanCardLibrary.Get(30576089), CleanPlayerId.Local));
+            if (!legalBingo.CanActivateHandCard(0))
+            {
+                throw new InvalidOperationException("Bingo Machine failed: Blue-Eyes Ritual Monsters are Blue-Eyes monsters and must be legal reveal candidates.");
+            }
+
+            CleanDuelGame illegalBingo = ReadyCleanGame();
+            illegalBingo.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(93437091), CleanPlayerId.Local));
+            illegalBingo.State.Local.Deck.Add(new CleanCard(CleanCardLibrary.Get(89631139), CleanPlayerId.Local));
+            illegalBingo.State.Local.Deck.Add(new CleanCard(CleanCardLibrary.Get(93437091), CleanPlayerId.Local));
+            illegalBingo.State.Local.Deck.Add(new CleanCard(CleanCardLibrary.Get(41620959), CleanPlayerId.Local));
+            if (illegalBingo.CanActivateHandCard(0))
+            {
+                throw new InvalidOperationException("Bingo Machine failed: it cannot reveal itself, and Dragon Shrine does not mention either required Blue-Eyes name.");
+            }
+
+            CleanDuelGame chaosMaxReborn = ReadyCleanGame();
+            chaosMaxReborn.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(83764719), CleanPlayerId.Local));
+            CleanCard chaosMax = new CleanCard(CleanCardLibrary.Get(55410871), CleanPlayerId.Local) { ProperlySummoned = true };
+            chaosMaxReborn.State.Local.Graveyard.Add(chaosMax);
+            if (chaosMaxReborn.CanActivateHandCard(0))
+            {
+                throw new InvalidOperationException("Summon condition failed: a properly Ritual Summoned Chaos MAX still says 'Must be Ritual Summoned' and cannot be revived by Monster Reborn.");
+            }
+
+            CleanDuelGame magiaReborn = ReadyCleanGame();
+            magiaReborn.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(83764719), CleanPlayerId.Local));
+            CleanCard magia = new CleanCard(CleanCardLibrary.Get(12381100), CleanPlayerId.Local) { ProperlySummoned = true };
+            magiaReborn.State.Local.Graveyard.Add(magia);
+            if (magiaReborn.CanActivateHandCard(0))
+            {
+                throw new InvalidOperationException("Summon condition failed: Dragon Master Magia says 'Must be Fusion Summoned' and cannot be revived by Monster Reborn.");
+            }
+
+            CleanDuelGame alternativeReborn = ReadyCleanGame();
+            alternativeReborn.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(83764719), CleanPlayerId.Local));
+            CleanCard alternative = new CleanCard(CleanCardLibrary.Get(38517737), CleanPlayerId.Local) { ProperlySummoned = true };
+            alternativeReborn.State.Local.Graveyard.Add(alternative);
+            if (!alternativeReborn.CanActivateHandCard(0))
+            {
+                throw new InvalidOperationException("Summon condition failed: Alternative White Dragon says 'Must first', so a properly Summoned copy remains a legal GY revival target.");
+            }
+
+            CleanDuelGame spirit = ReadyCleanGame();
+            spirit.State.Local.Monsters[0] = new CleanCard(CleanCardLibrary.Get(42097666), CleanPlayerId.Local);
+            spirit.State.Local.Hand.Add(new CleanCard(CleanCardLibrary.Get(55410871), CleanPlayerId.Local));
+            if (spirit.CanActivateMonsterZoneCard(0))
+            {
+                throw new InvalidOperationException("Spirit with Eyes of Blue failed: its effect cannot bypass a Ritual Monster's required Ritual Summon.");
+            }
+
+            CleanDuelGame wishesAlternative = ReadyCleanGame();
+            CleanCard fieldAlternative = new CleanCard(CleanCardLibrary.Get(38517737), CleanPlayerId.Local);
+            wishesAlternative.State.Local.Graveyard.Add(new CleanCard(CleanCardLibrary.Get(80326401), CleanPlayerId.Local));
+            wishesAlternative.State.Local.Monsters[0] = fieldAlternative;
+            wishesAlternative.State.Local.ExtraDeck.Add(new CleanCard(CleanCardLibrary.Get(23995346), CleanPlayerId.Local));
+            if (!wishesAlternative.CanActivateGraveyardCard(0))
+            {
+                throw new InvalidOperationException("Wishes failed: Alternative White Dragon's name is Blue-Eyes White Dragon while face-up on the field.");
+            }
+
+            wishesAlternative.ActivateGraveyardCard(0);
+            wishesAlternative.ChoosePendingOption(0);
+            wishesAlternative.ChoosePendingOption(0);
+            if (fieldAlternative.CurrentAttack != 3400)
+            {
+                throw new InvalidOperationException("Wishes failed: the equipped monster must grant exactly 400 ATK to a face-up Alternative White Dragon.");
+            }
+        }
+
         private static CleanDuelGame ReadyCleanGame()
         {
             CleanDuelGame game = new CleanDuelGame();
@@ -3882,6 +4550,29 @@ namespace IcarusGame.EditorTools
                 if (string.IsNullOrEmpty(cards[i].Definition.EffectKey))
                 {
                     throw new InvalidOperationException(label + " card has no clean activation: " + cards[i].Definition.Name);
+                }
+            }
+        }
+
+        private static void AssertEveryDeckCardHasArtwork()
+        {
+            CleanDuelArtCache artCache = new CleanDuelArtCache();
+            HashSet<int> checkedCardIds = new HashSet<int>();
+            List<CleanCard> cards = CleanCardLibrary.BuildDeck(CleanPlayerId.Local);
+            cards.AddRange(CleanCardLibrary.BuildExtraDeck(CleanPlayerId.Local));
+            cards.Add(new CleanCard(CleanCardLibrary.Get(46986414), CleanPlayerId.Rival));
+            for (int i = 0; i < cards.Count; i++)
+            {
+                int cardId = cards[i].Definition.Id;
+                if (!checkedCardIds.Add(cardId))
+                {
+                    continue;
+                }
+
+                if (artCache.GetSprite(cardId) == null)
+                {
+                    throw new InvalidOperationException(
+                        "Card artwork validation failed: " + cards[i].Definition.Name + " (" + cardId + ") has no readable image.");
                 }
             }
         }

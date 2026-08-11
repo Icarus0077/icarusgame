@@ -9,6 +9,7 @@ namespace IcarusGame.CleanDuel
             new Dictionary<int, CleanCardDefinition>
             {
                 { 89631139, Monster(89631139, "Blue-Eyes White Dragon", 8, 3000, 2500, string.Empty, "LIGHT / Dragon / Normal") },
+                { 46986414, Monster(46986414, "Dark Magician", 7, 2500, 2100, string.Empty, "DARK / Spellcaster / Normal") },
                 { 54332792, Monster(54332792, "Neo Kaiser Sea Horse", 4, 1700, 1650, "neo_kaiser_clean", "LIGHT / Dragon / Tuner / Effect") },
                 { 88241506, Monster(88241506, "Maiden with Eyes of Blue", 1, 0, 0, "maiden_with_eyes_clean", "Spellcaster / Tuner / Effect") },
                 { 8240199, Monster(8240199, "Sage with Eyes of Blue", 1, 0, 1500, "sage_clean", "LIGHT / Spellcaster / Tuner / Effect") },
@@ -53,6 +54,7 @@ namespace IcarusGame.CleanDuel
             new Dictionary<int, string>
             {
                 { 89631139, "This legendary dragon is a powerful engine of destruction. Virtually invincible, very few have faced this awesome creature and lived to tell the tale." },
+                { 46986414, "The ultimate wizard in terms of attack and defense." },
                 { 54332792, "If you control \"Blue-Eyes White Dragon\": You can Special Summon this card from your hand. You can target 1 LIGHT Tuner you control; increase or decrease its Level by 1. If this card is sent from the field to the GY: You can send 1 \"Blue-Eyes\" monster or 1 monster that mentions \"Blue-Eyes White Dragon\" from your Deck to the GY, except \"Neo Kaiser Sea Horse\". You can only use each effect of \"Neo Kaiser Sea Horse\" once per turn." },
                 { 8240199, "When this card is Normal Summoned: You can add 1 Level 1 LIGHT Tuner from your Deck to your hand, except \"Sage with Eyes of Blue\". You can discard this card, then target 1 Effect Monster you control; send it to the GY, and if you do, Special Summon 1 \"Blue-Eyes\" monster from your Deck. You can only use this effect of \"Sage with Eyes of Blue\" once per turn." },
                 { 71039903, "Once per turn, during the End Phase, if this card is in the GY because it was sent there this turn: You can Special Summon 1 \"Blue-Eyes\" monster from your Deck. You can banish this card from your GY, then target 1 \"Blue-Eyes\" monster in your GY; add it to your hand. You can only use this effect of \"The White Stone of Ancients\" once per turn." },
@@ -68,14 +70,14 @@ namespace IcarusGame.CleanDuel
                 { 55410871, "You can Ritual Summon this card with \"Chaos Form\". Must be Ritual Summoned. Your opponent cannot target this card with card effects, also it cannot be destroyed by your opponent's card effects. If this card attacks a Defense Position monster, inflict double piercing battle damage." },
                 { 83764719, "Target 1 monster in either GY; Special Summon it." },
                 { 93437091, "Reveal 3 cards from your Deck that each meet at least 1 of the criteria listed below, your opponent randomly picks 1 for you to add to your hand, and you shuffle the rest into your Deck. You can only activate 1 \"Bingo Machine, Go!!!\" per turn. \"Blue-Eyes\" monster. Spell/Trap that mentions \"Blue-Eyes White Dragon\" or \"Blue-Eyes Ultimate Dragon\", except \"Bingo Machine, Go!!!\"." },
-                { 80326401, "Discard 1 card; add 1 Level 1 LIGHT Tuner and 1 Spell/Trap that mentions \"Blue-Eyes White Dragon\" from your Deck to your hand, except \"Wishes for Eyes of Blue\". You can banish this card from your GY, then target 1 \"Blue-Eyes White Dragon\" you control; equip 1 \"Blue-Eyes\" monster from your Extra Deck to it. You can only use each effect of \"Wishes for Eyes of Blue\" once per turn." },
-                { 17725109, "Special Summon 1 \"Blue-Eyes\" monster from your Deck, GY, or banishment in Defense Position, but you can only Special Summon \"Blue-Eyes White Dragon\" with this effect if you control no \"Blue-Eyes White Dragon\". You can banish this card from your GY; Fusion Summon 1 Fusion Monster from your Extra Deck, using monsters from your hand or field, including a \"Blue-Eyes\" monster. You can only use 1 \"Roar of the Blue-Eyed Dragons\" effect per turn, and only once that turn." },
+                { 80326401, "Discard 1 card; add 1 Level 1 LIGHT Tuner and 1 Spell/Trap that mentions \"Blue-Eyes White Dragon\" from your Deck to your hand, except \"Wishes for Eyes of Blue\". You can banish this card from your GY, then target 1 \"Blue-Eyes White Dragon\" you control; equip 1 \"Blue-Eyes\" monster from your Extra Deck to it as an Equip Spell that gives it 400 ATK. You can only use each effect of \"Wishes for Eyes of Blue\" once per turn." },
+                { 17725109, "Special Summon 1 \"Blue-Eyes\" monster from your Deck, GY, or banishment in Defense Position, but you can only Special Summon \"Blue-Eyes White Dragon\" with this effect if you control no \"Blue-Eyes White Dragon\". You can banish this card from your GY; Fusion Summon 1 Fusion Monster from your Extra Deck, using monsters from your hand or field, including a \"Blue-Eyes\" monster. For the rest of this turn after this card resolves, you cannot Special Summon from the Extra Deck, except Dragon monsters. You can only use 1 \"Roar of the Blue-Eyed Dragons\" effect per turn, and only once that turn." },
                 { 12580477, "Destroy all monsters your opponent controls." },
                 { 24094653, "Fusion Summon 1 Fusion Monster from your Extra Deck, using monsters from your hand or field as Fusion Material." },
                 { 21082832, "This card can be used to Ritual Summon any \"Chaos\" or \"Black Luster Soldier\" Ritual Monster. You must also Tribute monsters from your hand or field and/or banish \"Blue-Eyes White Dragon\" or \"Dark Magician\" from your GY, whose total Levels exactly equal the Level of the Ritual Monster you Ritual Summon." },
                 { 41620959, "Send 1 Dragon monster from your Deck to the GY, then, if that monster in your GY is a Dragon Normal Monster, you can send 1 more Dragon monster from your Deck to the GY. You can only activate 1 \"Dragon Shrine\" per turn." },
                 { 71143015, "During the Main Phase: Fusion Summon 1 Fusion Monster from your Extra Deck that mentions \"Blue-Eyes White Dragon\" or \"Blue-Eyes Ultimate Dragon\" as material, by shuffling the Fusion Materials listed on it from your hand, field, and/or GY into the Deck, then, you can destroy face-up cards your opponent controls, up to the number of \"Blue-Eyes White Dragon\" and \"Blue-Eyes Ultimate Dragon\" used from the field as material. You can only activate 1 \"Ultimate Fusion\" per turn." },
-                { 62089826, "Your opponent cannot target \"Blue-Eyes White Dragon\" in your Monster Zone with card effects. You can only use the following effect of \"True Light\" once per turn. You can activate 1 of these effects: Special Summon 1 \"Blue-Eyes White Dragon\" from your hand or GY; Set 1 Spell/Trap directly from your Deck, that mentions \"Blue-Eyes White Dragon\". If this face-up card in its owner's control leaves the field because of an opponent's card effect: Destroy all monsters you control." },
+                { 62089826, "Your opponent cannot target \"Blue-Eyes White Dragon\" in your Monster Zone with card effects. You can only use the following effect of \"True Light\" once per turn. You can activate 1 of these effects: Special Summon 1 \"Blue-Eyes White Dragon\" from your hand or GY; Set 1 Spell/Trap directly from your Deck, that mentions \"Blue-Eyes White Dragon\". If this face-up card is sent from the Spell & Trap Zone to the GY: Destroy all monsters you control." },
                 { 23995346, "\"Blue-Eyes White Dragon\" + \"Blue-Eyes White Dragon\" + \"Blue-Eyes White Dragon\"" },
                 { 12381100, "\"Blue-Eyes Ultimate Dragon\" or 3 \"Blue-Eyes\" monsters + 1 \"Chaos\" or \"Black Luster Soldier\" Ritual Monster. Must be Fusion Summoned. When your opponent activates a card or effect: You can negate the activation, and if you do, destroy that card. You can only use this effect of \"Dragon Master Magia\" in response to each card type (Monster, Spell, or Trap) once per turn. If this face-up card in its owner's control leaves the field because of an opponent's card: You can Special Summon 1 \"Blue-Eyes\" monster or 1 \"Chaos\" or \"Black Luster Soldier\" Ritual Monster from your Extra Deck or GY." },
                 { 59822133, "1 Tuner + 1+ non-Tuner \"Blue-Eyes\" monsters. Neither player can Special Summon 2 or more monsters at the same time. Once per turn, when an effect of a card in the GY is activated: You can negate the activation. You can Tribute this Synchro Summoned card; Special Summon 1 LIGHT Dragon Synchro Monster from your Extra Deck in Defense Position, except \"Blue-Eyes Spirit Dragon\", but destroy it during the End Phase of this turn." },
@@ -85,6 +87,8 @@ namespace IcarusGame.CleanDuel
 
         private static YgoCardDatabase database;
         private static bool triedDatabase;
+        private static MasterDuelCardCatalog catalog;
+        private static bool triedCatalog;
 
         public static List<CleanCard> BuildDeck(CleanPlayerId owner)
         {
@@ -100,7 +104,13 @@ namespace IcarusGame.CleanDuel
         public static CleanCardDefinition Get(int id)
         {
             CleanCardDefinition fallback;
-            if (!fallbackCards.TryGetValue(id, out fallback))
+            bool hasFallback = fallbackCards.TryGetValue(id, out fallback);
+            MasterDuelCardDefinition canonical = CatalogDefinition(id);
+            if (!hasFallback && canonical != null)
+            {
+                fallback = FromCatalog(canonical, string.Empty, string.Empty);
+            }
+            else if (!hasFallback)
             {
                 fallback = Monster(id, "Card " + id, 4, 1500, 1500, string.Empty, "Monster");
             }
@@ -108,13 +118,13 @@ namespace IcarusGame.CleanDuel
             YgoCardDatabase loaded = LoadDatabase();
             if (loaded == null)
             {
-                return WithFallbackText(fallback);
+                return WithCatalogFactsAndFallbackText(fallback, canonical);
             }
 
             YgoCardRecord record;
             if (!loaded.TryGetRecord(id, out record))
             {
-                return WithFallbackText(fallback);
+                return WithCatalogFactsAndFallbackText(fallback, canonical);
             }
 
             CardData data = YgoCardDatabase.CreateCardData(record, string.Empty, fallback.EffectKey);
@@ -124,27 +134,69 @@ namespace IcarusGame.CleanDuel
                 data.Name,
                 MapKind(data.Kind),
                 data.Level,
+                canonical != null ? canonical.Rank ?? 0 : 0,
+                canonical != null ? canonical.LinkRating ?? 0 : 0,
                 data.Attack,
                 data.Defense,
                 data.TypeLine,
                 data.Text,
-                effectKey);
+                effectKey,
+                canonical);
         }
 
-        private static CleanCardDefinition WithFallbackText(CleanCardDefinition fallback)
+        public static bool TryGetCatalogDefinition(int id, out MasterDuelCardDefinition definition)
+        {
+            definition = CatalogDefinition(id);
+            return definition != null;
+        }
+
+        private static CleanCardDefinition WithCatalogFactsAndFallbackText(CleanCardDefinition fallback, MasterDuelCardDefinition canonical)
         {
             string text;
             fallbackTexts.TryGetValue(fallback.Id, out text);
+            if (canonical == null)
+            {
+                return new CleanCardDefinition(
+                    fallback.Id,
+                    fallback.Name,
+                    fallback.Kind,
+                    fallback.Level,
+                    fallback.Rank,
+                    fallback.LinkRating,
+                    fallback.Attack,
+                    fallback.Defense,
+                    fallback.TypeLine,
+                    text ?? fallback.Text ?? string.Empty,
+                    fallback.EffectKey,
+                    null);
+            }
+
+            string selectedText = !string.IsNullOrEmpty(canonical.OfficialText)
+                ? canonical.OfficialText
+                : text ?? fallback.Text ?? string.Empty;
+            string effectKey = canonical.HasExecutableEffect
+                ? canonical.EffectHandlerId
+                : fallback.EffectKey;
+            return FromCatalog(canonical, selectedText, effectKey);
+        }
+
+        private static CleanCardDefinition FromCatalog(MasterDuelCardDefinition canonical, string text, string effectKey)
+        {
+            int attack = canonical.Attack.HasFixedValue ? canonical.Attack.Value : 0;
+            int defense = canonical.Defense.HasFixedValue ? canonical.Defense.Value : 0;
             return new CleanCardDefinition(
-                fallback.Id,
-                fallback.Name,
-                fallback.Kind,
-                fallback.Level,
-                fallback.Attack,
-                fallback.Defense,
-                fallback.TypeLine,
+                checked((int)canonical.NumericDatabaseId),
+                canonical.Name,
+                CatalogKind(canonical),
+                canonical.Level ?? 0,
+                canonical.Rank ?? 0,
+                canonical.LinkRating ?? 0,
+                attack,
+                defense,
+                CatalogTypeLine(canonical),
                 text ?? string.Empty,
-                fallback.EffectKey);
+                ResolveEffectKey(effectKey),
+                canonical);
         }
 
         private static List<CleanCard> BuildCards(int[] recipe, CleanPlayerId owner)
@@ -219,6 +271,72 @@ namespace IcarusGame.CleanDuel
             return database;
         }
 
+        private static MasterDuelCardDefinition CatalogDefinition(int id)
+        {
+            if (!triedCatalog)
+            {
+                triedCatalog = true;
+                string ignored;
+                MasterDuelCardCatalog.TryLoadDefault(out catalog, out ignored);
+            }
+
+            MasterDuelCardDefinition definition;
+            return catalog != null && catalog.TryGet(id, out definition) ? definition : null;
+        }
+
+        private static CleanCardKind CatalogKind(MasterDuelCardDefinition definition)
+        {
+            string frame = definition.Frame ?? string.Empty;
+            if (string.Equals(frame, "spell", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return CleanCardKind.Spell;
+            }
+
+            if (string.Equals(frame, "trap", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return CleanCardKind.Trap;
+            }
+
+            return CleanCardKind.Monster;
+        }
+
+        private static string CatalogTypeLine(MasterDuelCardDefinition definition)
+        {
+            CleanCardKind kind = CatalogKind(definition);
+            if (kind == CleanCardKind.Spell)
+            {
+                return string.IsNullOrEmpty(definition.RaceOrType) ? "Spell" : definition.RaceOrType + " Spell";
+            }
+
+            if (kind == CleanCardKind.Trap)
+            {
+                return string.IsNullOrEmpty(definition.RaceOrType) ? "Trap" : definition.RaceOrType + " Trap";
+            }
+
+            List<string> parts = new List<string>();
+            if (!string.IsNullOrEmpty(definition.Attribute))
+            {
+                parts.Add(definition.Attribute);
+            }
+
+            if (!string.IsNullOrEmpty(definition.RaceOrType))
+            {
+                parts.Add(definition.RaceOrType);
+            }
+
+            string cardClass = (definition.CardClass ?? string.Empty).Replace(" Monster", string.Empty);
+            string[] subtypes = cardClass.Split(new[] { ' ' }, System.StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < subtypes.Length; i++)
+            {
+                if (!parts.Contains(subtypes[i]))
+                {
+                    parts.Add(subtypes[i]);
+                }
+            }
+
+            return string.Join(" / ", parts.ToArray());
+        }
+
         private static CleanCardKind MapKind(CardKind kind)
         {
             switch (kind)
@@ -245,7 +363,21 @@ namespace IcarusGame.CleanDuel
 
         private static CleanCardDefinition Monster(int id, string name, int level, int attack, int defense, string effectKey, string typeLine)
         {
-            return new CleanCardDefinition(id, name, CleanCardKind.Monster, level, attack, defense, typeLine, string.Empty, effectKey);
+            bool xyz = typeLine.IndexOf("Xyz", System.StringComparison.OrdinalIgnoreCase) >= 0;
+            bool link = typeLine.IndexOf("Link", System.StringComparison.OrdinalIgnoreCase) >= 0;
+            return new CleanCardDefinition(
+                id,
+                name,
+                CleanCardKind.Monster,
+                xyz || link ? 0 : level,
+                xyz ? level : 0,
+                link ? level : 0,
+                attack,
+                defense,
+                typeLine,
+                string.Empty,
+                effectKey,
+                null);
         }
 
         private static CleanCardDefinition RitualMonster(int id, string name, int level, int attack, int defense, string effectKey, string typeLine)

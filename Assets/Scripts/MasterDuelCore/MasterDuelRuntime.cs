@@ -79,18 +79,60 @@ namespace IcarusGame.MasterDuel
             string text,
             string archetype,
             string effectId)
+            : this(
+                id,
+                name,
+                kind,
+                frame,
+                frame == MonsterFrame.Xyz || frame == MonsterFrame.Link ? 0 : level,
+                frame == MonsterFrame.Xyz ? level : 0,
+                frame == MonsterFrame.Link ? level : 0,
+                attack,
+                defense,
+                typeLine,
+                text,
+                archetype,
+                effectId,
+                null)
+        {
+        }
+
+        public CardData(
+            int id,
+            string name,
+            CardKind kind,
+            MonsterFrame frame,
+            int level,
+            int rank,
+            int linkRating,
+            int attack,
+            int defense,
+            string typeLine,
+            string text,
+            string archetype,
+            string effectId,
+            MasterDuelCardDefinition canonicalDefinition)
         {
             Id = id;
             Name = name;
             Kind = kind;
             Frame = frame;
             Level = level;
-            Attack = attack;
-            Defense = defense;
+            Rank = rank;
+            LinkRating = linkRating;
+            AttackStat = canonicalDefinition != null
+                ? canonicalDefinition.Attack
+                : RuntimeStat(attack);
+            DefenseStat = canonicalDefinition != null
+                ? canonicalDefinition.Defense
+                : RuntimeStat(defense);
+            Attack = AttackStat.HasFixedValue ? AttackStat.Value : 0;
+            Defense = DefenseStat.HasFixedValue ? DefenseStat.Value : 0;
             TypeLine = typeLine;
             Text = text;
             Archetype = archetype;
             EffectId = effectId;
+            CanonicalDefinition = canonicalDefinition;
         }
 
         public int Id { get; private set; }
@@ -98,12 +140,29 @@ namespace IcarusGame.MasterDuel
         public CardKind Kind { get; private set; }
         public MonsterFrame Frame { get; private set; }
         public int Level { get; private set; }
+        public int Rank { get; private set; }
+        public int LinkRating { get; private set; }
         public int Attack { get; private set; }
         public int Defense { get; private set; }
+        public MasterDuelStat AttackStat { get; private set; }
+        public MasterDuelStat DefenseStat { get; private set; }
         public string TypeLine { get; private set; }
         public string Text { get; private set; }
         public string Archetype { get; private set; }
         public string EffectId { get; private set; }
+        public MasterDuelCardDefinition CanonicalDefinition { get; private set; }
+
+        private static MasterDuelStat RuntimeStat(int value)
+        {
+            if (value == int.MinValue)
+            {
+                return new MasterDuelStat(MasterDuelStatKind.NotApplicable, 0);
+            }
+
+            return value < 0
+                ? new MasterDuelStat(MasterDuelStatKind.Variable, 0)
+                : new MasterDuelStat(MasterDuelStatKind.Fixed, value);
+        }
 
         public bool IsMonster
         {
@@ -960,7 +1019,7 @@ namespace IcarusGame.MasterDuel
                 case MonsterFrame.Synchro:
                     return SelectSynchroMaterials(player, extra.Level);
                 case MonsterFrame.Xyz:
-                    return SelectXyzMaterials(player, extra.Level);
+                    return SelectXyzMaterials(player, extra.Rank);
                 case MonsterFrame.Link:
                     return FirstFaceUpMaterials(player, RequiredLinkMaterials(extra));
                 default:
@@ -1395,6 +1454,9 @@ namespace IcarusGame.MasterDuel
 
     public static class SampleCards
     {
+        private static MasterDuelCardCatalog catalog;
+        private static bool triedCatalog;
+
         public static List<CardData> BlueEyesMainDeck()
         {
             List<CardData> deck = new List<CardData>();
@@ -1475,17 +1537,152 @@ namespace IcarusGame.MasterDuel
 
         private static CardData Monster(int id, string name, MonsterFrame frame, int level, int attack, int defense, string typeLine, string text, string archetype, string effectId)
         {
-            return new CardData(id, name, CardKind.Monster, frame, level, attack, defense, typeLine, text, archetype, effectId);
+            MasterDuelCardDefinition canonical;
+            return TryGetCanonical(id, out canonical)
+                ? FromCanonical(canonical, text, archetype, effectId)
+                : new CardData(id, name, CardKind.Monster, frame, level, attack, defense, typeLine, text, archetype, effectId);
         }
 
         private static CardData Spell(int id, string name, string typeLine, string text, string archetype, string effectId)
         {
-            return new CardData(id, name, CardKind.Spell, MonsterFrame.Normal, 0, 0, 0, typeLine, text, archetype, effectId);
+            MasterDuelCardDefinition canonical;
+            return TryGetCanonical(id, out canonical)
+                ? FromCanonical(canonical, text, archetype, effectId)
+                : new CardData(id, name, CardKind.Spell, MonsterFrame.Normal, 0, 0, 0, typeLine, text, archetype, effectId);
         }
 
         private static CardData Trap(int id, string name, string typeLine, string text, string archetype, string effectId)
         {
-            return new CardData(id, name, CardKind.Trap, MonsterFrame.Normal, 0, 0, 0, typeLine, text, archetype, effectId);
+            MasterDuelCardDefinition canonical;
+            return TryGetCanonical(id, out canonical)
+                ? FromCanonical(canonical, text, archetype, effectId)
+                : new CardData(id, name, CardKind.Trap, MonsterFrame.Normal, 0, 0, 0, typeLine, text, archetype, effectId);
+        }
+
+        private static bool TryGetCanonical(int id, out MasterDuelCardDefinition definition)
+        {
+            definition = null;
+            if (!triedCatalog)
+            {
+                triedCatalog = true;
+                string ignored;
+                MasterDuelCardCatalog.TryLoadDefault(out catalog, out ignored);
+            }
+
+            return catalog != null && catalog.TryGet(id, out definition);
+        }
+
+        private static CardData FromCanonical(
+            MasterDuelCardDefinition definition,
+            string fallbackText,
+            string fallbackArchetype,
+            string fallbackEffectId)
+        {
+            CardKind kind = CatalogKind(definition);
+            MonsterFrame frame = CatalogFrame(definition);
+            string text = !string.IsNullOrEmpty(definition.OfficialText) ? definition.OfficialText : fallbackText;
+            string effectId = definition.HasExecutableEffect ? definition.EffectHandlerId : fallbackEffectId;
+            string archetype = !string.IsNullOrEmpty(definition.Archetype) ? definition.Archetype : fallbackArchetype;
+            return new CardData(
+                checked((int)definition.NumericDatabaseId),
+                definition.Name,
+                kind,
+                frame,
+                definition.Level ?? 0,
+                definition.Rank ?? 0,
+                definition.LinkRating ?? 0,
+                definition.Attack.HasFixedValue ? definition.Attack.Value : 0,
+                definition.Defense.HasFixedValue ? definition.Defense.Value : 0,
+                CatalogTypeLine(definition, kind),
+                text ?? string.Empty,
+                archetype ?? string.Empty,
+                effectId ?? string.Empty,
+                definition);
+        }
+
+        private static CardKind CatalogKind(MasterDuelCardDefinition definition)
+        {
+            if (string.Equals(definition.Frame, "spell", StringComparison.OrdinalIgnoreCase))
+            {
+                return CardKind.Spell;
+            }
+
+            if (string.Equals(definition.Frame, "trap", StringComparison.OrdinalIgnoreCase))
+            {
+                return CardKind.Trap;
+            }
+
+            return CardKind.Monster;
+        }
+
+        private static MonsterFrame CatalogFrame(MasterDuelCardDefinition definition)
+        {
+            string frame = definition.Frame ?? string.Empty;
+            if (frame.IndexOf("link", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return MonsterFrame.Link;
+            }
+
+            if (frame.IndexOf("xyz", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return MonsterFrame.Xyz;
+            }
+
+            if (frame.IndexOf("synchro", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return MonsterFrame.Synchro;
+            }
+
+            if (frame.IndexOf("fusion", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return MonsterFrame.Fusion;
+            }
+
+            if (frame.IndexOf("ritual", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return MonsterFrame.Ritual;
+            }
+
+            return frame.IndexOf("normal", StringComparison.OrdinalIgnoreCase) >= 0
+                ? MonsterFrame.Normal
+                : MonsterFrame.Effect;
+        }
+
+        private static string CatalogTypeLine(MasterDuelCardDefinition definition, CardKind kind)
+        {
+            if (kind == CardKind.Spell)
+            {
+                return string.IsNullOrEmpty(definition.RaceOrType) ? "Spell" : definition.RaceOrType + " Spell";
+            }
+
+            if (kind == CardKind.Trap)
+            {
+                return string.IsNullOrEmpty(definition.RaceOrType) ? "Trap" : definition.RaceOrType + " Trap";
+            }
+
+            List<string> parts = new List<string>();
+            if (!string.IsNullOrEmpty(definition.Attribute))
+            {
+                parts.Add(definition.Attribute);
+            }
+
+            if (!string.IsNullOrEmpty(definition.RaceOrType))
+            {
+                parts.Add(definition.RaceOrType);
+            }
+
+            string[] subtypes = (definition.CardClass ?? string.Empty)
+                .Replace(" Monster", string.Empty)
+                .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < subtypes.Length; i++)
+            {
+                if (!parts.Contains(subtypes[i]))
+                {
+                    parts.Add(subtypes[i]);
+                }
+            }
+
+            return string.Join(" / ", parts.ToArray());
         }
 
         private static void AddCopies(List<CardData> deck, CardData card, int copies)
@@ -1523,7 +1720,12 @@ namespace IcarusGame.MasterDuel
                 : "Origin: Main Deck.");
             if (card.Data.IsMonster)
             {
-                builder.AppendLine("Level/Rank/Link " + card.Data.Level + "   ATK " + card.CurrentAttack + " / DEF " + card.CurrentDefense);
+                string rating = card.Data.Frame == MonsterFrame.Xyz
+                    ? "Rank " + card.Data.Rank
+                    : card.Data.Frame == MonsterFrame.Link
+                        ? "Link " + card.Data.LinkRating
+                        : "Level " + card.Data.Level;
+                builder.AppendLine(rating + "   ATK " + card.CurrentAttack + " / DEF " + card.CurrentDefense);
                 if (card.Data.Frame == MonsterFrame.Synchro)
                 {
                     builder.AppendLine("Synchro rule: exactly 1 face-up Tuner + 1 or more face-up non-Tuners; their Levels must exactly total " + card.Data.Level + ".");
@@ -2425,7 +2627,12 @@ namespace IcarusGame.MasterDuel
             name.raycastTarget = false;
             AddLayout(name.gameObject, -1f, 48f, 0f, 0f);
             Text stats = Label("Stats", go.transform, 11, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.95f, 0.95f, 1f, 1f));
-            stats.text = card.Data.IsMonster && !card.FaceDown ? "Lv " + card.Data.Level + "\nATK " + card.CurrentAttack : card.Data.Kind.ToString();
+            string ratingLabel = card.Data.Frame == MonsterFrame.Xyz
+                ? "Rk " + card.Data.Rank
+                : card.Data.Frame == MonsterFrame.Link
+                    ? "Link " + card.Data.LinkRating
+                    : "Lv " + card.Data.Level;
+            stats.text = card.Data.IsMonster && !card.FaceDown ? ratingLabel + "\nATK " + card.CurrentAttack : card.Data.Kind.ToString();
             stats.raycastTarget = false;
             AddLayout(stats.gameObject, -1f, 46f, 1f, 0f);
             return button;

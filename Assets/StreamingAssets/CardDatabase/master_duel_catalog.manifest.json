@@ -1,0 +1,15 @@
+{
+    "schemaVersion":  2,
+    "source":  "YU_GI_OH_MASTER_DUEL_CARD_REFERENCE.md",
+    "snapshotDate":  "2026-08-10",
+    "databaseVersion":  "146.37",
+    "databaseLastUpdate":  "2026-08-07 12:00:19",
+    "sourceSha256":  "fb1ed15711974507efe17ea0472f3421bb040a24fc13cf8f740180926706b735",
+    "catalogSha256":  "a39cbd6948c696155f468bf9d04b0e32aa8dace3bf8729d4d3d0296bfb3d4288",
+    "cardCount":  13820,
+    "generatedFromStaticReference":  true,
+    "defaultImplementationStatus":  "StaticDataValidated",
+    "validationErrors":  [
+
+                         ]
+}

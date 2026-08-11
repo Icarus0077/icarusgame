@@ -21,6 +21,7 @@ namespace IcarusGame.CleanDuel
         private Text rivalLpText;
         private Text localNameText;
         private Text rivalNameText;
+        private RectTransform rivalStatusPanel;
         private Text phaseOrbText;
         private Button phaseOrbButton;
         private Image phaseOrbImage;
@@ -29,6 +30,7 @@ namespace IcarusGame.CleanDuel
         private Text phaseMenuTitle;
         private Button duelMenuButton;
         private RectTransform duelMenuPanel;
+        private Button aiDifficultyButton;
         private Sprite phaseCircleSprite;
         private Sprite roundedPanelSprite;
         private Sprite roundedButtonSprite;
@@ -103,6 +105,7 @@ namespace IcarusGame.CleanDuel
             BuildActions(canvasRect);
             BuildQuickButtons(canvasRect);
             BuildLog(canvasRect);
+            rivalStatusPanel.SetAsLastSibling();
             BuildChoicePrompt(canvasRect);
             BuildGameOverOverlay(canvasRect);
         }
@@ -123,9 +126,9 @@ namespace IcarusGame.CleanDuel
         {
             CleanDuelState state = game.State;
             localNameText.text = state.Local.Name;
-            localLpText.text = "LP  " + state.Local.LifePoints;
+            localLpText.text = "LP  " + Mathf.Max(0, state.Local.LifePoints);
             rivalNameText.text = state.Rival.Name;
-            rivalLpText.text = "LP  " + state.Rival.LifePoints;
+            rivalLpText.text = "LP  " + Mathf.Max(0, state.Rival.LifePoints);
             RenderPhaseControl(game);
 
             RenderInspector(selectedCard, revealSelectedFaceDownCard, state, game);
@@ -271,24 +274,35 @@ namespace IcarusGame.CleanDuel
             gearText.raycastTarget = false;
             Stretch(gearText.rectTransform);
 
-            RectTransform rival = Panel("Rival LP Panel", canvas, CleanDuelVisualTheme.Panel);
-            Anchor(rival, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-350f, -98f), new Vector2(-20f, -18f));
-            AddVertical(rival.gameObject, 14, 18, 7, 7, 0f, TextAnchor.MiddleRight);
-            rivalNameText = Label("Rival Name", rival, 20, FontStyle.Bold, TextAnchor.MiddleRight, CleanDuelVisualTheme.TextPrimary);
+            rivalStatusPanel = Panel("Opponent LP Panel", canvas, CleanDuelVisualTheme.PanelRaised);
+            Anchor(rivalStatusPanel, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-386f, -106f), new Vector2(-20f, -18f));
+            Outline rivalOutline = rivalStatusPanel.gameObject.AddComponent<Outline>();
+            rivalOutline.effectColor = new Color(
+                CleanDuelVisualTheme.RivalAccent.r,
+                CleanDuelVisualTheme.RivalAccent.g,
+                CleanDuelVisualTheme.RivalAccent.b,
+                0.85f);
+            rivalOutline.effectDistance = new Vector2(2f, -2f);
+            AddVertical(rivalStatusPanel.gameObject, 14, 24, 8, 8, 0f, TextAnchor.MiddleRight);
+            rivalNameText = Label("Opponent Name", rivalStatusPanel, 20, FontStyle.Bold, TextAnchor.MiddleRight, CleanDuelVisualTheme.RivalGlow);
             AddLayout(rivalNameText.gameObject, -1f, 26f, 1f, 0f);
-            rivalLpText = Label("Rival LP", rival, 36, FontStyle.Bold, TextAnchor.MiddleRight, Color.white);
-            AddLayout(rivalLpText.gameObject, -1f, 40f, 1f, 0f);
+            rivalLpText = Label("Opponent LP", rivalStatusPanel, 38, FontStyle.Bold, TextAnchor.MiddleRight, Color.white);
+            AddLayout(rivalLpText.gameObject, -1f, 44f, 1f, 0f);
         }
 
         private void BuildDuelMenu(RectTransform canvas)
         {
             duelMenuPanel = Panel("Duel Menu", canvas, new Color(0.012f, 0.04f, 0.08f, 0.98f));
-            Anchor(duelMenuPanel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -278f), new Vector2(282f, -92f));
+            Anchor(duelMenuPanel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -332f), new Vector2(304f, -92f));
             AddVertical(duelMenuPanel.gameObject, 14, 14, 14, 14, 8f, TextAnchor.UpperCenter);
 
             Text title = Label("Duel Menu Title", duelMenuPanel, 19, FontStyle.Bold, TextAnchor.MiddleCenter, CleanDuelVisualTheme.TextPrimary);
             title.text = "DUEL MENU";
             AddLayout(title.gameObject, -1f, 30f, 1f, 0f);
+
+            aiDifficultyButton = AddChoiceButton("Opponent AI Difficulty", duelMenuPanel, runtime.CycleRivalAiDifficulty);
+            aiDifficultyButton.GetComponent<Image>().color = new Color(0.12f, 0.48f, 0.72f, 0.97f);
+            aiDifficultyButton.GetComponentInChildren<Text>().text = "Opponent AI: Intermediate";
 
             Button surrenderButton = AddChoiceButton("Surrender Duel", duelMenuPanel, RequestSurrenderFromMenu);
             surrenderButton.GetComponent<Image>().color = CleanDuelVisualTheme.AlertCoral;
@@ -706,6 +720,11 @@ namespace IcarusGame.CleanDuel
         {
             bool canOpen = state != null && !state.GameOver && state.PendingChoice == null;
             duelMenuButton.interactable = canOpen;
+            if (aiDifficultyButton != null)
+            {
+                aiDifficultyButton.interactable = canOpen && state.TurnPlayer == CleanPlayerId.Local;
+                aiDifficultyButton.GetComponentInChildren<Text>().text = "Opponent AI: " + runtime.RivalAiDifficulty;
+            }
             if (!canOpen)
             {
                 duelMenuOpen = false;
@@ -927,8 +946,13 @@ namespace IcarusGame.CleanDuel
             }
 
             string typeLine = card.Definition.TypeLine ?? string.Empty;
-            string levelLabel = typeLine.IndexOf("Xyz", System.StringComparison.OrdinalIgnoreCase) >= 0 ? "RANK" : "LEVEL";
-            return levelLabel + "  " + card.Definition.Level + "\nATK  " + card.CurrentAttack + "\nDEF  " + card.CurrentDefense;
+            if (typeLine.IndexOf("Link", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return "LINK  " + card.Definition.LinkRating + "\nATK  " + card.CurrentAttack;
+            }
+
+            bool xyz = typeLine.IndexOf("Xyz", System.StringComparison.OrdinalIgnoreCase) >= 0;
+            return (xyz ? "RANK" : "LEVEL") + "  " + (xyz ? card.Definition.Rank : card.Definition.Level) + "\nATK  " + card.CurrentAttack + "\nDEF  " + card.CurrentDefense;
         }
 
         private string FullStats(CleanCard card)
@@ -936,8 +960,13 @@ namespace IcarusGame.CleanDuel
             if (card.Definition.Kind == CleanCardKind.Monster)
             {
                 string typeLine = card.Definition.TypeLine ?? string.Empty;
-                string rankLabel = typeLine.IndexOf("Xyz", System.StringComparison.OrdinalIgnoreCase) >= 0 ? "Rank " : "Level ";
-                return rankLabel + card.Definition.Level + "  ATK " + card.CurrentAttack + "  DEF " + card.CurrentDefense;
+                if (typeLine.IndexOf("Link", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return "Link " + card.Definition.LinkRating + "  ATK " + card.CurrentAttack;
+                }
+
+                bool xyz = typeLine.IndexOf("Xyz", System.StringComparison.OrdinalIgnoreCase) >= 0;
+                return (xyz ? "Rank " : "Level ") + (xyz ? card.Definition.Rank : card.Definition.Level) + "  ATK " + card.CurrentAttack + "  DEF " + card.CurrentDefense;
             }
 
             return card.Definition.Kind + "  " + card.Definition.TypeLine;

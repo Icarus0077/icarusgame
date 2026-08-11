@@ -1,0 +1,1264 @@
+{
+    "schemaVersion":  1,
+    "snapshotDate":  "2026-08-10",
+    "sourceJson":  "icarus-master-duel-cardinfo-2026-08-10.json",
+    "sourceJsonSha256":  "5bda4054067906c8a1be0fbe4ee8c1794af17167d635244bd96644a6e8c0628d",
+    "catalog":  "master_duel_catalog.tsv",
+    "catalogSha256":  "a39cbd6948c696155f468bf9d04b0e32aa8dace3bf8729d4d3d0296bfb3d4288",
+    "catalogCardCount":  13820,
+    "manualOverrideCount":  30,
+    "generatedDraftCount":  13790,
+    "generatedUniqueDatabaseIds":  13790,
+    "shardCount":  138,
+    "cardsPerShard":  100,
+    "noExecutableEffectCount":  648,
+    "confidenceCounts":  {
+                             "high":  661,
+                             "medium":  10310,
+                             "low":  2819
+                         },
+    "shards":  [
+                   {
+                       "file":  "CARDS_00001_00100.md",
+                       "start":  1,
+                       "end":  100,
+                       "count":  100,
+                       "firstCard":  "1st Movement Solo",
+                       "lastCard":  "Abyss-sting Triaina",
+                       "sha256":  "344556cc928a7569aa4ddaa19fd01cf79880281b646dcf8136682adc9cc23b76"
+                   },
+                   {
+                       "file":  "CARDS_00101_00200.md",
+                       "start":  101,
+                       "end":  200,
+                       "count":  100,
+                       "firstCard":  "Abyss-strom",
+                       "lastCard":  "Alghoul Mazera",
+                       "sha256":  "cfc6fc41e1b6c0ccffe403fd8b6d6ea1de85c778459bdf320214c6c5ed6d5ff7"
+                   },
+                   {
+                       "file":  "CARDS_00201_00300.md",
+                       "start":  201,
+                       "end":  300,
+                       "count":  100,
+                       "firstCard":  "Alice, Lady of Lament",
+                       "lastCard":  "Amaze Attraction Horror House",
+                       "sha256":  "42b0da421a7702f068d639399b61f08b6e0d68a1c890a113abe201b29115dbde"
+                   },
+                   {
+                       "file":  "CARDS_00301_00400.md",
+                       "start":  301,
+                       "end":  400,
+                       "count":  100,
+                       "firstCard":  "Amaze Attraction Majestic Merry-Go-Round",
+                       "lastCard":  "Ancient Gear Box",
+                       "sha256":  "f0ae5d88c0973d8f61ad6312883db22e9d42c637887e1f9d89ad1f94f8ff2529"
+                   },
+                   {
+                       "file":  "CARDS_00401_00500.md",
+                       "start":  401,
+                       "end":  500,
+                       "count":  100,
+                       "firstCard":  "Ancient Gear Cannon",
+                       "lastCard":  "Ape Magician",
+                       "sha256":  "dcb485a1094a2adfe77bdeca9d9d4fb88409075ab27a4bc5f5c2df40a06e3de9"
+                   },
+                   {
+                       "file":  "CARDS_00501_00600.md",
+                       "start":  501,
+                       "end":  600,
+                       "count":  100,
+                       "firstCard":  "Apex Predation",
+                       "lastCard":  "Archfiend\u0027s Advent",
+                       "sha256":  "f763764ad652525f31e12338a0688e832fd13ddf22379f3ce0c382e3ca2bcb2e"
+                   },
+                   {
+                       "file":  "CARDS_00601_00700.md",
+                       "start":  601,
+                       "end":  700,
+                       "count":  100,
+                       "firstCard":  "Archfiend\u0027s Ascent",
+                       "lastCard":  "Aromage Jasmine",
+                       "sha256":  "55abc139d29dbdec2865195152c8df8e4c5fea9a8b2a6a06a77a1d5a05e0c6df"
+                   },
+                   {
+                       "file":  "CARDS_00701_00800.md",
+                       "start":  701,
+                       "end":  800,
+                       "count":  100,
+                       "firstCard":  "Aromage Laurel",
+                       "lastCard":  "Asymmetaphys",
+                       "sha256":  "4accd4771b06b557ad2e38b731a91e06e755db6504a8b5db5194061c83e88b17"
+                   },
+                   {
+                       "file":  "CARDS_00801_00900.md",
+                       "start":  801,
+                       "end":  900,
+                       "count":  100,
+                       "firstCard":  "At One With the Sword",
+                       "lastCard":  "Backup Warrior",
+                       "sha256":  "80e4218d172232415efa1187c122f3ad80826c75e74a0851ec22744e6f6d1f2a"
+                   },
+                   {
+                       "file":  "CARDS_00901_01000.md",
+                       "start":  901,
+                       "end":  1000,
+                       "count":  100,
+                       "firstCard":  "Bacon Saver",
+                       "lastCard":  "Battlewasp - Hama the Conquering Bow",
+                       "sha256":  "5df22e081e78c0d2aea92fa3a9eff47062f43a48322476ff745f43c0f441a474"
+                   },
+                   {
+                       "file":  "CARDS_01001_01100.md",
+                       "start":  1001,
+                       "end":  1100,
+                       "count":  100,
+                       "firstCard":  "Battlewasp - Nest",
+                       "lastCard":  "Berserker Crush",
+                       "sha256":  "5c839625d19c08b01b4dc32244fef489d363510c64b6237abe4c39d52b4ddbb7"
+                   },
+                   {
+                       "file":  "CARDS_01101_01200.md",
+                       "start":  1101,
+                       "end":  1200,
+                       "count":  100,
+                       "firstCard":  "Berserker of the Tenyi",
+                       "lastCard":  "Blackwing - Abrolhos the Megaquake",
+                       "sha256":  "408bdd39f37dd118476b6b9ba6a9b8ed2592f1bb08a494623472cece7aa2dbfc"
+                   },
+                   {
+                       "file":  "CARDS_01201_01300.md",
+                       "start":  1201,
+                       "end":  1300,
+                       "count":  100,
+                       "firstCard":  "Blackwing - Aurora the Northern Lights",
+                       "lastCard":  "Blizzard Thunderbird",
+                       "sha256":  "5c397126d28dc9ed93bb5f9a48923211f1d011e820143c10b1473361f9a9f83c"
+                   },
+                   {
+                       "file":  "CARDS_01301_01400.md",
+                       "start":  1301,
+                       "end":  1400,
+                       "count":  100,
+                       "firstCard":  "Blizzard Warrior",
+                       "lastCard":  "Boulder Tortoise",
+                       "sha256":  "c15e555fc5593d38f3bb8b5c84fed46dc254b868874d5b12634a36062a50f28a"
+                   },
+                   {
+                       "file":  "CARDS_01401_01500.md",
+                       "start":  1401,
+                       "end":  1500,
+                       "count":  100,
+                       "firstCard":  "Bound Wand",
+                       "lastCard":  "Brron, Mad King of Dark World",
+                       "sha256":  "c6968233a7de17344aaa0ed4350272067dfc8cb252786215a14cd9a1104aee79"
+                   },
+                   {
+                       "file":  "CARDS_01501_01600.md",
+                       "start":  1501,
+                       "end":  1600,
+                       "count":  100,
+                       "firstCard":  "Brushfire Knight",
+                       "lastCard":  "Bystial Druiswurm",
+                       "sha256":  "08c0daca21924abfe6a4ff8b39d0f3ed8bb0fbaec79c5da3c00575c88c607838"
+                   },
+                   {
+                       "file":  "CARDS_01601_01700.md",
+                       "start":  1601,
+                       "end":  1700,
+                       "count":  100,
+                       "firstCard":  "Bystial Magnamhut",
+                       "lastCard":  "Celestial Transformation",
+                       "sha256":  "a1baee43e38bbc6cb26206af6840f477db6e91ea80b6feb97050a36460246556"
+                   },
+                   {
+                       "file":  "CARDS_01701_01800.md",
+                       "start":  1701,
+                       "end":  1800,
+                       "count":  100,
+                       "firstCard":  "Celestial Wolf Lord, Blue Sirius",
+                       "lastCard":  "Charioteer of Prophecy",
+                       "sha256":  "33fa41f01a03426e530ea0e50756e190ffedd3375e46fc0e5bb8dcfc7cd0d877"
+                   },
+                   {
+                       "file":  "CARDS_01801_01900.md",
+                       "start":  1801,
+                       "end":  1900,
+                       "count":  100,
+                       "firstCard":  "Charm of Shabti",
+                       "lastCard":  "Claw Reacher",
+                       "sha256":  "5bc06df478ef5d48c2b3b820fb6590a3838bbbd30c155d462e45e2e00e23ae40"
+                   },
+                   {
+                       "file":  "CARDS_01901_02000.md",
+                       "start":  1901,
+                       "end":  2000,
+                       "count":  100,
+                       "firstCard":  "Clay Charge",
+                       "lastCard":  "Compulsory Evacuation Device",
+                       "sha256":  "4bb6a93f3cd043b0dd91f343ecee7b8e51b0beed9947b60233acb0518bd9a1bd"
+                   },
+                   {
+                       "file":  "CARDS_02001_02100.md",
+                       "start":  2001,
+                       "end":  2100,
+                       "count":  100,
+                       "firstCard":  "Comrade Swordsman of Landstar",
+                       "lastCard":  "Cosmo Queen the Queen of Prayers",
+                       "sha256":  "08d058a91798a6cc6ecf0c68628921793d6b6d5ba9828a41114b4d31bf1db066"
+                   },
+                   {
+                       "file":  "CARDS_02101_02200.md",
+                       "start":  2101,
+                       "end":  2200,
+                       "count":  100,
+                       "firstCard":  "Cosmos Channelling",
+                       "lastCard":  "Crystal Beast Sapphire Pegasus",
+                       "sha256":  "8ede8bc37d6e94dba4f55f2f32caa67a6274724ce9534b0a12fd66d928c4f3e2"
+                   },
+                   {
+                       "file":  "CARDS_02201_02300.md",
+                       "start":  2201,
+                       "end":  2300,
+                       "count":  100,
+                       "firstCard":  "Crystal Beast Topaz Tiger",
+                       "lastCard":  "CXyz N.As.Ch. Knight",
+                       "sha256":  "4762d2b81030228c42b6be4a081998ab8ad32eab746a1a26ac61764af9c8715a"
+                   },
+                   {
+                       "file":  "CARDS_02301_02400.md",
+                       "start":  2301,
+                       "end":  2400,
+                       "count":  100,
+                       "firstCard":  "CXyz Simon the Great Moral Leader",
+                       "lastCard":  "Cyberse White Hat",
+                       "sha256":  "be6c7635fc56decde4756b703fe5e092555e913cdf63c7b017e2a9c355675833"
+                   },
+                   {
+                       "file":  "CARDS_02401_02500.md",
+                       "start":  2401,
+                       "end":  2500,
+                       "count":  100,
+                       "firstCard":  "Cyberse Wicckid",
+                       "lastCard":  "D/D/D Alfred the Divine Sage King",
+                       "sha256":  "35a74bfa2d9e43eeea40af661ae407be4a6b8af47c5863783d3f03d3b9df92a7"
+                   },
+                   {
+                       "file":  "CARDS_02501_02600.md",
+                       "start":  2501,
+                       "end":  2600,
+                       "count":  100,
+                       "firstCard":  "D/D/D Chaos King Apocalypse",
+                       "lastCard":  "Dark Bribe",
+                       "sha256":  "2ea1ddd0a5819310dd61caa71a623e0c322e6d9eb7e09bef65ec13305d01f03d"
+                   },
+                   {
+                       "file":  "CARDS_02601_02700.md",
+                       "start":  2601,
+                       "end":  2700,
+                       "count":  100,
+                       "firstCard":  "Dark Bug",
+                       "lastCard":  "Dark Rebellion Xyz Dragon",
+                       "sha256":  "f43aa318869683c69cf3f92eb4f1a2db97633458b6239763c0249c250554ec6c"
+                   },
+                   {
+                       "file":  "CARDS_02701_02800.md",
+                       "start":  2701,
+                       "end":  2800,
+                       "count":  100,
+                       "firstCard":  "Dark Red Enchanter",
+                       "lastCard":  "Dawn Angel Kambi",
+                       "sha256":  "020244b63c6b7c1e6e50f6ed5617031f37582b0501888943e1b24cba1c5b5c8a"
+                   },
+                   {
+                       "file":  "CARDS_02801_02900.md",
+                       "start":  2801,
+                       "end":  2900,
+                       "count":  100,
+                       "firstCard":  "Dawn Knight",
+                       "lastCard":  "Deskbot 005",
+                       "sha256":  "4254a1b55d7fd64d045289977b60ee7706ca0535274582e85393887cdf43ce61"
+                   },
+                   {
+                       "file":  "CARDS_02901_03000.md",
+                       "start":  2901,
+                       "end":  3000,
+                       "count":  100,
+                       "firstCard":  "Deskbot 006",
+                       "lastCard":  "Diamond Duston",
+                       "sha256":  "8367b67676a062b1308f228e73fa384a32881879315d12f8811016f4710225ef"
+                   },
+                   {
+                       "file":  "CARDS_03001_03100.md",
+                       "start":  3001,
+                       "end":  3100,
+                       "count":  100,
+                       "firstCard":  "Diamond-Dust Cyclone",
+                       "lastCard":  "Dinowrestler Giga Spinosavate",
+                       "sha256":  "42649465966a752f9937fb5ab245318daec52979ed06c664c79597ab65b97643"
+                   },
+                   {
+                       "file":  "CARDS_03101_03200.md",
+                       "start":  3101,
+                       "end":  3200,
+                       "count":  100,
+                       "firstCard":  "Dinowrestler Iguanodraka",
+                       "lastCard":  "Dogmatikalamity",
+                       "sha256":  "844aa646679479d3fc4bce8fd4b92ff03f00b06717f9be62e96b5d84be63c01a"
+                   },
+                   {
+                       "file":  "CARDS_03201_03300.md",
+                       "start":  3201,
+                       "end":  3300,
+                       "count":  100,
+                       "firstCard":  "Dogmatikamacabre",
+                       "lastCard":  "Double-Edged Sword",
+                       "sha256":  "4953845fa8b007775b593bbfdb99cacfcd10073a1540f2750577e6be2617b48e"
+                   },
+                   {
+                       "file":  "CARDS_03301_03400.md",
+                       "start":  3301,
+                       "end":  3400,
+                       "count":  100,
+                       "firstCard":  "Double-Edged Sword Technique",
+                       "lastCard":  "Dragon\u0027s Rebirth",
+                       "sha256":  "0bddfa2f678051945870b99e5e59b51c95b0f83e2db4c8cf189ec23154be3160"
+                   },
+                   {
+                       "file":  "CARDS_03401_03500.md",
+                       "start":  3401,
+                       "end":  3500,
+                       "count":  100,
+                       "firstCard":  "Dragoons of Draconia",
+                       "lastCard":  "Drytron Meteonis Draconids",
+                       "sha256":  "ace9307dcb4765f40692485c2437dedb307fb75671a5f894df1e764969cc3ae4"
+                   },
+                   {
+                       "file":  "CARDS_03501_03600.md",
+                       "start":  3501,
+                       "end":  3600,
+                       "count":  100,
+                       "firstCard":  "Drytron Meteonis Quadrantids",
+                       "lastCard":  "Earthshaker",
+                       "sha256":  "90f7f5c19e18e3779fb4d0bdf63436186a3d6a3c18de2f860963a25683badd22"
+                   },
+                   {
+                       "file":  "CARDS_03601_03700.md",
+                       "start":  3601,
+                       "end":  3700,
+                       "count":  100,
+                       "firstCard":  "Earthshattering Event",
+                       "lastCard":  "Elemental HERO Dark Neos",
+                       "sha256":  "ad5c226ce26584010a0f6030359d071958f60423024807ac2eac8b590817bbe9"
+                   },
+                   {
+                       "file":  "CARDS_03701_03800.md",
+                       "start":  3701,
+                       "end":  3800,
+                       "count":  100,
+                       "firstCard":  "Elemental HERO Darkbright",
+                       "lastCard":  "Emergency Assistance",
+                       "sha256":  "e50502cd62f7969951b34a95e0fd76cb6a8bdbe78f3edaf6b306c21f3e3e710c"
+                   },
+                   {
+                       "file":  "CARDS_03801_03900.md",
+                       "start":  3801,
+                       "end":  3900,
+                       "count":  100,
+                       "firstCard":  "Emergency Provisions",
+                       "lastCard":  "Eva",
+                       "sha256":  "c6cdf5ad288d6195acc0f163281244f9fbace36be71e33edd495d63ddf4d2baa"
+                   },
+                   {
+                       "file":  "CARDS_03901_04000.md",
+                       "start":  3901,
+                       "end":  4000,
+                       "count":  100,
+                       "firstCard":  "Evening Twilight Knight",
+                       "lastCard":  "Evolution Burst",
+                       "sha256":  "315375f8a180f51414793c666831f59237f2d8d3fae87cae793f55c73e2db531"
+                   },
+                   {
+                       "file":  "CARDS_04001_04100.md",
+                       "start":  4001,
+                       "end":  4100,
+                       "count":  100,
+                       "firstCard":  "Evolution End Burst",
+                       "lastCard":  "Fabled Grimro",
+                       "sha256":  "c25ce56fed737f235148dd5301dc68a6344029c56919c2a413cd0ee14fdc2026"
+                   },
+                   {
+                       "file":  "CARDS_04101_04200.md",
+                       "start":  4101,
+                       "end":  4200,
+                       "count":  100,
+                       "firstCard":  "Fabled Krus",
+                       "lastCard":  "Fengsheng Mirror",
+                       "sha256":  "e46617e9722f49b352f9129f0eff338f057373b302bc3af1d212693992e60b9e"
+                   },
+                   {
+                       "file":  "CARDS_04201_04300.md",
+                       "start":  4201,
+                       "end":  4300,
+                       "count":  100,
+                       "firstCard":  "Fenrir",
+                       "lastCard":  "Fire Princess",
+                       "sha256":  "65680c430043e0f903dcb4b68f02fd0f93f6397fbb7adbc89de79e50cfbb0975"
+                   },
+                   {
+                       "file":  "CARDS_04301_04400.md",
+                       "start":  4301,
+                       "end":  4400,
+                       "count":  100,
+                       "firstCard":  "Fire Prison",
+                       "lastCard":  "Flipping Feline",
+                       "sha256":  "43e351b51802030ae7125f7336f45ab54fb07a61236e7af8bd0a28b32d4b2716"
+                   },
+                   {
+                       "file":  "CARDS_04401_04500.md",
+                       "start":  4401,
+                       "end":  4500,
+                       "count":  100,
+                       "firstCard":  "Flock Together",
+                       "lastCard":  "Formud Skipper",
+                       "sha256":  "179299091322f8c48d91f25dc44e0a8d060d762e826e9723d6c85cd981a9018e"
+                   },
+                   {
+                       "file":  "CARDS_04501_04600.md",
+                       "start":  4501,
+                       "end":  4600,
+                       "count":  100,
+                       "firstCard":  "Formula Synchron",
+                       "lastCard":  "Full-Force Strike",
+                       "sha256":  "b3841c117e1e2efacd340d978e58a7258e20880ebdbf2861bee0518f8a221e88"
+                   },
+                   {
+                       "file":  "CARDS_04601_04700.md",
+                       "start":  4601,
+                       "end":  4700,
+                       "count":  100,
+                       "firstCard":  "Fullmetalfoes Alkahest",
+                       "lastCard":  "Gaia The Fierce Knight",
+                       "sha256":  "ffd8d5f1d84b95b58558994430cb205f9cc713c2ad1a44a0208f71b58c1e9aeb"
+                   },
+                   {
+                       "file":  "CARDS_04701_04800.md",
+                       "start":  4701,
+                       "end":  4800,
+                       "count":  100,
+                       "firstCard":  "Gaia the Fierce Knight Origin",
+                       "lastCard":  "Gazelle the King of Mythical Claws",
+                       "sha256":  "3cacc4bf3958559151097ffe1b71b94905b401aa461c9a94194d1aedb96750e9"
+                   },
+                   {
+                       "file":  "CARDS_04801_04900.md",
+                       "start":  4801,
+                       "end":  4900,
+                       "count":  100,
+                       "firstCard":  "Gazer Shark",
+                       "lastCard":  "Genex Ally Duradark",
+                       "sha256":  "7c49528f8495bcd2988bb9469e53972bf00dc642a8b3d204e9a17d6c6ecad270"
+                   },
+                   {
+                       "file":  "CARDS_04901_05000.md",
+                       "start":  4901,
+                       "end":  5000,
+                       "count":  100,
+                       "firstCard":  "Genex Ally Powercell",
+                       "lastCard":  "Ghoul with an Appetite",
+                       "sha256":  "f69cb47989b34f71cd06de23e59ac26fbdb4a6fbe4607de3cc521b8edc885adf"
+                   },
+                   {
+                       "file":  "CARDS_05001_05100.md",
+                       "start":  5001,
+                       "end":  5100,
+                       "count":  100,
+                       "firstCard":  "Giant Axe Mummy",
+                       "lastCard":  "Gizmek Taniguku, the Immobile Intellect",
+                       "sha256":  "a3780e5de9f50c993730322f93c49790ca3d412a3d710fdc1106e3af9cddbc9e"
+                   },
+                   {
+                       "file":  "CARDS_05101_05200.md",
+                       "start":  5101,
+                       "end":  5200,
+                       "count":  100,
+                       "firstCard":  "Gizmek Uka, the Festive Fox of Fecundity",
+                       "lastCard":  "Goblin Freefall Squad",
+                       "sha256":  "8eb4a3ec44f22affb4b513c4a1f674f924339c302fa959f63df90e1be97a9ebf"
+                   },
+                   {
+                       "file":  "CARDS_05201_05300.md",
+                       "start":  5201,
+                       "end":  5300,
+                       "count":  100,
+                       "firstCard":  "Goblin King",
+                       "lastCard":  "Gouki Finishing Move",
+                       "sha256":  "f89291a53d8736b3999578aaf4f4bf2edadd7294cfb53b5b2f8942331d3d9830"
+                   },
+                   {
+                       "file":  "CARDS_05301_05400.md",
+                       "start":  5301,
+                       "end":  5400,
+                       "count":  100,
+                       "firstCard":  "Gouki Gameface",
+                       "lastCard":  "Graveyard and the Hand of Invitation",
+                       "sha256":  "fa8d18a9b74fd00963eeb224e8bdc4bb3856eb54dc05c90c63cf5e3755b0c1b2"
+                   },
+                   {
+                       "file":  "CARDS_05401_05500.md",
+                       "start":  5401,
+                       "end":  5500,
+                       "count":  100,
+                       "firstCard":  "Graveyard of Wandering Souls",
+                       "lastCard":  "Guardian Tryce",
+                       "sha256":  "a4232d0c87d5856876fb74fc2ce8942532cca5c0b35762280fe726e33977b77e"
+                   },
+                   {
+                       "file":  "CARDS_05501_05600.md",
+                       "start":  5501,
+                       "end":  5600,
+                       "count":  100,
+                       "firstCard":  "Guardragon Agarpain",
+                       "lastCard":  "Harpie Lady 1",
+                       "sha256":  "f6cdcef2653f7514ec8d02b6b88d32c45306e1e23f452086361df666c8245195"
+                   },
+                   {
+                       "file":  "CARDS_05601_05700.md",
+                       "start":  5601,
+                       "end":  5700,
+                       "count":  100,
+                       "firstCard":  "Harpie Lady 2",
+                       "lastCard":  "Herald of Ultimateness",
+                       "sha256":  "24e2a55689541d126398e4e8d198790fa7a3db52e8f1af2e535d9234f23df213"
+                   },
+                   {
+                       "file":  "CARDS_05701_05800.md",
+                       "start":  5701,
+                       "end":  5800,
+                       "count":  100,
+                       "firstCard":  "Heraldic Beast Aberconway",
+                       "lastCard":  "High Ritual Art",
+                       "sha256":  "7b7855be29fd55c34f93f724ce009a14de4b3eaf7fb96f1c39480c09dc262109"
+                   },
+                   {
+                       "file":  "CARDS_05801_05900.md",
+                       "start":  5801,
+                       "end":  5900,
+                       "count":  100,
+                       "firstCard":  "High Tide Gyojin",
+                       "lastCard":  "Hydrojet Shark",
+                       "sha256":  "6ee9d1801c0a3a6e9e2ec31a9c93b05fe488c6b3091afcb281e8c7757c779eea"
+                   },
+                   {
+                       "file":  "CARDS_05901_06000.md",
+                       "start":  5901,
+                       "end":  6000,
+                       "count":  100,
+                       "firstCard":  "Hydrotortoise, the Empowered Warrior",
+                       "lastCard":  "Impcantation Bookstone",
+                       "sha256":  "7556e78507efec515913b53ba5e32ac41db8bb33062c0c5ca33bf04e24837f41"
+                   },
+                   {
+                       "file":  "CARDS_06001_06100.md",
+                       "start":  6001,
+                       "end":  6100,
+                       "count":  100,
+                       "firstCard":  "Impcantation Candoll",
+                       "lastCard":  "Infernoid Piaty",
+                       "sha256":  "c38b9849b77cc28b6e2c68658162d80a3db9d3762a2885e2cd6bbd3785f67388"
+                   },
+                   {
+                       "file":  "CARDS_06101_06200.md",
+                       "start":  6101,
+                       "end":  6200,
+                       "count":  100,
+                       "firstCard":  "Infernoid Pirmais",
+                       "lastCard":  "Inzektor Hornet",
+                       "sha256":  "2eb0ad0abc03c8a804d953b0f746f7f47e9cffdce679a882d936d0009a521375"
+                   },
+                   {
+                       "file":  "CARDS_06201_06300.md",
+                       "start":  6201,
+                       "end":  6300,
+                       "count":  100,
+                       "firstCard":  "Inzektor Ladybug",
+                       "lastCard":  "Jumbo Drill",
+                       "sha256":  "3bc8f1e9d1130c2fe5474af26d2fc0a3724bc68977731a1df91163e69510df66"
+                   },
+                   {
+                       "file":  "CARDS_06301_06400.md",
+                       "start":  6301,
+                       "end":  6400,
+                       "count":  100,
+                       "firstCard":  "Jungle Dweller",
+                       "lastCard":  "Kairyu-Shin\u0027s Dark Reef",
+                       "sha256":  "9e60f6ce75393d415d23c56409423c4505a35f54f83b83199eb8b2a59dac502f"
+                   },
+                   {
+                       "file":  "CARDS_06401_06500.md",
+                       "start":  6401,
+                       "end":  6500,
+                       "count":  100,
+                       "firstCard":  "Kaiser Colosseum",
+                       "lastCard":  "Kidmodo Dragon",
+                       "sha256":  "ca0a68003d4a047bb3049337c14d5590c4388358d52cdb4f62ecaa956442b21c"
+                   },
+                   {
+                       "file":  "CARDS_06501_06600.md",
+                       "start":  6501,
+                       "end":  6600,
+                       "count":  100,
+                       "firstCard":  "Kikinagashi Fucho",
+                       "lastCard":  "Krawler Dendrite",
+                       "sha256":  "15825cf5b3ae2436cd4cf344bc1ac30ec1a672013ba538c18deb3088a5c3daae"
+                   },
+                   {
+                       "file":  "CARDS_06601_06700.md",
+                       "start":  6601,
+                       "end":  6700,
+                       "count":  100,
+                       "firstCard":  "Krawler Glial",
+                       "lastCard":  "Laughing Flower",
+                       "sha256":  "9bf85974e7703794e829dc4548364c3ec6f540137f99dcf9c4e81f8a428357f1"
+                   },
+                   {
+                       "file":  "CARDS_06701_06800.md",
+                       "start":  6701,
+                       "end":  6800,
+                       "count":  100,
+                       "firstCard":  "Laughing Puffin",
+                       "lastCard":  "Level Retuner",
+                       "sha256":  "df5488b6396bb3864c20e6e3bf9e35811805b0d7e5a471b1c41c033211603de5"
+                   },
+                   {
+                       "file":  "CARDS_06801_06900.md",
+                       "start":  6801,
+                       "end":  6900,
+                       "count":  100,
+                       "firstCard":  "Level Tuning",
+                       "lastCard":  "Link Bumper",
+                       "sha256":  "4af9a28234db78a9a180a0d3f5000f030a6af2b7e9dc683ead0cade1ab911f7b"
+                   },
+                   {
+                       "file":  "CARDS_06901_07000.md",
+                       "start":  6901,
+                       "end":  7000,
+                       "count":  100,
+                       "firstCard":  "Link Burst",
+                       "lastCard":  "Lunalight Crimson Fox",
+                       "sha256":  "0ad13b0bd54791d121ce0dc41823eb5ae6f19f5f1c1c3c2d4922279475fcbbd1"
+                   },
+                   {
+                       "file":  "CARDS_07001_07100.md",
+                       "start":  7001,
+                       "end":  7100,
+                       "count":  100,
+                       "firstCard":  "Lunalight Emerald Bird",
+                       "lastCard":  "Madolche Messengelato",
+                       "sha256":  "a98b3e6b0fdd282641a183f629af577d8020e482ed62df43e186bbe9515f9a27"
+                   },
+                   {
+                       "file":  "CARDS_07101_07200.md",
+                       "start":  7101,
+                       "end":  7200,
+                       "count":  100,
+                       "firstCard":  "Madolche Mewfeuille",
+                       "lastCard":  "Magicians\u0027 Souls",
+                       "sha256":  "9e8b4dc20a5a395b773688a4b0eb53bf86ccc554f92aaa5470a02ddc2bd76fa6"
+                   },
+                   {
+                       "file":  "CARDS_07201_07300.md",
+                       "start":  7201,
+                       "end":  7300,
+                       "count":  100,
+                       "firstCard":  "Magicians Unite",
+                       "lastCard":  "Malefic Blue-Eyes White Dragon",
+                       "sha256":  "53575977514829cbdc7898b0ae9a703103526b02295380fb9bd33279d69a9e5c"
+                   },
+                   {
+                       "file":  "CARDS_07301_07400.md",
+                       "start":  7301,
+                       "end":  7400,
+                       "count":  100,
+                       "firstCard":  "Malefic Claw Stream",
+                       "lastCard":  "Marincess Sleepy Maiden",
+                       "sha256":  "2fab2f3f147b6679f8c2d25012a8ca9bd5c36ea23cbfadedd4d6f15040097ff9"
+                   },
+                   {
+                       "file":  "CARDS_07401_07500.md",
+                       "start":  7401,
+                       "end":  7500,
+                       "count":  100,
+                       "firstCard":  "Marincess Snow",
+                       "lastCard":  "Max Metalmorph",
+                       "sha256":  "8442fec755ccc73bb1a842d35c2c712a668fd75301c78e0562775e11a9cef956"
+                   },
+                   {
+                       "file":  "CARDS_07501_07600.md",
+                       "start":  7501,
+                       "end":  7600,
+                       "count":  100,
+                       "firstCard":  "Max Warrior",
+                       "lastCard":  "Meklord Emperor Wisel",
+                       "sha256":  "ec06e4a76a5e17f4ad97ecdab37f3b487c0247e6817b6e3ff870d59f7f03d16a"
+                   },
+                   {
+                       "file":  "CARDS_07601_07700.md",
+                       "start":  7601,
+                       "end":  7700,
+                       "count":  100,
+                       "firstCard":  "Meklord Emperor Wisel - Synchro Absorption",
+                       "lastCard":  "Metalfoes Fusion",
+                       "sha256":  "518385108f890aa41ee6baf6c4a500d396d55980e846d8f853d7e7f67efc89c9"
+                   },
+                   {
+                       "file":  "CARDS_07701_07800.md",
+                       "start":  7701,
+                       "end":  7800,
+                       "count":  100,
+                       "firstCard":  "Metalfoes Goldriver",
+                       "lastCard":  "Mimighoul Throne",
+                       "sha256":  "38592ff48e393e5b40f8cb90e2d22b9cff48b027ab5a550fcecf8f090db53523"
+                   },
+                   {
+                       "file":  "CARDS_07801_07900.md",
+                       "start":  7801,
+                       "end":  7900,
+                       "count":  100,
+                       "firstCard":  "Mimikuril",
+                       "lastCard":  "Mistaken Accusation",
+                       "sha256":  "a752d79a68deb76afae4b5059f1b1b0e492a8dc892aec73bfaec56c43dca4ce2"
+                   },
+                   {
+                       "file":  "CARDS_07901_08000.md",
+                       "start":  7901,
+                       "end":  8000,
+                       "count":  100,
+                       "firstCard":  "Mistaken Arrest",
+                       "lastCard":  "Morphtronic Monitron",
+                       "sha256":  "30f456bd509e9eaf14f7f90c74fa237cc760e50612380df6a7c71e7f4e9b81ed"
+                   },
+                   {
+                       "file":  "CARDS_08001_08100.md",
+                       "start":  8001,
+                       "end":  8100,
+                       "count":  100,
+                       "firstCard":  "Morphtronic Radion",
+                       "lastCard":  "Mystical Shine Ball",
+                       "sha256":  "856742ca5ca158204dcee2ba4d0530db32c72141c8fde2a02f0d00d16846f573"
+                   },
+                   {
+                       "file":  "CARDS_08101_08200.md",
+                       "start":  8101,
+                       "end":  8200,
+                       "count":  100,
+                       "firstCard":  "Mystical Space Typhoon",
+                       "lastCard":  "Necroquip Princess",
+                       "sha256":  "78cdfd1c14f24d288683b605ab0d470e078989db7714effbc25a2a04b67a3c32"
+                   },
+                   {
+                       "file":  "CARDS_08201_08300.md",
+                       "start":  8201,
+                       "end":  8300,
+                       "count":  100,
+                       "firstCard":  "Necroquip Prism",
+                       "lastCard":  "Night Beam",
+                       "sha256":  "e1c488f366d8c1f10cae359801590b7ae4ce62f14c01a5d9fe0d5110a6c1faea"
+                   },
+                   {
+                       "file":  "CARDS_08301_08400.md",
+                       "start":  8301,
+                       "end":  8400,
+                       "count":  100,
+                       "firstCard":  "Night Dragolich",
+                       "lastCard":  "Nordic Beast Gullinbursti",
+                       "sha256":  "2cffbfefba79fec3e074cf5a8465b9675d4cd31fca376be745d8d96c937e064b"
+                   },
+                   {
+                       "file":  "CARDS_08401_08500.md",
+                       "start":  8401,
+                       "end":  8500,
+                       "count":  100,
+                       "firstCard":  "Nordic Relic Brisingamen",
+                       "lastCard":  "Number 69: Heraldry Crest - Shatter Stream",
+                       "sha256":  "481deb036b1544533d3af09174d3b5b8727de6b222bc7c0c1c3d44bfe8c09523"
+                   },
+                   {
+                       "file":  "CARDS_08501_08600.md",
+                       "start":  8501,
+                       "end":  8600,
+                       "count":  100,
+                       "firstCard":  "Number 7: Lucky Straight",
+                       "lastCard":  "Obelisk the Tormentor",
+                       "sha256":  "db740948f72fcbab318ed387e37e8201cdb9dbbb5f23ea1e57b2d95eeda73c5b"
+                   },
+                   {
+                       "file":  "CARDS_08601_08700.md",
+                       "start":  8601,
+                       "end":  8700,
+                       "count":  100,
+                       "firstCard":  "Obese Marmot of Nefariousness",
+                       "lastCard":  "One-Eyed Skill Gainer",
+                       "sha256":  "5f9c61cf853c6d3b611c05207c206c08fda804225c493245ebac00ed41d235b5"
+                   },
+                   {
+                       "file":  "CARDS_08701_08800.md",
+                       "start":  8701,
+                       "end":  8800,
+                       "count":  100,
+                       "firstCard":  "Oneiros, the Dream Mirror Erlking",
+                       "lastCard":  "Oxygeddon",
+                       "sha256":  "437174ddc5e75586f4128567c4eeec3c86ab373646169c267193d1feebef0611"
+                   },
+                   {
+                       "file":  "CARDS_08801_08900.md",
+                       "start":  8801,
+                       "end":  8900,
+                       "count":  100,
+                       "firstCard":  "Oyster Meister",
+                       "lastCard":  "Pendulum Pendant",
+                       "sha256":  "641a0a08238ddde54eb2d4d7011d8c45375cb38b4915fa36ad4b56d88453ab87"
+                   },
+                   {
+                       "file":  "CARDS_08901_09000.md",
+                       "start":  8901,
+                       "end":  9000,
+                       "count":  100,
+                       "firstCard":  "Pendulum Reborn",
+                       "lastCard":  "Performapal Odd-Eyes Butler",
+                       "sha256":  "a546b90138a7b83bfc4de68ca7fc18ee50a8ae70c9a3321d6afc5ea39517b9b4"
+                   },
+                   {
+                       "file":  "CARDS_09001_09100.md",
+                       "start":  9001,
+                       "end":  9100,
+                       "count":  100,
+                       "firstCard":  "Performapal Odd-Eyes Dissolver",
+                       "lastCard":  "Pharaonic Advent",
+                       "sha256":  "ca08d177b2e80e97948b55d925f49d9cc26a52134e16cdada2233572e742ea54"
+                   },
+                   {
+                       "file":  "CARDS_09101_09200.md",
+                       "start":  9101,
+                       "end":  9200,
+                       "count":  100,
+                       "firstCard":  "Pharaonic Guardian Sphinx",
+                       "lastCard":  "Poissonniere de Nouvelles",
+                       "sha256":  "365e30f489354ac263365d4c558a74c2a3634fef87c70d1ce2991f2837c5b05a"
+                   },
+                   {
+                       "file":  "CARDS_09201_09300.md",
+                       "start":  9201,
+                       "end":  9300,
+                       "count":  100,
+                       "firstCard":  "Poki Draco",
+                       "lastCard":  "Predaplant Triantis",
+                       "sha256":  "ec24797e096d881f15017744e118cece7d7894e5473a753526c374507f79965b"
+                   },
+                   {
+                       "file":  "CARDS_09301_09400.md",
+                       "start":  9301,
+                       "end":  9400,
+                       "count":  100,
+                       "firstCard":  "Predaplant Triphyoverutum",
+                       "lastCard":  "Proxy Dragon",
+                       "sha256":  "75dcae0bde5ef40b15dfca7b0d375cc6ed7e5961c1b6b861814853752e88f416"
+                   },
+                   {
+                       "file":  "CARDS_09401_09500.md",
+                       "start":  9401,
+                       "end":  9500,
+                       "count":  100,
+                       "firstCard":  "Proxy F Magician",
+                       "lastCard":  "Pyro Clock of Destiny",
+                       "sha256":  "4710d7d37938486a91e6b39da01d67c4026089e8a44e01c7af5aea05fc59488a"
+                   },
+                   {
+                       "file":  "CARDS_09501_09600.md",
+                       "start":  9501,
+                       "end":  9600,
+                       "count":  100,
+                       "firstCard":  "Pyrorex the Elemental Lord",
+                       "lastCard":  "Ragnaraika Samurai Beetle",
+                       "sha256":  "8411ceedadc9f5f336aab959013aea057ccb9bb219787a27bbe39aabecc5773b"
+                   },
+                   {
+                       "file":  "CARDS_09601_09700.md",
+                       "start":  9601,
+                       "end":  9700,
+                       "count":  100,
+                       "firstCard":  "Ragnaraika Selene Snapper",
+                       "lastCard":  "Rank-Up-Magic Raid Force",
+                       "sha256":  "a261f3522d7be5f3571961e2ac7979c7083f5c372f9958f5487742a74ea5b450"
+                   },
+                   {
+                       "file":  "CARDS_09701_09800.md",
+                       "start":  9701,
+                       "end":  9800,
+                       "count":  100,
+                       "firstCard":  "Rank-Up-Magic Raptor\u0027s Force",
+                       "lastCard":  "Red Screen",
+                       "sha256":  "a4ab92b30cae8d2fffb5975301e47801ed33d2be733e5bb5ccd030dc2b298f42"
+                   },
+                   {
+                       "file":  "CARDS_09801_09900.md",
+                       "start":  9801,
+                       "end":  9900,
+                       "count":  100,
+                       "firstCard":  "Red Sparrow Summoner",
+                       "lastCard":  "Repair Genex Controller",
+                       "sha256":  "83f4fd4357c782a28321ccf3c250064b838e70d003551d89a222270168184b6d"
+                   },
+                   {
+                       "file":  "CARDS_09901_10000.md",
+                       "start":  9901,
+                       "end":  10000,
+                       "count":  100,
+                       "firstCard":  "Replicard LAD",
+                       "lastCard":  "Revoke Fusion",
+                       "sha256":  "0b0cfd82c213d5190b6b78c15c8167e635baf4e56ebbd9a5f0e6b25772ea9cd1"
+                   },
+                   {
+                       "file":  "CARDS_10001_10100.md",
+                       "start":  10001,
+                       "end":  10100,
+                       "count":  100,
+                       "firstCard":  "Revolution Synchron",
+                       "lastCard":  "Rock Bombardment",
+                       "sha256":  "fe1df98daa7ec3ba9c40eb11178563a6eb6979748ef617e619171594ccb1739a"
+                   },
+                   {
+                       "file":  "CARDS_10101_10200.md",
+                       "start":  10101,
+                       "end":  10200,
+                       "count":  100,
+                       "firstCard":  "Rock of the Vanquisher",
+                       "lastCard":  "Ryu-Ge End",
+                       "sha256":  "295976686d9bd0016a5cf3d0e7f148448d1af08aac3bedc629d9df6de1a3dd10"
+                   },
+                   {
+                       "file":  "CARDS_10201_10300.md",
+                       "start":  10201,
+                       "end":  10300,
+                       "count":  100,
+                       "firstCard":  "Ryu-Ge Realm - Dino Domains",
+                       "lastCard":  "Salamangreat Sunlight Wolf",
+                       "sha256":  "8ee3415f6a7642993d00a71a33767a0a2a48726d7edd3b1b4bf1bdce1522b995"
+                   },
+                   {
+                       "file":  "CARDS_10301_10400.md",
+                       "start":  10301,
+                       "end":  10400,
+                       "count":  100,
+                       "firstCard":  "Salamangreat Tiger",
+                       "lastCard":  "Score the Melodious Diva",
+                       "sha256":  "14beceded05442b6305aec08d4227124c230d2c22c4193be0e804a7bac877445"
+                   },
+                   {
+                       "file":  "CARDS_10401_10500.md",
+                       "start":  10401,
+                       "end":  10500,
+                       "count":  100,
+                       "firstCard":  "Scourge of the White Forest",
+                       "lastCard":  "Segmental Dragon",
+                       "sha256":  "8c7fbd8b712a8b296cc8ecb1facc6935ba834302ef763ef21aac74b813b16e74"
+                   },
+                   {
+                       "file":  "CARDS_10501_10600.md",
+                       "start":  10501,
+                       "end":  10600,
+                       "count":  100,
+                       "firstCard":  "Seismic Crasher",
+                       "lastCard":  "Share the Pain",
+                       "sha256":  "c37464ad2ced32a1b0414d917eefcc53926709584592215c9954b6466d980141"
+                   },
+                   {
+                       "file":  "CARDS_10601_10700.md",
+                       "start":  10601,
+                       "end":  10700,
+                       "count":  100,
+                       "firstCard":  "Shared Ride",
+                       "lastCard":  "Shore Knight",
+                       "sha256":  "b30d0450d96ca089276018ef96524f1f090c96368d57383a76364801e99ebbf5"
+                   },
+                   {
+                       "file":  "CARDS_10701_10800.md",
+                       "start":  10701,
+                       "end":  10800,
+                       "count":  100,
+                       "firstCard":  "Short Circuit",
+                       "lastCard":  "Skill Prisoner",
+                       "sha256":  "a9daa519131eaef894d9cb3900c072aa092f5534d1dbd97f0d219e794e0748d9"
+                   },
+                   {
+                       "file":  "CARDS_10801_10900.md",
+                       "start":  10801,
+                       "end":  10900,
+                       "count":  100,
+                       "firstCard":  "Skill Successor",
+                       "lastCard":  "Snake-Eyes Flamberge Dragon",
+                       "sha256":  "02d3579b3691d3c9f14d11a1e1f62f1fae4f7737849ab346ae26be4abbd9efd9"
+                   },
+                   {
+                       "file":  "CARDS_10901_11000.md",
+                       "start":  10901,
+                       "end":  11000,
+                       "count":  100,
+                       "firstCard":  "Snake-Eyes Poplar",
+                       "lastCard":  "Soul Servant",
+                       "sha256":  "0816cbb2734477aaefe946ee4d5773818e6592a17d586809f0b53c3a844ff91c"
+                   },
+                   {
+                       "file":  "CARDS_11001_11100.md",
+                       "start":  11001,
+                       "end":  11100,
+                       "count":  100,
+                       "firstCard":  "Soul Strike",
+                       "lastCard":  "Spellbook of Miracles",
+                       "sha256":  "a1d999203caf64e2187927af6cf472045bf6f3b818f70094fa15ae32dfe9ed74"
+                   },
+                   {
+                       "file":  "CARDS_11101_11200.md",
+                       "start":  11101,
+                       "end":  11200,
+                       "count":  100,
+                       "firstCard":  "Spellbook of Power",
+                       "lastCard":  "Springans Blast!",
+                       "sha256":  "c0ec8f666595637a56d74982799b02680e3cd0a0f24542f468633716b62a29e5"
+                   },
+                   {
+                       "file":  "CARDS_11201_11300.md",
+                       "start":  11201,
+                       "end":  11300,
+                       "count":  100,
+                       "firstCard":  "Springans Booty",
+                       "lastCard":  "Starry Knight Balefire",
+                       "sha256":  "dc74793d8a9cabf514820db62b50f7f064da39214d3fbd06dcffb942852a970a"
+                   },
+                   {
+                       "file":  "CARDS_11301_11400.md",
+                       "start":  11301,
+                       "end":  11400,
+                       "count":  100,
+                       "firstCard":  "Starry Knight Blast",
+                       "lastCard":  "Stronghold the Hidden Fortress",
+                       "sha256":  "1b37ecbb184b194176129df4db18dd0bf33052df5a06ee8b39796a2c24330c46"
+                   },
+                   {
+                       "file":  "CARDS_11401_11500.md",
+                       "start":  11401,
+                       "end":  11500,
+                       "count":  100,
+                       "firstCard":  "Stronghold the Moving Fortress",
+                       "lastCard":  "Super Quantal Alphan Spike",
+                       "sha256":  "6396c2d2b438cdbc45aebd6f980177b3b709fe835fa342d656338578a5cca2a4"
+                   },
+                   {
+                       "file":  "CARDS_11501_11600.md",
+                       "start":  11501,
+                       "end":  11600,
+                       "count":  100,
+                       "firstCard":  "Super Quantal Alphancall Appeal",
+                       "lastCard":  "Supply Soldier of the Indestructible Insects",
+                       "sha256":  "b83132474585b96e4ced2365b8c6e4348dbcffd35d3cb6410c7c70584dbb8c18"
+                   },
+                   {
+                       "file":  "CARDS_11601_11700.md",
+                       "start":  11601,
+                       "end":  11700,
+                       "count":  100,
+                       "firstCard":  "Supply Squad",
+                       "lastCard":  "Sylvan Lotuswain",
+                       "sha256":  "2b580c8351409e53d94895625c2d3291cabd07fdd689c6af2537a45b29467442"
+                   },
+                   {
+                       "file":  "CARDS_11701_11800.md",
+                       "start":  11701,
+                       "end":  11800,
+                       "count":  100,
+                       "firstCard":  "Sylvan Marshalleaf",
+                       "lastCard":  "Tails of the Fairy Tails",
+                       "sha256":  "5f3499ccb8284a057f58ff063e2f2cadf8f2c93d6289cadb670727a03f44a736"
+                   },
+                   {
+                       "file":  "CARDS_11801_11900.md",
+                       "start":  11801,
+                       "end":  11900,
+                       "count":  100,
+                       "firstCard":  "Tailwind of Gusto",
+                       "lastCard":  "Terra Firma Gravity",
+                       "sha256":  "37170ea0467b7c34cee6a12c6767b3fdaaf775194e04f6f0b286ba35496aaf74"
+                   },
+                   {
+                       "file":  "CARDS_11901_12000.md",
+                       "start":  11901,
+                       "end":  12000,
+                       "count":  100,
+                       "firstCard":  "Terra the Terrible",
+                       "lastCard":  "The Fabled Cerburrel",
+                       "sha256":  "be6ab8647fee44df9b532a1588caefa6701c846713a228f67ae1a2f7f98deb3c"
+                   },
+                   {
+                       "file":  "CARDS_12001_12100.md",
+                       "start":  12001,
+                       "end":  12100,
+                       "count":  100,
+                       "firstCard":  "The Fabled Chawa",
+                       "lastCard":  "The Reliable Guardian",
+                       "sha256":  "4fc7a18db7623578dcc61cc29e9a3154bfd1bd8b1808f474f303d251b4495f93"
+                   },
+                   {
+                       "file":  "CARDS_12101_12200.md",
+                       "start":  12101,
+                       "end":  12200,
+                       "count":  100,
+                       "firstCard":  "The Resolute Meklord Army",
+                       "lastCard":  "Thestalos the Mega Monarch",
+                       "sha256":  "fe1d54fbafda88e9fb6763555f2844d519fe6a0a9c74b10009b23ea366ebfecd"
+                   },
+                   {
+                       "file":  "CARDS_12201_12300.md",
+                       "start":  12201,
+                       "end":  12300,
+                       "count":  100,
+                       "firstCard":  "Thestalos the Shadowfire Monarch",
+                       "lastCard":  "Timegazer Magician",
+                       "sha256":  "96306f68a689a6951a433ad6cefb23e3d6775248cfe96cfbb108744cd5a3aa1c"
+                   },
+                   {
+                       "file":  "CARDS_12301_12400.md",
+                       "start":  12301,
+                       "end":  12400,
+                       "count":  100,
+                       "firstCard":  "Timelord Progenitor Vorpgate",
+                       "lastCard":  "Toy Magician",
+                       "sha256":  "1e80eb7767e7364c3e5a7041a420afc8b2407af998377dac910432ed629b1bcd"
+                   },
+                   {
+                       "file":  "CARDS_12401_12500.md",
+                       "start":  12401,
+                       "end":  12500,
+                       "count":  100,
+                       "firstCard":  "Toy Parade",
+                       "lastCard":  "Tri-Brigade Arms Mouser",
+                       "sha256":  "ff03eb62844ca131d6cffe9160264966746591a5b505afee0aedadcd7c833b79"
+                   },
+                   {
+                       "file":  "CARDS_12501_12600.md",
+                       "start":  12501,
+                       "end":  12600,
+                       "count":  100,
+                       "firstCard":  "Tri-Brigade Bearbrumm the Rampant Rampager",
+                       "lastCard":  "Tsuru-Puru-Purun",
+                       "sha256":  "2c13f57a956d6857846f82955e1e6ab3e0f4917b203820eea68cd4a7f1ab64aa"
+                   },
+                   {
+                       "file":  "CARDS_12601_12700.md",
+                       "start":  12601,
+                       "end":  12700,
+                       "count":  100,
+                       "firstCard":  "Tualatin",
+                       "lastCard":  "UFOroid",
+                       "sha256":  "2fc5207efdf3fe6d7e80e710e2de5033bdf663d19afe4768b2b4e6240b69a04e"
+                   },
+                   {
+                       "file":  "CARDS_12701_12800.md",
+                       "start":  12701,
+                       "end":  12800,
+                       "count":  100,
+                       "firstCard":  "UFOroid Fighter",
+                       "lastCard":  "Unmasked Dragon",
+                       "sha256":  "9c965ed16b2f2b687debb57e150b360ff8a43a85b5caf6fec40b052e891dc2b0"
+                   },
+                   {
+                       "file":  "CARDS_12801_12900.md",
+                       "start":  12801,
+                       "end":  12900,
+                       "count":  100,
+                       "firstCard":  "Unpossessed",
+                       "lastCard":  "Vampiric Koala",
+                       "sha256":  "e96cc6fe37bc9bd5d664fee10abee1c77e9a7791099754a324fa82ff3a974fcc"
+                   },
+                   {
+                       "file":  "CARDS_12901_13000.md",
+                       "start":  12901,
+                       "end":  13000,
+                       "count":  100,
+                       "firstCard":  "Vampiric Orchis",
+                       "lastCard":  "Vic Viper T301",
+                       "sha256":  "3e84115227faf1300d54b6273a3225e6b4bdbdf900768aa7a96c96fbaba21333"
+                   },
+                   {
+                       "file":  "CARDS_13001_13100.md",
+                       "start":  13001,
+                       "end":  13100,
+                       "count":  100,
+                       "firstCard":  "Vic Viper Type-L",
+                       "lastCard":  "Vorse Raider",
+                       "sha256":  "1992e61bff2d729fafed20f49f6dd4e3770c6078a6fae9dda48f4ee0bed6a175"
+                   },
+                   {
+                       "file":  "CARDS_13101_13200.md",
+                       "start":  13101,
+                       "end":  13200,
+                       "count":  100,
+                       "firstCard":  "Vortex of Time",
+                       "lastCard":  "Water Magician",
+                       "sha256":  "2e0ff5f51e368342710fb20e87a4f358fba011bc9f5adb2e6993cff355994675"
+                   },
+                   {
+                       "file":  "CARDS_13201_13300.md",
+                       "start":  13201,
+                       "end":  13300,
+                       "count":  100,
+                       "firstCard":  "Water of Life",
+                       "lastCard":  "Whitebeard, the Plunder Patroll Helm",
+                       "sha256":  "f62cf0da5998cac2a910a4e9db9d61c75a3cabd71fff8e277fb04611bc80924c"
+                   },
+                   {
+                       "file":  "CARDS_13301_13400.md",
+                       "start":  13301,
+                       "end":  13400,
+                       "count":  100,
+                       "firstCard":  "Whitefish Salvage",
+                       "lastCard":  "Witchcrafter Pittore",
+                       "sha256":  "df8334255eec156150e323db8405d9bb80ffd19242ede6205905aff416b19429"
+                   },
+                   {
+                       "file":  "CARDS_13401_13500.md",
+                       "start":  13401,
+                       "end":  13500,
+                       "count":  100,
+                       "firstCard":  "Witchcrafter Potterie",
+                       "lastCard":  "Worm Warlord",
+                       "sha256":  "1ee803704cadffa6a849789e096697780df596990614768bab0a4d4e17a92ec2"
+                   },
+                   {
+                       "file":  "CARDS_13501_13600.md",
+                       "start":  13501,
+                       "end":  13600,
+                       "count":  100,
+                       "firstCard":  "Worm Xex",
+                       "lastCard":  "Yaguramaru the Armor Ninja",
+                       "sha256":  "b518c2657629a1a4ef9b00b05ec00f17eff1d480a0280106e343d8e23c3ac84e"
+                   },
+                   {
+                       "file":  "CARDS_13601_13700.md",
+                       "start":  13601,
+                       "end":  13700,
+                       "count":  100,
+                       "firstCard":  "Yaiba Robo",
+                       "lastCard":  "Zeman the Ape King",
+                       "sha256":  "8e37a2e49fd9d512f29ec835a642e8179c55d3853b4fcca30f1db663b831abba"
+                   },
+                   {
+                       "file":  "CARDS_13701_13790.md",
+                       "start":  13701,
+                       "end":  13790,
+                       "count":  90,
+                       "firstCard":  "Zenmaiday",
+                       "lastCard":  "Z-Zillion Tank",
+                       "sha256":  "be575bd8083f3b6829fc968c2219eb8c8d9952416dec575ffc5ca52ad663bc1d"
+                   }
+               ]
+}

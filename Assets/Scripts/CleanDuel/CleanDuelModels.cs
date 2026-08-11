@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using IcarusGame.MasterDuel;
 
 namespace IcarusGame.CleanDuel
 {
@@ -72,6 +73,61 @@ namespace IcarusGame.CleanDuel
         ExtraMonster
     }
 
+    public enum CleanDuelCinematicKind
+    {
+        RivalryClimax,
+        SignatureFinalBlow,
+        SignatureSummon,
+        EffectActivation,
+        GenericSummon
+    }
+
+    public enum CleanSummonPresentationKind
+    {
+        None,
+        Ritual,
+        Fusion,
+        Synchro,
+        Xyz,
+        Pendulum,
+        Link
+    }
+
+    public sealed class CleanDuelCinematicEvent
+    {
+        public CleanDuelCinematicEvent(
+            long sequence,
+            CleanDuelCinematicKind kind,
+            CleanPlayerId attackingPlayer,
+            int attackerCardId,
+            string attackerName,
+            int defenderCardId,
+            string defenderName,
+            int value,
+            CleanSummonPresentationKind summonKind = CleanSummonPresentationKind.None)
+        {
+            Sequence = sequence;
+            Kind = kind;
+            AttackingPlayer = attackingPlayer;
+            AttackerCardId = attackerCardId;
+            AttackerName = attackerName ?? string.Empty;
+            DefenderCardId = defenderCardId;
+            DefenderName = defenderName ?? string.Empty;
+            Value = value;
+            SummonKind = summonKind;
+        }
+
+        public long Sequence { get; private set; }
+        public CleanDuelCinematicKind Kind { get; private set; }
+        public CleanPlayerId AttackingPlayer { get; private set; }
+        public int AttackerCardId { get; private set; }
+        public string AttackerName { get; private set; }
+        public int DefenderCardId { get; private set; }
+        public string DefenderName { get; private set; }
+        public int Value { get; private set; }
+        public CleanSummonPresentationKind SummonKind { get; private set; }
+    }
+
 
     public sealed class CleanChoiceOption
     {
@@ -137,27 +193,91 @@ namespace IcarusGame.CleanDuel
             string typeLine,
             string text,
             string effectKey)
+            : this(
+                id,
+                name,
+                kind,
+                kind == CleanCardKind.Monster && typeLine != null &&
+                (typeLine.IndexOf("Xyz", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                 typeLine.IndexOf("Link", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    ? 0
+                    : level,
+                kind == CleanCardKind.Monster && typeLine != null &&
+                typeLine.IndexOf("Xyz", System.StringComparison.OrdinalIgnoreCase) >= 0
+                    ? level
+                    : 0,
+                kind == CleanCardKind.Monster && typeLine != null &&
+                typeLine.IndexOf("Link", System.StringComparison.OrdinalIgnoreCase) >= 0
+                    ? level
+                    : 0,
+                attack,
+                defense,
+                typeLine,
+                text,
+                effectKey,
+                null)
+        {
+        }
+
+        public CleanCardDefinition(
+            int id,
+            string name,
+            CleanCardKind kind,
+            int level,
+            int rank,
+            int linkRating,
+            int attack,
+            int defense,
+            string typeLine,
+            string text,
+            string effectKey,
+            MasterDuelCardDefinition canonicalDefinition)
         {
             Id = id;
             Name = name;
             Kind = kind;
             Level = level;
+            Rank = rank;
+            LinkRating = linkRating;
             Attack = attack;
             Defense = defense;
             TypeLine = typeLine;
             Text = text;
             EffectKey = effectKey;
+            CanonicalDefinition = canonicalDefinition;
         }
 
         public int Id { get; private set; }
         public string Name { get; private set; }
         public CleanCardKind Kind { get; private set; }
         public int Level { get; private set; }
+        public int Rank { get; private set; }
+        public int LinkRating { get; private set; }
         public int Attack { get; private set; }
         public int Defense { get; private set; }
+        public MasterDuelStat AttackStat
+        {
+            get
+            {
+                return CanonicalDefinition != null
+                    ? CanonicalDefinition.Attack
+                    : new MasterDuelStat(MasterDuelStatKind.Fixed, Attack);
+            }
+        }
+
+        public MasterDuelStat DefenseStat
+        {
+            get
+            {
+                return CanonicalDefinition != null
+                    ? CanonicalDefinition.Defense
+                    : new MasterDuelStat(MasterDuelStatKind.Fixed, Defense);
+            }
+        }
         public string TypeLine { get; private set; }
         public string Text { get; private set; }
         public string EffectKey { get; private set; }
+        public MasterDuelCardDefinition CanonicalDefinition { get; private set; }
     }
 
     public sealed class CleanCard
@@ -298,6 +418,8 @@ namespace IcarusGame.CleanDuel
         public CleanDuelResult Result;
         public int RandomSeed;
         public long StateSequence;
+        public long CinematicSequence;
+        public bool RivalryClimaxShown;
         public string DeterministicStateHash = string.Empty;
         public readonly List<CleanDuelEventRecord> EventStream = new List<CleanDuelEventRecord>();
         public string WinnerText = string.Empty;
