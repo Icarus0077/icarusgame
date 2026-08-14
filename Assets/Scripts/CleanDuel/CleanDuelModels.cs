@@ -360,6 +360,15 @@ namespace IcarusGame.CleanDuel
 
         public CleanPlayerId Id { get; private set; }
         public string Name { get; private set; }
+
+        public void SetDisplayName(string displayName)
+        {
+            if (!string.IsNullOrWhiteSpace(displayName))
+            {
+                Name = displayName.Trim();
+            }
+        }
+
         public int LifePoints = StartingLifePoints;
         public bool NormalSummonUsed;
         public bool PendulumSummonUsed;

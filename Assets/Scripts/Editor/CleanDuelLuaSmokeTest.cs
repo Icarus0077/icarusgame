@@ -23,6 +23,7 @@ namespace IcarusGame.EditorTools
             AssertSignatureBattleCinematics();
             AssertSignatureCinematicViewBuilds();
             AssertMasterDuelCatalogImport();
+            AssertAdminAccessContractAndCardPolicy();
 
             if (game.State.Local.Deck.Count != 36)
             {
@@ -80,6 +81,47 @@ namespace IcarusGame.EditorTools
             AssertSurrenderResultFlow();
             AssertNormalMonsterHasNoActivationAndUsesTributes();
             Debug.Log("CleanDuel deck smoke test passed. Main=41, Extra=10, exact screenshot recipe, complete current deck artwork, animation catalog and presentation events, all restored Blue-Eyes effects, autonomous Beginner/Intermediate/Expert opponent AI, filtered Fusion/Ritual/Synchro/Xyz/Link choices, clean activations, real fusion summons, rulebook Spell/Trap timing, ritual summons, Trigger rules, Link Summon rules, Synchro Summon rules, True Light rules, phase flow, battle rules, deterministic starts, surrender results, targeting protection, and tribute rules verified.");
+        }
+
+        private static void AssertAdminAccessContractAndCardPolicy()
+        {
+            const string json = "{\"decision\":{\"allowed\":true,\"code\":\"ALLOWED\",\"reason\":\"Toegang verleend.\"},\"user\":{\"id\":\"usr_test\",\"displayName\":\"Admin Testspeler\",\"email\":\"test@example.com\",\"role\":\"Tester\",\"accessGroup\":\"Closed Alpha\"},\"settings\":{\"matchmakingRegion\":\"eu-west\",\"rankedEnabled\":false,\"deckSlots\":12,\"cardOverrides\":[{\"cardId\":\"17725109\",\"cardName\":\"Roar of the Blue-Eyed Dragons\",\"allowed\":false}]}}";
+            CleanDuelAccessResponse response = JsonUtility.FromJson<CleanDuelAccessResponse>(json);
+            CleanDuelAccessSession session;
+            string error;
+            if (!CleanDuelAccessSession.TryCreate(response, out session, out error))
+            {
+                throw new InvalidOperationException("Admin access contract failed: " + error);
+            }
+
+            if (session.DisplayName != "Admin Testspeler" || session.MatchmakingRegion != "eu-west" || session.RankedEnabled || session.DeckSlots != 12)
+            {
+                throw new InvalidOperationException("Admin access contract failed: user settings were not mapped into the runtime session.");
+            }
+
+            CleanDuelGame authorizedGame = new CleanDuelGame();
+            authorizedGame.ConfigureAuthorizedPlayer(session.DisplayName, session.UnavailableCardIds);
+            authorizedGame.StartNewDuel(SmokeTestSeed);
+            if (authorizedGame.State.Local.Name != "Admin Testspeler")
+            {
+                throw new InvalidOperationException("Admin access contract failed: the authorized display name was not applied.");
+            }
+
+            AssertCardUnavailable(authorizedGame.State.Local.Deck, 17725109);
+            AssertCardUnavailable(authorizedGame.State.Local.Hand, 17725109);
+            AssertCardUnavailable(authorizedGame.State.Rival.Deck, 17725109);
+            AssertCardUnavailable(authorizedGame.State.Rival.Hand, 17725109);
+        }
+
+        private static void AssertCardUnavailable(List<CleanCard> cards, int cardId)
+        {
+            for (int index = 0; index < cards.Count; index++)
+            {
+                if (cards[index].Definition.Id == cardId)
+                {
+                    throw new InvalidOperationException("Admin card policy failed: denied card " + cardId + " remained in the duel recipe.");
+                }
+            }
         }
 
         private static void AssertAutonomousOpponentAiDifficulties()

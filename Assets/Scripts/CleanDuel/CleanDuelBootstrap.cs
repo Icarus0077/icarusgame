@@ -10,6 +10,12 @@ namespace IcarusGame.CleanDuel
 {
     public sealed class CleanDuelBootstrap : MonoBehaviour
     {
+        private const string LastGameUserKey = "Icarus.LastGameUser";
+
+        [SerializeField] private string accessApiUrl = "https://gameserver.rene007.nl/api/game/v1/access/check";
+        [SerializeField] private string gameId = "master-duel";
+        [SerializeField] private string serverEnvironment = "Production";
+
         private readonly CleanDuelGame game = new CleanDuelGame();
         private CleanDuelArtCache artCache;
         private CleanDuelBoardView boardView;
@@ -19,6 +25,10 @@ namespace IcarusGame.CleanDuel
         private Coroutine cinematicRoutine;
         private Transform runtimeRoot;
         private Camera arenaCamera;
+        private CleanDuelAccessGateView accessGate;
+        private CleanDuelAccessSession authorizedSession;
+        private Coroutine accessRoutine;
+        private bool accessGranted;
         private int selectedHand = -1;
         private int selectedMonster = -1;
         private int selectedSpellTrap = -1;
@@ -36,6 +46,11 @@ namespace IcarusGame.CleanDuel
             get { return game.RivalAiDifficulty; }
         }
 
+        public CleanDuelAccessSession AuthorizedSession
+        {
+            get { return authorizedSession; }
+        }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureDuelRuntimeExists()
         {
@@ -48,7 +63,7 @@ namespace IcarusGame.CleanDuel
             new GameObject("Clean Duel Bootstrap (Automatic)").AddComponent<CleanDuelBootstrap>();
         }
 
-        private void Start()
+        private IEnumerator Start()
         {
             RemoveExistingRuntimeObjects();
             runtimeRoot = new GameObject("Clean Duel Runtime Objects").transform;
@@ -56,6 +71,17 @@ namespace IcarusGame.CleanDuel
             arenaCamera = EnsureCamera();
             EnsureLighting();
             EnsureEventSystem();
+
+            accessGate = new CleanDuelAccessGateView();
+            accessGate.Build(runtimeRoot, PlayerPrefs.GetString(LastGameUserKey, string.Empty), SubmitAccess);
+            while (!accessGranted)
+            {
+                yield return null;
+            }
+
+            accessGate.Dispose();
+            accessGate = null;
+            game.ConfigureAuthorizedPlayer(authorizedSession.DisplayName, authorizedSession.UnavailableCardIds);
 
             boardView = new CleanDuelBoardView(this, artCache);
             boardView.Build(runtimeRoot, arenaCamera);
@@ -73,6 +99,18 @@ namespace IcarusGame.CleanDuel
 
         private void OnDestroy()
         {
+            if (accessRoutine != null)
+            {
+                StopCoroutine(accessRoutine);
+                accessRoutine = null;
+            }
+
+            if (accessGate != null)
+            {
+                accessGate.Dispose();
+                accessGate = null;
+            }
+
             game.Changed -= Refresh;
             game.CinematicRequested -= QueueCinematic;
             if (cinematicView != null)
@@ -80,6 +118,54 @@ namespace IcarusGame.CleanDuel
                 cinematicView.Dispose();
                 cinematicView = null;
             }
+        }
+
+        private void SubmitAccess(string user, string code)
+        {
+            if (accessRoutine != null || accessGate == null)
+            {
+                return;
+            }
+
+            accessGate.SetBusy(true);
+            accessRoutine = StartCoroutine(CheckAccess(user, code));
+        }
+
+        private IEnumerator CheckAccess(string user, string code)
+        {
+            CleanDuelAccessResult result = null;
+            yield return CleanDuelAccessClient.Check(
+                accessApiUrl,
+                user,
+                code,
+                gameId,
+                serverEnvironment,
+                received => result = received);
+
+            accessRoutine = null;
+            if (accessGate == null)
+            {
+                yield break;
+            }
+
+            if (result == null || !result.Success)
+            {
+                accessGate.ShowError(result != null ? result.Message : "De toegangscontrole gaf geen antwoord.");
+                yield break;
+            }
+
+            CleanDuelAccessSession session;
+            string error;
+            if (!CleanDuelAccessSession.TryCreate(result.Response, out session, out error))
+            {
+                accessGate.ShowError(error);
+                yield break;
+            }
+
+            authorizedSession = session;
+            PlayerPrefs.SetString(LastGameUserKey, user.Trim());
+            PlayerPrefs.Save();
+            accessGranted = true;
         }
 
         public void SelectHand(int index)

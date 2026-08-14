@@ -208,6 +208,7 @@ namespace IcarusGame.CleanDuel
         private System.Random rivalAiRandom;
         private readonly CleanDuelAiPlanner rivalAiPlanner = new CleanDuelAiPlanner();
         private readonly HashSet<int> rivalAiAttemptedEffectsThisTurn = new HashSet<int>();
+        private readonly HashSet<int> unavailableCardIds = new HashSet<int>();
         private readonly CleanLuaEffectBridge luaBridge = new CleanLuaEffectBridge();
         private int pendingMausoleumTargetZone = -1;
         private int pendingSpiritZone = -1;
@@ -260,6 +261,21 @@ namespace IcarusGame.CleanDuel
         }
 
         public CleanDuelAiDifficulty RivalAiDifficulty { get; private set; } = CleanDuelAiDifficulty.Intermediate;
+
+        public void ConfigureAuthorizedPlayer(string displayName, IEnumerable<int> deniedCardIds)
+        {
+            State.Local.SetDisplayName(displayName);
+            unavailableCardIds.Clear();
+            if (deniedCardIds == null)
+            {
+                return;
+            }
+
+            foreach (int cardId in deniedCardIds)
+            {
+                unavailableCardIds.Add(cardId);
+            }
+        }
 
         public void SetRivalAiDifficulty(CleanDuelAiDifficulty difficulty)
         {
@@ -12553,8 +12569,16 @@ namespace IcarusGame.CleanDuel
 
         private void FillDeck(CleanPlayerState player)
         {
-            player.Deck.AddRange(CleanCardLibrary.BuildDeck(player.Id));
-            player.ExtraDeck.AddRange(CleanCardLibrary.BuildExtraDeck(player.Id));
+            List<CleanCard> deck = CleanCardLibrary.BuildDeck(player.Id);
+            List<CleanCard> extraDeck = CleanCardLibrary.BuildExtraDeck(player.Id);
+            if (unavailableCardIds.Count > 0)
+            {
+                deck.RemoveAll(card => unavailableCardIds.Contains(card.Definition.Id));
+                extraDeck.RemoveAll(card => unavailableCardIds.Contains(card.Definition.Id));
+            }
+
+            player.Deck.AddRange(deck);
+            player.ExtraDeck.AddRange(extraDeck);
         }
 
         private void Shuffle(List<CleanCard> cards)
