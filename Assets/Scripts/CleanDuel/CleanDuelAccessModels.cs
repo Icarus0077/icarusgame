@@ -21,6 +21,7 @@ namespace IcarusGame.CleanDuel
         public CleanDuelAccessDecision decision;
         public CleanDuelAccessUser user;
         public CleanDuelAccessSettings settings;
+        public CleanDuelRankedData ranked;
     }
 
     [Serializable]
@@ -78,6 +79,7 @@ namespace IcarusGame.CleanDuel
         public string AccessGroup { get; private set; }
         public string MatchmakingRegion { get; private set; }
         public bool RankedEnabled { get; private set; }
+        public CleanDuelRankedSnapshot Ranked { get; private set; }
         public int DeckSlots { get; private set; }
         public IEnumerable<int> UnavailableCardIds { get { return unavailableCardIds; } }
 
@@ -115,6 +117,7 @@ namespace IcarusGame.CleanDuel
                 AccessGroup = response.user.accessGroup ?? string.Empty,
                 MatchmakingRegion = settings.matchmakingRegion ?? string.Empty,
                 RankedEnabled = settings.rankedEnabled,
+                Ranked = settings.rankedEnabled ? CleanDuelRankedSnapshot.FromServer(response.ranked) : null,
                 DeckSlots = settings.deckSlots
             };
 

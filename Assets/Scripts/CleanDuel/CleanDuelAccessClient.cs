@@ -11,15 +11,41 @@ namespace IcarusGame.CleanDuel
         public static IEnumerator Check(
             string endpoint,
             string user,
-            string code,
+            string password,
             string gameId,
             string environment,
             Action<CleanDuelAccessResult> completed)
         {
+            // De coroutine moet eerst starten voordat een lokale validatiefout terugkomt.
+            yield return null;
+
+            Uri endpointUri;
+            if (!Uri.TryCreate(endpoint, UriKind.Absolute, out endpointUri) || endpointUri.Scheme != Uri.UriSchemeHttps)
+            {
+                completed(new CleanDuelAccessResult
+                {
+                    Success = false,
+                    Message = "Inloggen vereist een beveiligde HTTPS-verbinding met de gameserver."
+                });
+                yield break;
+            }
+
+            string normalizedPassword = (password ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(user) || normalizedPassword.Length < 12 || normalizedPassword.Length > 128)
+            {
+                completed(new CleanDuelAccessResult
+                {
+                    Success = false,
+                    Message = "Vul je e-mailadres of gebruikers-ID en een wachtwoord van 12 tot 128 tekens in."
+                });
+                yield break;
+            }
+
             CleanDuelAccessRequest payload = new CleanDuelAccessRequest
             {
                 user = user.Trim(),
-                accessCode = code.Trim(),
+                // Dit veld blijft gelijk voor compatibiliteit met de bestaande gameserver en accounts.
+                accessCode = normalizedPassword,
                 gameId = gameId,
                 environment = environment,
                 clientVersion = Application.version

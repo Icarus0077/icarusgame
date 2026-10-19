@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="referrer" content="same-origin">
+    <title>Inloggen · Icarus Control</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #06110e;
+        --panel: #0a1d18;
+        --line: #225747;
+        --text: #e4f2ec;
+        --muted: #9bb9ad;
+        --mint: #0af5bd;
+      }
+      * { box-sizing: border-box; }
+      [hidden] { display: none !important; }
+      html { min-height: 100%; background: #030a08; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        min-height: 100svh;
+        display: flex;
+        flex-direction: column;
+        color: var(--text);
+        font-family: Inter, "Segoe UI", Arial, sans-serif;
+        background:
+          radial-gradient(ellipse at 50% 25%, rgba(10, 245, 189, .09), transparent 60%),
+          linear-gradient(135deg, #030a08, var(--bg));
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(34, 87, 71, .12) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(34, 87, 71, .12) 1px, transparent 1px);
+        background-size: 56px 56px;
+        mask-image: linear-gradient(transparent, #000 45%, transparent);
+      }
+      .topbar {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 24px 36px;
+        border-bottom: 1px solid #17382f;
+      }
+      .brand { display: flex; align-items: center; gap: 12px; }
+      .brand-mark {
+        display: grid;
+        place-items: center;
+        width: 39px;
+        height: 39px;
+        border: 1px solid var(--mint);
+        border-radius: 10px 3px 10px 3px;
+        color: var(--mint);
+        font: 800 19px ui-monospace, Consolas, monospace;
+        box-shadow: inset 0 0 15px rgba(10, 245, 189, .12), 0 0 18px rgba(10, 245, 189, .08);
+      }
+      .brand strong { display: block; font-size: 15px; letter-spacing: .2em; }
+      .brand small {
+        display: block;
+        margin-top: 5px;
+        color: var(--mint);
+        font: 600 9px ui-monospace, Consolas, monospace;
+        letter-spacing: .36em;
+      }
+      .topbar-note { color: var(--muted); font: 11px ui-monospace, Consolas, monospace; letter-spacing: .08em; }
+      main { position: relative; flex: 1; display: grid; place-items: center; padding: 48px 20px; }
+      .login-card {
+        width: 100%;
+        max-width: 460px;
+        padding: 36px;
+        border: 1px solid #225747;
+        border-top: 2px solid var(--mint);
+        border-radius: 9px;
+        background: linear-gradient(145deg, #0d241d, #071914);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, .35), 0 0 50px rgba(10, 245, 189, .03);
+      }
+      .lock {
+        display: grid;
+        place-items: center;
+        width: 48px;
+        height: 48px;
+        margin-bottom: 26px;
+        border: 1px solid #225747;
+        border-radius: 10px;
+        color: var(--mint);
+        background: rgba(10, 245, 189, .05);
+      }
+      .eyebrow { margin: 0 0 10px; color: var(--mint); font: 600 10px ui-monospace, Consolas, monospace; letter-spacing: .15em; }
+      h1 { margin: 0 0 12px; font-size: 29px; line-height: 1.2; letter-spacing: -.035em; }
+      .intro { margin: 0 0 28px; color: var(--muted); font-size: 14px; line-height: 1.65; }
+      .message {
+        margin: 0 0 22px;
+        padding: 13px 14px;
+        border: 1px solid rgba(10, 245, 189, .3);
+        border-radius: 6px;
+        background: rgba(10, 245, 189, .06);
+        color: #c3ffed;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      .message.error { color: #ffd5d9; border-color: rgba(255, 95, 109, .4); background: rgba(255, 95, 109, .08); }
+      form { display: grid; gap: 20px; }
+      .field { display: grid; gap: 8px; }
+      label { color: #c2d7ce; font-size: 13px; font-weight: 600; }
+      input, button { font: inherit; }
+      input {
+        width: 100%;
+        height: 48px;
+        min-width: 0;
+        padding: 0 13px;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        background: #051510;
+        color: var(--text);
+        font-size: 16px;
+      }
+      input::placeholder { color: #789b8b; opacity: 1; }
+      input:focus { border-color: var(--mint); }
+      :focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
+      .password-input { position: relative; }
+      .password-input.has-toggle input { padding-right: 102px; }
+      .password-toggle {
+        position: absolute;
+        top: 2px;
+        right: 3px;
+        min-width: 90px;
+        min-height: 44px;
+        padding: 0 10px;
+        border: 0;
+        border-radius: 3px;
+        background: transparent;
+        color: #a4d9c8;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .password-toggle:hover { color: var(--mint); background: rgba(10, 245, 189, .05); }
+      .submit {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        min-height: 48px;
+        margin-top: 4px;
+        padding: 12px 16px;
+        border: 1px solid var(--mint);
+        border-radius: 5px;
+        background: linear-gradient(135deg, var(--mint), #36d6aa);
+        color: #032018;
+        font-size: 14px;
+        font-weight: 750;
+        cursor: pointer;
+        box-shadow: 0 7px 20px rgba(10, 245, 189, .1);
+      }
+      .submit:hover { filter: brightness(1.06); }
+      .submit:disabled { cursor: wait; opacity: .7; }
+      .recovery { margin: 20px 0 0; font-size: 13px; line-height: 1.6; }
+      .recovery a { display: inline-flex; align-items: center; min-height: 44px; color: var(--mint); text-underline-offset: 4px; }
+      .recovery a:hover { color: #b9ffe9; }
+      .recovery small { display: block; color: var(--muted); font-size: 12px; }
+      .account-note { margin: 26px 0 0; padding-top: 22px; border-top: 1px solid #17382f; color: var(--muted); font-size: 12px; line-height: 1.65; }
+      footer { position: relative; padding: 0 20px 26px; color: #84a495; text-align: center; font: 11px ui-monospace, Consolas, monospace; }
+      @media (max-width: 520px) {
+        .topbar { padding: 20px; }
+        .topbar-note { display: none; }
+        main { padding: 28px 16px; }
+        .login-card { padding: 28px 22px; }
+        h1 { font-size: 27px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand" aria-label="Icarus Control">
+        <span class="brand-mark" aria-hidden="true">I</span>
+        <div><strong>ICARUS</strong><small>CONTROL</small></div>
+      </div>
+      <span class="topbar-note">GAME OPERATIONS</span>
+    </header>
+    <main>
+      <section class="login-card" aria-labelledby="login-heading">
+        <div class="lock" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg>
+        </div>
+        <p class="eyebrow">BEHEEROMGEVING</p>
+        <h1 id="login-heading">Welkom terug.</h1>
+        <p class="intro" id="login-intro">Log in met je bestaande beheeraccount om gebruikers, game-toegang en content te beheren.</p>
+        <p class="message" id="login-message" role="status" aria-live="polite" hidden></p>
+        <form id="login-form" action="/auth/login" method="post" aria-describedby="login-intro">
+          <div class="field">
+            <label for="username">Gebruikersnaam</label>
+            <input id="username" name="httpd_username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required placeholder="Je beheerdersnaam">
+          </div>
+          <div class="field">
+            <label for="password">Wachtwoord</label>
+            <div class="password-input" id="password-input">
+              <input id="password" name="httpd_password" type="password" autocomplete="current-password" required>
+              <button class="password-toggle" id="password-toggle" type="button" aria-controls="password" aria-label="Wachtwoord tonen" aria-pressed="false" hidden>Tonen</button>
+            </div>
+          </div>
+          <button class="submit" id="login-submit" type="submit"><span id="submit-label">Inloggen</span><span aria-hidden="true">→</span></button>
+        </form>
+        <p class="recovery">
+          <a href="/password-reset">Wachtwoord vergeten?</a>
+          <small>Herstel via e-mail voor spelersaccounts. Voor je beheeraccount neem je contact op met de beheerder.</small>
+        </p>
+        <p class="account-note">Gebruik je beheeraccount voor dit panel. Spelers loggen in via de game.</p>
+      </section>
+    </main>
+    <footer>ICARUS · GAME SERVER CONTROL</footer>
+    <script>
+      (function () {
+        "use strict";
+        const params = new URLSearchParams(window.location.search);
+        const message = document.getElementById("login-message");
+        const form = document.getElementById("login-form");
+        const password = document.getElementById("password");
+        const toggle = document.getElementById("password-toggle");
+        const submit = document.getElementById("login-submit");
+        const submitLabel = document.getElementById("submit-label");
+
+        function showError(text) {
+          message.textContent = text;
+          message.classList.add("error");
+          message.setAttribute("role", "alert");
+          message.hidden = false;
+        }
+
+        if (params.get("error") === "1") {
+          showError("Gebruikersnaam of wachtwoord is onjuist. Controleer je gegevens en probeer opnieuw.");
+        } else if (params.get("logged_out") === "1") {
+          message.textContent = "Je bent uitgelogd. Je kunt hieronder opnieuw inloggen.";
+          message.hidden = false;
+        } else if (params.get("expired") === "1") {
+          message.textContent = "Log opnieuw in om verder te gaan. Je beheersessie is verlopen of niet meer beschikbaar.";
+          message.hidden = false;
+        }
+
+        toggle.hidden = false;
+        document.getElementById("password-input").classList.add("has-toggle");
+        toggle.addEventListener("click", function () {
+          const visible = password.type === "password";
+          password.type = visible ? "text" : "password";
+          toggle.textContent = visible ? "Verbergen" : "Tonen";
+          toggle.setAttribute("aria-label", visible ? "Wachtwoord verbergen" : "Wachtwoord tonen");
+          toggle.setAttribute("aria-pressed", String(visible));
+        });
+        form.addEventListener("submit", async function (event) {
+          event.preventDefault();
+          if (submit.disabled) return;
+          message.hidden = true;
+          submit.disabled = true;
+          submitLabel.textContent = "Inloggen…";
+          form.setAttribute("aria-busy", "true");
+          try {
+            const response = await fetch(form.action, {
+              method: "POST",
+              body: new URLSearchParams(new FormData(form)),
+              credentials: "same-origin",
+              redirect: "follow",
+              cache: "no-store"
+            });
+            const destination = new URL(response.url);
+            if (response.ok && destination.origin === window.location.origin && destination.pathname === "/") {
+              window.location.replace("/");
+              return;
+            }
+            if (response.status === 401 || (destination.pathname === "/login" && destination.searchParams.get("error") === "1")) {
+              showError("Gebruikersnaam of wachtwoord is onjuist. Controleer je gegevens en probeer opnieuw.");
+            } else if (response.status === 403) {
+              showError("Aanmelden is geblokkeerd. Open deze pagina opnieuw via https://gameserver.rene007.nl/login en probeer opnieuw.");
+            } else if (response.ok && destination.pathname === "/login") {
+              showError("Je aanmelding kon niet worden bewaard. Sta cookies voor deze website toe en probeer opnieuw.");
+            } else {
+              showError("Aanmelden is tijdelijk niet beschikbaar. Probeer het over enkele ogenblikken opnieuw.");
+            }
+          } catch {
+            showError("Geen verbinding met de server. Controleer je internetverbinding en probeer opnieuw.");
+          } finally {
+            password.value = "";
+            password.type = "password";
+            toggle.textContent = "Tonen";
+            toggle.setAttribute("aria-label", "Wachtwoord tonen");
+            toggle.setAttribute("aria-pressed", "false");
+            submit.disabled = false;
+            submitLabel.textContent = "Inloggen";
+            form.removeAttribute("aria-busy");
+            if (!message.hidden) password.focus();
+          }
+        });
+        window.addEventListener("pageshow", function () {
+          submit.disabled = false;
+          submitLabel.textContent = "Inloggen";
+          form.removeAttribute("aria-busy");
+          password.type = "password";
+          toggle.textContent = "Tonen";
+          toggle.setAttribute("aria-label", "Wachtwoord tonen");
+          toggle.setAttribute("aria-pressed", "false");
+        });
+      }());
+    </script>
+  </body>
+</html>

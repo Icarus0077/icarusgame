@@ -20,6 +20,7 @@ namespace IcarusGame.CleanDuel
         private CleanDuelArtCache artCache;
         private CleanDuelBoardView boardView;
         private CleanDuelHudView hudView;
+        private CleanDuelRankedView rankedView;
         private CleanDuelCinematicView cinematicView;
         private readonly Queue<CleanDuelCinematicEvent> pendingCinematics = new Queue<CleanDuelCinematicEvent>();
         private Coroutine cinematicRoutine;
@@ -46,6 +47,9 @@ namespace IcarusGame.CleanDuel
             get { return game.RivalAiDifficulty; }
         }
 
+        public string RivalAiModeLabel { get { return game.RivalAiModeLabel; } }
+        public bool CanChangeRivalAiMode { get { return game.CanChangeRivalAiMode; } }
+
         public CleanDuelAccessSession AuthorizedSession
         {
             get { return authorizedSession; }
@@ -54,8 +58,8 @@ namespace IcarusGame.CleanDuel
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureDuelRuntimeExists()
         {
-            if (Object.FindFirstObjectByType<CleanDuelBootstrap>(FindObjectsInactive.Include) != null ||
-                Object.FindFirstObjectByType<IcarusGame.MasterDuel.MasterDuelRuntime>(FindObjectsInactive.Include) != null)
+            if (Object.FindAnyObjectByType<CleanDuelBootstrap>(FindObjectsInactive.Include) != null ||
+                Object.FindAnyObjectByType<IcarusGame.MasterDuel.MasterDuelRuntime>(FindObjectsInactive.Include) != null)
             {
                 return;
             }
@@ -73,7 +77,11 @@ namespace IcarusGame.CleanDuel
             EnsureEventSystem();
 
             accessGate = new CleanDuelAccessGateView();
-            accessGate.Build(runtimeRoot, PlayerPrefs.GetString(LastGameUserKey, string.Empty), SubmitAccess);
+            System.Uri accessUri;
+            string recoveryUrl = System.Uri.TryCreate(accessApiUrl, System.UriKind.Absolute, out accessUri)
+                ? new System.Uri(accessUri, "/password-reset.html").AbsoluteUri
+                : null;
+            accessGate.Build(runtimeRoot, PlayerPrefs.GetString(LastGameUserKey, string.Empty), SubmitAccess, recoveryUrl);
             while (!accessGranted)
             {
                 yield return null;
@@ -82,12 +90,16 @@ namespace IcarusGame.CleanDuel
             accessGate.Dispose();
             accessGate = null;
             game.ConfigureAuthorizedPlayer(authorizedSession.DisplayName, authorizedSession.UnavailableCardIds);
+            game.ConfigureRankedOpponent(authorizedSession.Ranked);
 
             boardView = new CleanDuelBoardView(this, artCache);
             boardView.Build(runtimeRoot, arenaCamera);
 
             hudView = new CleanDuelHudView(this, artCache);
             hudView.Build();
+
+            rankedView = new CleanDuelRankedView();
+            rankedView.Build(runtimeRoot, authorizedSession);
 
             cinematicView = new CleanDuelCinematicView(artCache);
             cinematicView.Build();
@@ -113,6 +125,11 @@ namespace IcarusGame.CleanDuel
 
             game.Changed -= Refresh;
             game.CinematicRequested -= QueueCinematic;
+            if (rankedView != null)
+            {
+                rankedView.Dispose();
+                rankedView = null;
+            }
             if (cinematicView != null)
             {
                 cinematicView.Dispose();
@@ -120,7 +137,7 @@ namespace IcarusGame.CleanDuel
             }
         }
 
-        private void SubmitAccess(string user, string code)
+        private void SubmitAccess(string user, string password)
         {
             if (accessRoutine != null || accessGate == null)
             {
@@ -128,16 +145,16 @@ namespace IcarusGame.CleanDuel
             }
 
             accessGate.SetBusy(true);
-            accessRoutine = StartCoroutine(CheckAccess(user, code));
+            accessRoutine = StartCoroutine(CheckAccess(user, password));
         }
 
-        private IEnumerator CheckAccess(string user, string code)
+        private IEnumerator CheckAccess(string user, string password)
         {
             CleanDuelAccessResult result = null;
             yield return CleanDuelAccessClient.Check(
                 accessApiUrl,
                 user,
-                code,
+                password,
                 gameId,
                 serverEnvironment,
                 received => result = received);
@@ -183,6 +200,12 @@ namespace IcarusGame.CleanDuel
 
         public void HandleZoneClicked(CleanPlayerId owner, CleanZoneKind zone, int index)
         {
+            // Board slots use OnMouseDown, which does not respect an overlay's UI raycast mask.
+            if (rankedView != null && rankedView.IsOpen)
+            {
+                return;
+            }
+
             if (selectingAttackTarget && owner == CleanPlayerId.Rival && zone == CleanZoneKind.Monster && selectedMonster >= 0 && game.CanAttackWith(selectedMonster))
             {
                 CleanCard target = game.State.Rival.Monsters[index];
@@ -505,7 +528,7 @@ namespace IcarusGame.CleanDuel
 
         public void CycleRivalAiDifficulty()
         {
-            game.CycleRivalAiDifficulty();
+            game.CycleRivalAiMode();
             Refresh();
         }
 

@@ -261,6 +261,35 @@ namespace IcarusGame.CleanDuel
         }
 
         public CleanDuelAiDifficulty RivalAiDifficulty { get; private set; } = CleanDuelAiDifficulty.Intermediate;
+        private CleanDuelRankedAiProfile configuredRankedAiProfile = CleanDuelRankedAiProfile.ForStep(0);
+        public bool RivalAiFollowsRank { get; private set; }
+        public CleanDuelRankedAiProfile RivalRankedAiProfile { get { return RivalAiFollowsRank ? configuredRankedAiProfile : null; } }
+        public string RivalAiModeLabel { get { return RivalAiFollowsRank ? "Auto (" + configuredRankedAiProfile.RankLabel + ")" : RivalAiDifficulty.ToString(); } }
+        public bool CanChangeRivalAiMode { get { return !State.GameOver && State.TurnPlayer == CleanPlayerId.Local && State.PendingChoice == null && activeUiPrompt == null; } }
+
+        public void ConfigureRankedOpponent(CleanDuelRankedSnapshot snapshot)
+        {
+            if (State.TurnNumber > 0 && !CanChangeRivalAiMode) return;
+            configuredRankedAiProfile = CleanDuelRankedAiProfile.FromSnapshot(snapshot);
+            UseRankedRivalAi();
+        }
+
+        private void UseRankedRivalAi()
+        {
+            RivalAiFollowsRank = true;
+            RivalAiDifficulty = configuredRankedAiProfile.Difficulty;
+            rivalAiRandom = CreateRivalAiRandom(State.RandomSeed);
+            Log("Opponent AI follows rank: " + configuredRankedAiProfile.RankLabel + " (" + RivalAiDifficulty + ").");
+            NotifyChanged();
+        }
+
+        public void CycleRivalAiMode()
+        {
+            if (!CanChangeRivalAiMode) return;
+            if (RivalAiFollowsRank) SetRivalAiDifficulty(CleanDuelAiDifficulty.Beginner);
+            else if (RivalAiDifficulty == CleanDuelAiDifficulty.Expert) UseRankedRivalAi();
+            else CycleRivalAiDifficulty();
+        }
 
         public void ConfigureAuthorizedPlayer(string displayName, IEnumerable<int> deniedCardIds)
         {
@@ -279,11 +308,12 @@ namespace IcarusGame.CleanDuel
 
         public void SetRivalAiDifficulty(CleanDuelAiDifficulty difficulty)
         {
-            if (RivalAiDifficulty == difficulty)
+            if (RivalAiDifficulty == difficulty && !RivalAiFollowsRank)
             {
                 return;
             }
 
+            RivalAiFollowsRank = false;
             RivalAiDifficulty = difficulty;
             rivalAiRandom = CreateRivalAiRandom(State.RandomSeed);
             Log("Opponent AI difficulty: " + difficulty + ".");
@@ -363,7 +393,8 @@ namespace IcarusGame.CleanDuel
         {
             unchecked
             {
-                return new System.Random(randomSeed ^ 0x5EED51A1 ^ ((int)RivalAiDifficulty * 7919));
+                int rankSeed = RivalAiFollowsRank ? (configuredRankedAiProfile.LadderStep + 1) * 104729 : 0;
+                return new System.Random(randomSeed ^ 0x5EED51A1 ^ ((int)RivalAiDifficulty * 7919) ^ rankSeed);
             }
         }
 
@@ -2846,13 +2877,14 @@ namespace IcarusGame.CleanDuel
                 CleanDuelAiAction action = rivalAiPlanner.SelectMainAction(
                     legalActions,
                     RivalAiDifficulty,
-                    rivalAiRandom ?? (rivalAiRandom = CreateRivalAiRandom(State.RandomSeed)));
+                    rivalAiRandom ?? (rivalAiRandom = CreateRivalAiRandom(State.RandomSeed)),
+                    RivalRankedAiProfile);
                 if (action == null)
                 {
                     break;
                 }
 
-                Log("Opponent AI (" + RivalAiDifficulty + ") chooses " + action.Label + ".");
+                Log("Opponent AI (" + RivalAiModeLabel + ") chooses " + action.Label + ".");
                 ExecuteRivalMainAction(action);
                 if (pendingRivalActivatedCard != null || State.PendingChoice != null || activeUiPrompt != null)
                 {
@@ -3039,13 +3071,14 @@ namespace IcarusGame.CleanDuel
                 CleanDuelAiAction response = rivalAiPlanner.SelectMainAction(
                     responses,
                     RivalAiDifficulty,
-                    rivalAiRandom ?? (rivalAiRandom = CreateRivalAiRandom(State.RandomSeed)));
+                    rivalAiRandom ?? (rivalAiRandom = CreateRivalAiRandom(State.RandomSeed)),
+                    RivalRankedAiProfile);
                 if (response == null)
                 {
                     return;
                 }
 
-                Log("Opponent AI (" + RivalAiDifficulty + ") responds with " + response.Label + ".");
+                Log("Opponent AI (" + RivalAiModeLabel + ") responds with " + response.Label + ".");
                 ExecuteRivalMainAction(response);
                 if (!ResolveRivalAiChoicesOrPause() || State.PendingChoice != null)
                 {
@@ -3577,7 +3610,8 @@ namespace IcarusGame.CleanDuel
                 int optionIndex = rivalAiPlanner.SelectChoiceIndex(
                     prompt,
                     RivalAiDifficulty,
-                    rivalAiRandom ?? (rivalAiRandom = CreateRivalAiRandom(State.RandomSeed)));
+                    rivalAiRandom ?? (rivalAiRandom = CreateRivalAiRandom(State.RandomSeed)),
+                    RivalRankedAiProfile);
                 if (optionIndex < 0)
                 {
                     Log("Opponent AI has no legal option for " + prompt.Title + ".");
@@ -3751,6 +3785,8 @@ namespace IcarusGame.CleanDuel
 
         private int SelectRivalBattleTarget(CleanCard attacker)
         {
+            if (RivalAiFollowsRank) return SelectRankedRivalBattleTarget(attacker);
+
             List<int> targets = new List<int>();
             for (int i = 0; i < CleanPlayerState.ZoneCount; i++)
             {
@@ -3808,6 +3844,35 @@ namespace IcarusGame.CleanDuel
             }
 
             return bestTarget;
+        }
+
+        private int SelectRankedRivalBattleTarget(CleanCard attacker)
+        {
+            List<CleanDuelAiAction> targets = new List<CleanDuelAiAction>();
+            targets.Add(new CleanDuelAiAction(CleanDuelAiActionKind.HoldAttack, -1, 0, "hold attack"));
+            for (int zone = 0; zone < CleanPlayerState.ZoneCount; zone++)
+            {
+                CleanCard defender = State.Local.Monsters[zone];
+                if (defender == null) continue;
+                int score;
+                if (defender.FaceDown)
+                {
+                    // A face-down defender has no visible identity, ATK or DEF for this decision.
+                    score = 100;
+                }
+                else
+                {
+                    int battlePower = defender.Stance == CleanMonsterStance.Attack ? defender.CurrentAttack : defender.CurrentDefense;
+                    int margin = attacker.CurrentAttack - battlePower;
+                    score = margin < 0 ? -1000 + margin
+                        : defender.CurrentAttack + Mathf.Max(0, margin) + (defender.Stance == CleanMonsterStance.Attack ? margin : 0);
+                }
+                targets.Add(new CleanDuelAiAction(CleanDuelAiActionKind.AttackTarget, zone, score, "choose visible target zone " + zone));
+            }
+            if (targets.Count == 1) return -1;
+            CleanDuelAiAction action = rivalAiPlanner.SelectMainAction(targets, RivalAiDifficulty,
+                rivalAiRandom ?? (rivalAiRandom = CreateRivalAiRandom(State.RandomSeed)), RivalRankedAiProfile);
+            return action != null ? action.Index : -1;
         }
 
         private int StrongestFaceUpMonsterZone(CleanPlayerState player)

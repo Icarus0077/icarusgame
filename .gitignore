@@ -24,3 +24,8 @@ __pycache__/
 *.apk
 *.aab
 *.unitypackage
+
+# Icarus Control is source code, not a generated Unity build.
+!AdminPanel/build/
+!AdminPanel/build/sites-vite-plugin.ts
+AdminPanel/.git-standalone-backup-*/

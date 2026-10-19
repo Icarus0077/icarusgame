@@ -302,7 +302,7 @@ namespace IcarusGame.CleanDuel
 
             aiDifficultyButton = AddChoiceButton("Opponent AI Difficulty", duelMenuPanel, runtime.CycleRivalAiDifficulty);
             aiDifficultyButton.GetComponent<Image>().color = new Color(0.12f, 0.48f, 0.72f, 0.97f);
-            aiDifficultyButton.GetComponentInChildren<Text>().text = "Opponent AI: Intermediate";
+            aiDifficultyButton.GetComponentInChildren<Text>().text = "AI: " + runtime.RivalAiModeLabel;
 
             Button surrenderButton = AddChoiceButton("Surrender Duel", duelMenuPanel, RequestSurrenderFromMenu);
             surrenderButton.GetComponent<Image>().color = CleanDuelVisualTheme.AlertCoral;
@@ -722,8 +722,8 @@ namespace IcarusGame.CleanDuel
             duelMenuButton.interactable = canOpen;
             if (aiDifficultyButton != null)
             {
-                aiDifficultyButton.interactable = canOpen && state.TurnPlayer == CleanPlayerId.Local;
-                aiDifficultyButton.GetComponentInChildren<Text>().text = "Opponent AI: " + runtime.RivalAiDifficulty;
+                aiDifficultyButton.interactable = canOpen && runtime.CanChangeRivalAiMode;
+                aiDifficultyButton.GetComponentInChildren<Text>().text = "AI: " + runtime.RivalAiModeLabel;
             }
             if (!canOpen)
             {

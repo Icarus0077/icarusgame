@@ -1,0 +1,98 @@
+.rkRoot { display: grid; gap: 16px; }
+.rkIntro { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 6px 0; }
+.rkEyebrow { color: var(--amber); font: 600 9px var(--font-geist-mono), monospace; letter-spacing: .16em; }
+.rkIntro h2 { margin: 7px 0; font-size: clamp(22px, 2.7vw, 34px); font-weight: 650; letter-spacing: -.04em; }
+.rkIntro p { max-width: 590px; margin: 0; color: #a3baae; font-size: 12px; line-height: 1.6; }
+.rkSeasonPicker { display: grid; gap: 7px; flex-shrink: 0; min-width: 230px; }
+.rkSeasonPicker label, .rkSimulator label { color: #a3baae; font-size: 11px; }
+.rkSeasonPicker select { font-size: 12px; }
+.rkSafety { padding: 16px 18px; background: linear-gradient(115deg, rgba(248,184,78,.12), rgba(248,184,78,.025)); border: 1px solid rgba(248,184,78,.3); border-left: 3px solid var(--amber); border-radius: 6px; }
+.rkSafety strong { color: #ffd486; font: 650 10px var(--font-geist-mono), monospace; letter-spacing: .08em; }
+.rkSafety p { margin: 7px 0 0; max-width: 1000px; color: #c6bdac; font-size: 12px; line-height: 1.6; }
+.rkSafetyReal { border-color: rgba(57,189,248,.3); border-left-color: var(--cyan); background: rgba(57,189,248,.04); }
+.rkSafetyReal strong { color: var(--cyan); }
+.rkGallery { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.rkRankCard { display: flex; flex-direction: column; align-items: center; padding: 14px 8px 16px; border: 1px solid var(--line); border-radius: 7px; background: radial-gradient(ellipse at 50% 20%, rgba(248,184,78,.09), transparent 70%), var(--panel); }
+.rkBadge { display: grid; place-items: center; width: 90px; height: 90px; flex-shrink: 0; }
+.rkBadge img { width: 100%; height: 100%; object-fit: contain; }
+.rkBadgeFallback { display: grid; place-items: center; width: 72%; height: 72%; border: 1px solid rgba(248,184,78,.4); border-radius: 50%; background: rgba(248,184,78,.07); color: var(--amber); font: 600 25px Georgia, serif; }
+.rkRankCard > span:not(.rkBadge) { margin-top: 7px; color: var(--faint); font: 600 8px var(--font-geist-mono), monospace; letter-spacing: .14em; }
+.rkRankCard strong { margin-top: 5px; font-size: 14px; }
+.rkRankCard small { margin-top: 4px; color: var(--amber); font: 10px var(--font-geist-mono), monospace; }
+.rkRankCard .rkTierLevels { color: #a3baae; margin-top: 8px; font-size: 9px; }
+.rkRules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.rkRules article { padding: 14px 16px; background: rgba(10, 29, 24, .6); border: 1px solid var(--line); border-radius: 6px; }
+.rkRules strong { color: #d3e2d9; font-size: 12px; }
+.rkRules p { margin: 7px 0 0; color: #92ab9f; font-size: 11px; line-height: 1.65; }
+.rkMessage { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin: 0; padding: 13px 16px; border: 1px solid var(--line-bright); border-radius: 6px; color: #c7d9d0; background: var(--panel); font-size: 12px; line-height: 1.6; }
+.rkMessage p { margin: 0; }
+.rkMessage .tableAction { flex-shrink: 0; font-size: 11px; min-height: 36px; }
+.rkError { color: #ffd5d9; border-color: rgba(255,95,109,.3); background: rgba(255,95,109,.06); }
+.rkSuccess { color: #b9ffe9; border-color: rgba(10,245,189,.24); background: rgba(10,245,189,.05); }
+.rkWorkspace { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+.rkReadonly { grid-template-columns: minmax(0, 1fr); }
+.rkLeaderboard { min-width: 0; }
+.rkRoot .panelHeader { min-height: 70px; }
+.rkRoot .panelHeader h2 { font-size: 15px; }
+.rkRoot .panelHeader > div > span { font-size: 8px; }
+.rkRoot .panelHeader > button { font-size: 11px; min-height: 34px; }
+.rkRoot table { font-size: 12px; }
+.rkRoot th { font-size: 9px; }
+.rkRoot td { padding: 12px; }
+.rkPlayer { display: flex; align-items: center; gap: 10px; }
+.rkBadgeCompact { width: 43px; height: 43px; }
+.rkPlayer > div { display: grid; gap: 4px; }
+.rkPlayer small { color: var(--muted); font-size: 10px; }
+.rkWallet { color: var(--amber); font: 600 14px var(--font-geist-mono), monospace; }
+.rkLevelProgress { display: grid; gap: 4px; font-size: 10px; }
+.rkLevelProgress small { color: var(--muted); font-size: 9px; }
+.rkProgressDots { display: flex; gap: 4px; margin: 4px 0; }
+.rkProgressDots i { width: 15px; height: 5px; border: 1px solid var(--line-bright); border-radius: 2px; background: rgba(10, 245, 189, .025); }
+.rkProgressDots .rkDotFilled { border-color: var(--mint-soft); background: var(--mint-soft); }
+.rkWins { color: var(--mint) !important; }
+.rkLoss { color: #ff8993 !important; }
+.rkSelectedRow { background: rgba(10,245,189,.06); }
+.rkFootnote { color: #92ab9f; margin: 0; padding: 13px 16px; font-size: 10px; line-height: 1.6; }
+.rkRoot td.rkEmpty { text-align: center; padding: 35px 16px; color: #92ab9f; }
+.rkRoot .tableAction { font-size: 10px; min-height: 33px; }
+.rkSimulator form { display: grid; gap: 14px; padding: 16px; }
+.rkSimulator fieldset { padding: 0; margin: 0; border: 0; min-width: 0; }
+.rkSimulator legend { width: 100%; margin-bottom: 10px; color: #b9ccc2; font-size: 11px; }
+.rkSimulator legend > span { float: right; color: var(--muted); font-size: 10px; }
+.rkAccountTools { display: flex; gap: 7px; margin-bottom: 9px; }
+.rkAccounts { max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 5px; background: rgba(3,10,8,.3); }
+.rkAccounts label { display: flex; align-items: center; gap: 9px; padding: 10px; border-bottom: 1px solid rgba(23,56,47,.6); cursor: pointer; }
+.rkAccounts label:last-child { border: 0; }
+.rkAccounts input { appearance: auto; flex-shrink: 0; width: 16px; height: 16px; margin: 0; padding: 0; accent-color: var(--mint); }
+.rkAccounts label > span { display: grid; gap: 5px; min-width: 0; }
+.rkAccounts strong { font-size: 11px; color: #d5e5dc; font-weight: 500; overflow-wrap: anywhere; }
+.rkAccounts small { color: #92ab9f; font-size: 9px; overflow-wrap: anywhere; }
+.rkAccounts em { display: inline-block; margin-left: 7px; padding: 2px 4px; color: var(--amber); background: rgba(248,184,78,.08); font-size: 7px; font-style: normal; }
+.rkAccounts .rkAccountDisabled { opacity: .5; cursor: not-allowed; }
+.rkAccounts > .rkMuted { padding: 12px; }
+.rkFormRow { display: grid; grid-template-columns: 1fr 1.3fr; gap: 12px; }
+.rkFormRow label { display: grid; gap: 6px; }
+.rkFormRow input { font-size: 12px; }
+.rkMuted { margin: 0; color: #92ab9f; font-size: 10px; line-height: 1.6; }
+.rkRoot .primaryButton { font-size: 12px; min-height: 43px; }
+.rkDemoButton { border-style: dashed; }
+.rkHistory { min-width: 0; }
+.rkHistoryFilter { width: 230px; }
+.rkHistoryFilter select { font-size: 11px; }
+.rkRoot .cellMeta { font-size: 10px; }
+.rkOutcome { display: inline-block; padding: 5px 8px; color: var(--mint); background: rgba(10,245,189,.08); border: 1px solid rgba(10,245,189,.1); border-radius: 4px; font-size: 10px; }
+.rkDraw { color: var(--amber); background: rgba(248,184,78,.07); border-color: rgba(248,184,78,.1); }
+.rkMatchProgress { display: grid; gap: 5px; font-size: 11px; }
+.rkMatchProgress > strong { font-weight: 500; }
+.rkMatchProgress > small { color: var(--muted); font-size: 10px; }
+.rkMatchProgress .rkReward { color: var(--amber); }
+.rkMmrDetails { color: #92ab9f; font-size: 9px; margin-top: 3px; }
+.rkMmrDetails summary { cursor: pointer; padding: 4px 0; }
+.rkMmrDetails[open] { padding-bottom: 4px; }
+.rkMmrDetails span, .rkMmrDetails small { display: block; margin-top: 3px; font-size: 9px; }
+.rkSrOnly { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.rkRoot :is(button, select, input):focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+.rkRoot :is(button, select, input):disabled { opacity: .5; cursor: not-allowed; }
+@media (max-width: 1500px) { .rkWorkspace { grid-template-columns: minmax(0, 1fr); } .rkSimulator form { grid-template-columns: 1fr 1fr; } .rkSimulator fieldset { grid-row: span 4; } .rkSimulator form > p { grid-column: 2; } .rkReadonly { grid-template-columns: 1fr; } }
+@media (max-width: 850px) { .rkIntro { align-items: stretch; flex-direction: column; gap: 16px; } .rkSeasonPicker { max-width: 100%; } .rkGallery { grid-template-columns: repeat(3, minmax(0, 1fr)); } .rkBadge { width: 75px; height: 75px; } .rkBadgeCompact { width: 36px; height: 36px; } .rkMessage { align-items: stretch; flex-direction: column; } .rkRules { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .rkRoot { gap: 12px; } .rkRankCard { padding: 10px 5px; } .rkBadge { width: 65px; height: 65px; } .rkBadgeCompact { width: 34px; height: 34px; } .rkRankCard strong { font-size: 12px; } .rkSimulator form { grid-template-columns: 1fr; } .rkSimulator form > p { grid-column: auto; } .rkHistory > .panelHeader { align-items: stretch; flex-direction: column; gap: 12px; } .rkHistoryFilter { width: 100%; } }

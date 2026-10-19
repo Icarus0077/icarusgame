@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1786709163758,
+      "tag": "0000_equal_lila_cheney",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1786709237088,
+      "tag": "0001_keen_fabian_cortez",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1786710922536,
+      "tag": "0002_clear_shape",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1786712395608,
+      "tag": "0003_colossal_morlun",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792157111824,
+      "tag": "0004_player_password_recovery",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1792413760256,
+      "tag": "0005_ranked_simulation",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1792416056447,
+      "tag": "0006_ranked_progression",
+      "breakpoints": true
+    }
+  ]
+}

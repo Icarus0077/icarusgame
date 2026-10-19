@@ -17,15 +17,21 @@ namespace IcarusGame.CleanDuel
         private GameObject canvasObject;
         private Font font;
         private InputField userInput;
-        private InputField codeInput;
+        private InputField passwordInput;
         private Button submitButton;
+        private Button recoveryButton;
+        private Button passwordVisibilityButton;
+        private Text passwordVisibilityLabel;
         private Text submitLabel;
         private Text statusText;
         private Action<string, string> submitted;
+        private bool busy;
+        private string recoveryUrl;
 
-        public void Build(Transform parent, string rememberedUser, Action<string, string> onSubmitted)
+        public void Build(Transform parent, string rememberedUser, Action<string, string> onSubmitted, string passwordRecoveryUrl = null)
         {
             submitted = onSubmitted;
+            recoveryUrl = passwordRecoveryUrl;
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             if (font == null) font = Resources.GetBuiltinResource<Font>("Arial.ttf");
 
@@ -47,7 +53,7 @@ namespace IcarusGame.CleanDuel
             RectTransform panel = ImageObject("Access Panel", background.transform, Panel).GetComponent<RectTransform>();
             panel.anchorMin = panel.anchorMax = new Vector2(0.5f, 0.5f);
             panel.pivot = new Vector2(0.5f, 0.5f);
-            panel.sizeDelta = new Vector2(650f, 700f);
+            panel.sizeDelta = new Vector2(650f, 760f);
             panel.anchoredPosition = Vector2.zero;
             Outline outline = panel.gameObject.AddComponent<Outline>();
             outline.effectColor = new Color(0.04f, 0.48f, 0.36f, 0.8f);
@@ -66,8 +72,10 @@ namespace IcarusGame.CleanDuel
             SetRect(intro.rectTransform, new Vector2(0.5f, 1f), new Vector2(0f, -170f), new Vector2(530f, 64f), new Vector2(0.5f, 1f));
 
             userInput = BuildInput(panel, "E-MAIL OF GEBRUIKERS-ID", "speler@example.com", -270f, false);
-            codeInput = BuildInput(panel, "GAME-TOEGANGSCODE", "Voer je persoonlijke toegangscode in", -405f, true);
+            passwordInput = BuildInput(panel, "WACHTWOORD", "Voer je wachtwoord in", -405f, true);
             userInput.text = rememberedUser ?? string.Empty;
+            userInput.onSubmit.AddListener(_ => passwordInput.ActivateInputField());
+            passwordInput.onSubmit.AddListener(_ => Submit());
 
             statusText = Label("Status", panel, "", 16, FontStyle.Bold, TextAnchor.MiddleCenter, Error);
             statusText.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -77,18 +85,25 @@ namespace IcarusGame.CleanDuel
             submitButton = BuildButton(panel, -585f);
             submitButton.onClick.AddListener(Submit);
 
-            Text privacy = Label("Privacy", panel, "Je toegangscode wordt versleuteld via HTTPS verstuurd en niet lokaal bewaard.", 13, FontStyle.Normal, TextAnchor.MiddleCenter, TextMuted);
-            SetRect(privacy.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 34f), new Vector2(560f, 24f), new Vector2(0.5f, 0f));
+            recoveryButton = BuildRecoveryButton(panel, -646f);
+            recoveryButton.onClick.AddListener(ShowRecoveryHelp);
+
+            Text privacy = Label("Privacy", panel, "Je wachtwoord wordt versleuteld via HTTPS verstuurd en niet lokaal bewaard.", 13, FontStyle.Normal, TextAnchor.MiddleCenter, TextMuted);
+            SetRect(privacy.rectTransform, new Vector2(0.5f, 0f), new Vector2(0f, 26f), new Vector2(560f, 24f), new Vector2(0.5f, 0f));
 
             if (string.IsNullOrWhiteSpace(userInput.text)) userInput.Select();
-            else codeInput.Select();
+            else passwordInput.Select();
         }
 
         public void SetBusy(bool busy)
         {
+            this.busy = busy;
             userInput.interactable = !busy;
-            codeInput.interactable = !busy;
+            passwordInput.interactable = !busy;
             submitButton.interactable = !busy;
+            recoveryButton.interactable = !busy;
+            passwordVisibilityButton.interactable = !busy;
+            if (busy) SetPasswordVisible(false);
             submitLabel.text = busy ? "TOEGANG CONTROLEREN..." : "VEILIG INLOGGEN";
             if (busy) SetStatus("Verbinding maken met gameserver.rene007.nl...", Accent);
         }
@@ -97,21 +112,26 @@ namespace IcarusGame.CleanDuel
         {
             SetBusy(false);
             SetStatus(message, Error);
-            codeInput.text = string.Empty;
-            codeInput.Select();
+            passwordInput.text = string.Empty;
+            SetPasswordVisible(false);
+            passwordInput.Select();
         }
 
         public void Dispose()
         {
+            if (passwordInput != null) passwordInput.text = string.Empty;
             if (canvasObject != null) UnityEngine.Object.Destroy(canvasObject);
             canvasObject = null;
+            recoveryButton = null;
             submitted = null;
         }
 
         private void Submit()
         {
+            if (busy || submitted == null) return;
+
             string user = userInput.text.Trim();
-            string code = codeInput.text.Trim();
+            string password = passwordInput.text.Trim();
             if (string.IsNullOrWhiteSpace(user))
             {
                 SetStatus("Vul je e-mailadres of gebruikers-ID in.", Error);
@@ -119,14 +139,31 @@ namespace IcarusGame.CleanDuel
                 return;
             }
 
-            if (code.Length < 12)
+            if (password.Length < 12 || password.Length > 128)
             {
-                SetStatus("De game-toegangscode bestaat uit minimaal 12 tekens.", Error);
-                codeInput.Select();
+                SetStatus("Je wachtwoord bestaat uit 12 tot 128 tekens.", Error);
+                passwordInput.Select();
                 return;
             }
 
-            submitted?.Invoke(user, code);
+            SetBusy(true);
+            passwordInput.text = string.Empty;
+            submitted.Invoke(user, password);
+        }
+
+        private void ShowRecoveryHelp()
+        {
+            if (busy) return;
+            Uri uri;
+            if (!Uri.TryCreate(recoveryUrl, UriKind.Absolute, out uri) || uri.Scheme != Uri.UriSchemeHttps)
+            {
+                SetStatus("Wachtwoordherstel is niet ingesteld. Neem contact op met de beheerder.", Error);
+                return;
+            }
+            passwordInput.text = string.Empty;
+            SetPasswordVisible(false);
+            Application.OpenURL(uri.AbsoluteUri);
+            SetStatus("Vraag in je browser een resetlink aan voor je spelaccount. Beheerdersaccounts gebruiken intern herstel.", Accent);
         }
 
         private InputField BuildInput(Transform parent, string labelText, string placeholderText, float y, bool password)
@@ -163,8 +200,37 @@ namespace IcarusGame.CleanDuel
             input.characterLimit = password ? 128 : 300;
             input.caretColor = Accent;
             input.selectionColor = new Color(Accent.r, Accent.g, Accent.b, 0.32f);
+            if (password)
+            {
+                valueRect.offsetMax = new Vector2(-128f, -8f);
+                placeholderRect.offsetMax = new Vector2(-128f, -8f);
+                BuildPasswordVisibilityButton(fieldObject.transform);
+            }
             input.ForceLabelUpdate();
             return input;
+        }
+
+        private void BuildPasswordVisibilityButton(Transform parent)
+        {
+            GameObject buttonObject = ImageObject("Password Visibility Button", parent, new Color(0.04f, 0.2f, 0.17f, 1f));
+            SetRect(buttonObject.GetComponent<RectTransform>(), new Vector2(1f, 0.5f), new Vector2(-6f, 0f), new Vector2(108f, 50f), new Vector2(1f, 0.5f));
+            passwordVisibilityButton = buttonObject.AddComponent<Button>();
+            passwordVisibilityButton.targetGraphic = buttonObject.GetComponent<Image>();
+            passwordVisibilityLabel = Label("Visibility Label", buttonObject.transform, "TONEN", 13, FontStyle.Bold, TextAnchor.MiddleCenter, Accent);
+            Stretch(passwordVisibilityLabel.rectTransform);
+            passwordVisibilityButton.onClick.AddListener(() =>
+            {
+                if (busy) return;
+                SetPasswordVisible(passwordInput.inputType == InputField.InputType.Password);
+                passwordInput.ActivateInputField();
+            });
+        }
+
+        private void SetPasswordVisible(bool visible)
+        {
+            passwordInput.inputType = visible ? InputField.InputType.Standard : InputField.InputType.Password;
+            passwordVisibilityLabel.text = visible ? "VERBERGEN" : "TONEN";
+            passwordInput.ForceLabelUpdate();
         }
 
         private Button BuildButton(Transform parent, float y)
@@ -182,6 +248,24 @@ namespace IcarusGame.CleanDuel
             button.colors = colors;
             submitLabel = Label("Button Label", buttonObject.transform, "VEILIG INLOGGEN", 17, FontStyle.Bold, TextAnchor.MiddleCenter, Background);
             Stretch(submitLabel.rectTransform);
+            return button;
+        }
+
+        private Button BuildRecoveryButton(Transform parent, float y)
+        {
+            GameObject buttonObject = ImageObject("Password Recovery Button", parent, Color.clear);
+            RectTransform rect = buttonObject.GetComponent<RectTransform>();
+            SetRect(rect, new Vector2(0.5f, 1f), new Vector2(0f, y), new Vector2(530f, 32f), new Vector2(0.5f, 1f));
+            Button button = buttonObject.AddComponent<Button>();
+            button.targetGraphic = buttonObject.GetComponent<Image>();
+            ColorBlock colors = button.colors;
+            colors.normalColor = Color.clear;
+            colors.highlightedColor = new Color(Accent.r, Accent.g, Accent.b, 0.08f);
+            colors.pressedColor = new Color(Accent.r, Accent.g, Accent.b, 0.16f);
+            colors.disabledColor = Color.clear;
+            button.colors = colors;
+            Text label = Label("Recovery Label", buttonObject.transform, "WACHTWOORD VERGETEN?", 14, FontStyle.Bold, TextAnchor.MiddleCenter, Accent);
+            Stretch(label.rectTransform);
             return button;
         }
 

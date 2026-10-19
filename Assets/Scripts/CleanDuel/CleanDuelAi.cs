@@ -22,7 +22,9 @@ namespace IcarusGame.CleanDuel
         SetSpellTrap,
         SynchroSummon,
         XyzSummon,
-        LinkSummon
+        LinkSummon,
+        AttackTarget,
+        HoldAttack
     }
 
     internal sealed class CleanDuelAiAction
@@ -46,11 +48,17 @@ namespace IcarusGame.CleanDuel
         public CleanDuelAiAction SelectMainAction(
             List<CleanDuelAiAction> legalActions,
             CleanDuelAiDifficulty difficulty,
-            Random random)
+            Random random,
+            CleanDuelRankedAiProfile rankedProfile = null)
         {
             if (legalActions == null || legalActions.Count == 0)
             {
                 return null;
+            }
+
+            if (rankedProfile != null)
+            {
+                return SelectRankedAction(legalActions, rankedProfile, random, true);
             }
 
             if (difficulty == CleanDuelAiDifficulty.Beginner)
@@ -88,7 +96,8 @@ namespace IcarusGame.CleanDuel
         public int SelectChoiceIndex(
             CleanChoicePrompt prompt,
             CleanDuelAiDifficulty difficulty,
-            Random random)
+            Random random,
+            CleanDuelRankedAiProfile rankedProfile = null)
         {
             if (prompt == null || prompt.Options == null)
             {
@@ -107,6 +116,18 @@ namespace IcarusGame.CleanDuel
             if (available.Count == 0)
             {
                 return -1;
+            }
+
+            if (rankedProfile != null)
+            {
+                List<CleanDuelAiAction> choices = new List<CleanDuelAiAction>(available.Count);
+                for (int i = 0; i < available.Count; i++)
+                {
+                    int optionIndex = available[i];
+                    choices.Add(new CleanDuelAiAction(CleanDuelAiActionKind.ActivateHand, optionIndex,
+                        ScoreChoice(prompt.Options[optionIndex]), prompt.Options[optionIndex].Label));
+                }
+                return SelectRankedAction(choices, rankedProfile, random, false).Index;
             }
 
             if (difficulty == CleanDuelAiDifficulty.Beginner)
@@ -133,6 +154,37 @@ namespace IcarusGame.CleanDuel
             }
 
             return bestIndex;
+        }
+
+        private static CleanDuelAiAction SelectRankedAction(List<CleanDuelAiAction> legalActions,
+            CleanDuelRankedAiProfile profile, Random random, bool allowEarlyPass)
+        {
+            if (allowEarlyPass && profile.EarlyPassChance > 0d && random.NextDouble() < profile.EarlyPassChance)
+            {
+                return null;
+            }
+
+            legalActions.Sort(CompareActions);
+            if (legalActions.Count == 1 || profile.TopChoiceChance >= 1d || random.NextDouble() < profile.TopChoiceChance)
+            {
+                return legalActions[0];
+            }
+
+            int candidateCount = 1;
+            while (candidateCount < legalActions.Count &&
+                   (long)legalActions[candidateCount].Score >= (long)legalActions[0].Score - profile.CandidateSlack)
+            {
+                candidateCount++;
+            }
+            if (candidateCount == 1) return legalActions[0];
+
+            // Lower ranks consider a wider range of legal moves and mis-evaluate them more.
+            // Only the supplied legal action scores are visible here, never either player's hidden cards.
+            CleanDuelAiAction first = legalActions[random.Next(candidateCount)];
+            CleanDuelAiAction second = legalActions[random.Next(candidateCount)];
+            long firstScore = (long)first.Score + random.Next(-profile.EvaluationJitter, profile.EvaluationJitter + 1);
+            long secondScore = (long)second.Score + random.Next(-profile.EvaluationJitter, profile.EvaluationJitter + 1);
+            return firstScore >= secondScore ? first : second;
         }
 
         private static int CompareActions(CleanDuelAiAction left, CleanDuelAiAction right)
